@@ -4,6 +4,7 @@ import { File, Folder, ChevronUp, Upload } from "lucide-react";
 import { useObjectStore, type ObjectInfo } from "@/stores/objectStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useTransferStore } from "@/stores/transferStore";
+import { useUiStore } from "@/stores/uiStore";
 import { formatBytes, formatDate } from "@/lib/format";
 import { ObjectContextMenu } from "./ObjectContextMenu";
 import { useDropZone } from "@/hooks/useDropZone";
@@ -23,6 +24,7 @@ export function ObjectTable() {
   const fetchMore = useObjectStore((s) => s.fetchMore);
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
   const startUpload = useTransferStore((s) => s.startUpload);
+  const openPreview = useUiStore((s) => s.openPreview);
 
   const handleDrop = useCallback(
     async (paths: string[]) => {
@@ -50,9 +52,11 @@ export function ObjectTable() {
       if (obj.is_folder && activeConnectionId) {
         navigateToPrefix(obj.key);
         fetchObjects(activeConnectionId);
+      } else if (!obj.is_folder) {
+        openPreview({ key: obj.key, displayName: obj.display_name });
       }
     },
-    [activeConnectionId, navigateToPrefix, fetchObjects],
+    [activeConnectionId, navigateToPrefix, fetchObjects, openPreview],
   );
 
   const handleNavigateUp = useCallback(() => {

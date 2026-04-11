@@ -1,4 +1,7 @@
 use tauri::State;
+use base64::Engine;
+use serde::{Deserialize, Serialize};
+use specta::Type;
 
 use crate::models::object::{
     CopyObjectRequest, DeleteObjectsRequest, ListObjectsRequest, ListObjectsResponse,
@@ -19,8 +22,30 @@ async fn get_client(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {connection_id}"))?;
 
-    let secret_key = credentials::get_secret_key(connection_id)?;
-    let session_token = credentials::get_session_token(connection_id)?;
+    // Try in-memory first, then fall back to DB-stored secret
+    let secret_key = match credentials::get_secret_key(connection_id) {
+        Ok(key) => key,
+        Err(_) => {
+            let key = crate::store::database::get_db_secret(db, connection_id)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| format!("Secret key not found for connection {connection_id}"))?;
+            let _ = credentials::store_secret_key(connection_id, &key);
+            key
+        }
+    };
+
+    let session_token = match credentials::get_session_token(connection_id) {
+        Ok(Some(token)) => Some(token),
+        _ => {
+            let token = crate::store::database::get_db_session_token(db, connection_id)
+                .map_err(|e| e.to_string())?;
+            if let Some(ref t) = token {
+                let _ = credentials::store_session_token(connection_id, t);
+            }
+            token
+        }
+    };
+
     let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
 
     pool.get_or_create(connection_id, &config)
@@ -214,5 +239,167 @@ pub async fn get_presigned_url(
             .await
             .map_err(|e| e.to_string())
         }
+    }
+}
+
+/// Max preview size: 5 MB
+const MAX_PREVIEW_BYTES: i64 = 5 * 1024 * 1024;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct PreviewResponse {
+    /// "text", "image", "unsupported"
+    pub preview_type: String,
+    /// For text: the text content. For image: base64-encoded data.
+    pub content: String,
+    /// Detected content type
+    pub content_type: String,
+    /// Total file size
+    pub size: i64,
+    /// Whether the content was truncated
+    pub truncated: bool,
+}
+
+#[tauri::command]
+pub async fn get_object_preview(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    key: String,
+) -> Result<PreviewResponse, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+
+    // Head first to get size and content type
+    let head = client
+        .head_object()
+        .bucket(&bucket)
+        .key(&key)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let size = head.content_length().unwrap_or(0);
+    let content_type = head
+        .content_type()
+        .unwrap_or("application/octet-stream")
+        .to_string();
+
+    let preview_type = classify_content_type(&content_type, &key);
+
+    if preview_type == "unsupported" || size == 0 {
+        return Ok(PreviewResponse {
+            preview_type,
+            content: String::new(),
+            content_type,
+            size,
+            truncated: false,
+        });
+    }
+
+    if size > MAX_PREVIEW_BYTES {
+        if preview_type == "image" {
+            // Images: don't preview if too large
+            return Ok(PreviewResponse {
+                preview_type: "unsupported".to_string(),
+                content: String::new(),
+                content_type,
+                size,
+                truncated: false,
+            });
+        }
+        // Text: download first 500KB only
+    }
+
+    let text_limit = 512 * 1024i64; // 500 KB for text
+    let download_limit = if preview_type == "text" {
+        text_limit.min(size)
+    } else {
+        size.min(MAX_PREVIEW_BYTES)
+    };
+
+    // Download the content (with range for text)
+    let mut request = client.get_object().bucket(&bucket).key(&key);
+    let truncated;
+
+    if preview_type == "text" && size > text_limit {
+        request = request.range(format!("bytes=0-{}", text_limit - 1));
+        truncated = true;
+    } else {
+        truncated = false;
+    }
+
+    let response = request.send().await.map_err(|e| e.to_string())?;
+
+    let bytes = response
+        .body
+        .collect()
+        .await
+        .map_err(|e| e.to_string())?
+        .into_bytes();
+
+    let content = match preview_type.as_str() {
+        "text" => {
+            // Try to decode as UTF-8
+            String::from_utf8(bytes.to_vec()).unwrap_or_else(|_| {
+                // Lossy conversion for non-UTF8 text files
+                String::from_utf8_lossy(&bytes).to_string()
+            })
+        }
+        "image" => {
+            // Base64 encode for frontend rendering
+            base64::engine::general_purpose::STANDARD.encode(&bytes)
+        }
+        _ => String::new(),
+    };
+
+    Ok(PreviewResponse {
+        preview_type,
+        content,
+        content_type,
+        size,
+        truncated,
+    })
+}
+
+fn classify_content_type(content_type: &str, key: &str) -> String {
+    let ct = content_type.to_lowercase();
+
+    // Images
+    if ct.starts_with("image/") {
+        return "image".to_string();
+    }
+
+    // Text types
+    if ct.starts_with("text/")
+        || ct == "application/json"
+        || ct == "application/xml"
+        || ct == "application/yaml"
+        || ct == "application/x-yaml"
+        || ct == "application/toml"
+        || ct == "application/javascript"
+        || ct == "application/typescript"
+        || ct == "application/x-sh"
+        || ct == "application/x-python"
+    {
+        return "text".to_string();
+    }
+
+    // Fallback: guess from extension
+    let ext = key.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        // Text/code
+        "txt" | "md" | "markdown" | "csv" | "tsv" | "log" | "ini" | "cfg" | "conf"
+        | "json" | "xml" | "yaml" | "yml" | "toml" | "html" | "htm" | "css" | "js"
+        | "ts" | "tsx" | "jsx" | "py" | "rb" | "rs" | "go" | "java" | "c" | "h"
+        | "cpp" | "hpp" | "cs" | "sh" | "bash" | "zsh" | "fish" | "ps1" | "bat"
+        | "cmd" | "sql" | "graphql" | "proto" | "tf" | "hcl" | "dockerfile"
+        | "makefile" | "gitignore" | "env" | "properties" | "gradle" | "sbt"
+        | "scala" | "kt" | "swift" | "r" | "lua" | "pl" | "php" | "ex" | "exs"
+        | "erl" | "hs" | "ml" | "vim" | "el" | "lisp" | "clj" => "text".to_string(),
+
+        // Images
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico" => "image".to_string(),
+
+        _ => "unsupported".to_string(),
     }
 }

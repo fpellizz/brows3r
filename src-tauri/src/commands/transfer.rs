@@ -23,8 +23,17 @@ pub async fn start_upload(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {}", request.connection_id))?;
 
-    let secret_key = credentials::get_secret_key(&request.connection_id)?;
-    let session_token = credentials::get_session_token(&request.connection_id)?;
+    let secret_key = credentials::get_secret_key(&request.connection_id)
+        .or_else(|_| {
+            crate::store::database::get_db_secret(&db, &request.connection_id)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| format!("Secret key not found for connection {}", request.connection_id))
+        })?;
+    let session_token = credentials::get_session_token(&request.connection_id)
+        .unwrap_or_else(|_| {
+            crate::store::database::get_db_session_token(&db, &request.connection_id)
+                .unwrap_or(None)
+        });
     let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
 
     let client = pool
@@ -143,8 +152,17 @@ pub async fn start_download(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {}", request.connection_id))?;
 
-    let secret_key = credentials::get_secret_key(&request.connection_id)?;
-    let session_token = credentials::get_session_token(&request.connection_id)?;
+    let secret_key = credentials::get_secret_key(&request.connection_id)
+        .or_else(|_| {
+            crate::store::database::get_db_secret(&db, &request.connection_id)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| format!("Secret key not found for connection {}", request.connection_id))
+        })?;
+    let session_token = credentials::get_session_token(&request.connection_id)
+        .unwrap_or_else(|_| {
+            crate::store::database::get_db_session_token(&db, &request.connection_id)
+                .unwrap_or(None)
+        });
     let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
 
     let client = pool

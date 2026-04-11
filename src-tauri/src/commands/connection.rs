@@ -47,18 +47,20 @@ pub fn create_connection(
         updated_at: now,
     };
 
-    // Store secret key in keychain
-    let secret_len = request.secret_access_key.len();
-    tracing::info!("Storing secret key for connection {id} (length: {secret_len})");
+    // Store connection metadata in database
+    crate::store::database::insert_connection(&db, &connection).map_err(|e| e.to_string())?;
+
+    // Store secret key in memory + DB
     credentials::store_secret_key(&id, &request.secret_access_key)?;
+    crate::store::database::store_db_secret(&db, &id, &request.secret_access_key)
+        .map_err(|e| e.to_string())?;
 
     // Store session token if provided
     if let Some(ref token) = request.session_token {
         credentials::store_session_token(&id, token)?;
+        crate::store::database::store_db_session_token(&db, &id, token)
+            .map_err(|e| e.to_string())?;
     }
-
-    // Store connection metadata in database
-    crate::store::database::insert_connection(&db, &connection).map_err(|e| e.to_string())?;
 
     Ok(connection)
 }
@@ -130,8 +132,16 @@ pub async fn test_connection(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {id}"))?;
 
-    let secret_key = credentials::get_secret_key(&id)?;
-    let session_token = credentials::get_session_token(&id)?;
+    let secret_key = credentials::get_secret_key(&id)
+        .or_else(|_| {
+            crate::store::database::get_db_secret(&db, &id)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| format!("Secret key not found for connection {id}"))
+        })?;
+    let session_token = credentials::get_session_token(&id)
+        .unwrap_or_else(|_| {
+            crate::store::database::get_db_session_token(&db, &id).unwrap_or(None)
+        });
 
     let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
 
