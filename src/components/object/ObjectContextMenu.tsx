@@ -9,6 +9,7 @@ import {
   FileText,
   FolderOpen,
   Eye,
+  Info,
 } from "lucide-react";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -34,6 +35,15 @@ export function ObjectContextMenu({
   const navigateToPrefix = useObjectStore((s) => s.navigateToPrefix);
   const startDownload = useTransferStore((s) => s.startDownload);
   const openPreview = useUiStore((s) => s.openPreview);
+  const openDetails = useUiStore((s) => s.openDetails);
+
+  const handleDetails = () => {
+    openDetails({
+      key: object.key,
+      displayName: object.display_name,
+      isFolder: object.is_folder,
+    });
+  };
 
   const handlePreview = () => {
     if (!object.is_folder) {
@@ -152,6 +162,14 @@ export function ObjectContextMenu({
               onClick={handlePresignedUrl}
             />
           )}
+
+          <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+
+          <MenuItem
+            icon={<Info size={14} />}
+            label="Properties"
+            onClick={handleDetails}
+          />
 
           <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 

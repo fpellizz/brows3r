@@ -6,6 +6,7 @@ import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { Breadcrumb } from "./Breadcrumb";
 import { ObjectTable } from "@/components/object/ObjectTable";
+import { ObjectDetails } from "@/components/object/ObjectDetails";
 import { TransferPanel } from "@/components/transfer/TransferPanel";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { useUiStore } from "@/stores/uiStore";
@@ -15,9 +16,13 @@ import { useConnectionStore } from "@/stores/connectionStore";
 export function AppShell() {
   const showTransferPanel = useUiStore((s) => s.showTransferPanel);
   const previewObject = useUiStore((s) => s.previewObject);
+  const detailsObject = useUiStore((s) => s.detailsObject);
   const closePreview = useUiStore((s) => s.closePreview);
+  const closeDetails = useUiStore((s) => s.closeDetails);
   const currentBucket = useObjectStore((s) => s.currentBucket);
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
+
+  const showRightPanel = !!(previewObject || detailsObject);
 
   return (
     <div className="flex flex-col h-screen">
@@ -35,7 +40,7 @@ export function AppShell() {
           {/* Center content */}
           <Allotment.Pane>
             <Allotment vertical>
-              {/* Object browser + preview */}
+              {/* Object browser + right panel */}
               <Allotment.Pane>
                 <Allotment>
                   {/* Object table */}
@@ -57,6 +62,20 @@ export function AppShell() {
                         objectKey={previewObject.key}
                         displayName={previewObject.displayName}
                         onClose={closePreview}
+                      />
+                    </Allotment.Pane>
+                  )}
+
+                  {/* Details panel */}
+                  {detailsObject && activeConnectionId && currentBucket && (
+                    <Allotment.Pane preferredSize={320} minSize={220} maxSize={500}>
+                      <ObjectDetails
+                        connectionId={activeConnectionId}
+                        bucket={currentBucket}
+                        objectKey={detailsObject.key}
+                        displayName={detailsObject.displayName}
+                        isFolder={detailsObject.isFolder}
+                        onClose={closeDetails}
                       />
                     </Allotment.Pane>
                   )}
