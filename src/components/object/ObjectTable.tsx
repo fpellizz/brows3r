@@ -1,10 +1,12 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { File, Folder, ChevronUp } from "lucide-react";
+import { File, Folder, ChevronUp, Upload } from "lucide-react";
 import { useObjectStore, type ObjectInfo } from "@/stores/objectStore";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { useTransferStore } from "@/stores/transferStore";
 import { formatBytes, formatDate } from "@/lib/format";
 import { ObjectContextMenu } from "./ObjectContextMenu";
+import { useDropZone } from "@/hooks/useDropZone";
 
 export function ObjectTable() {
   const { t } = useTranslation();
@@ -20,6 +22,28 @@ export function ObjectTable() {
   const isTruncated = useObjectStore((s) => s.isTruncated);
   const fetchMore = useObjectStore((s) => s.fetchMore);
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
+  const startUpload = useTransferStore((s) => s.startUpload);
+
+  const handleDrop = useCallback(
+    async (paths: string[]) => {
+      if (!activeConnectionId || !currentBucket || paths.length === 0) return;
+
+      await startUpload(
+        activeConnectionId,
+        currentBucket,
+        currentPrefix || null,
+        paths,
+      );
+
+      // Refresh after a short delay to show uploaded files
+      setTimeout(() => {
+        if (activeConnectionId) fetchObjects(activeConnectionId);
+      }, 1500);
+    },
+    [activeConnectionId, currentBucket, currentPrefix, startUpload, fetchObjects],
+  );
+
+  const { isDragging } = useDropZone(currentBucket ? handleDrop : undefined);
 
   const handleDoubleClick = useCallback(
     (obj: ObjectInfo) => {
@@ -52,7 +76,20 @@ export function ObjectTable() {
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="relative h-full overflow-auto">
+      {/* Drag overlay */}
+      {isDragging && currentBucket && (
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-brand-50/90 dark:bg-brand-950/90 border-2 border-dashed border-brand-400 dark:border-brand-500 rounded-lg pointer-events-none">
+          <Upload size={48} className="text-brand-500 mb-3" />
+          <p className="text-lg font-semibold text-brand-700 dark:text-brand-300">
+            Drop files to upload
+          </p>
+          <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
+            {currentBucket}{currentPrefix ? `/${currentPrefix}` : ""}
+          </p>
+        </div>
+      )}
+
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
           <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider">
