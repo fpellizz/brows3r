@@ -17,6 +17,7 @@ import { useTransferStore } from "@/stores/transferStore";
 import { useUiStore } from "@/stores/uiStore";
 import { tauriInvoke } from "@/lib/tauri";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { SettingsDialog } from "@/components/settings/SettingsDialog";
 
 export function Toolbar() {
   const { t } = useTranslation();
@@ -33,6 +34,7 @@ export function Toolbar() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const hasSelection = selectedKeys.size > 0;
   const hasBucket = !!currentBucket;
@@ -177,6 +179,7 @@ export function Toolbar() {
         <ToolbarButton
           icon={<Settings size={16} />}
           label={t("toolbar.settings")}
+          onClick={() => setSettingsOpen(true)}
         />
       </div>
 
@@ -222,6 +225,9 @@ export function Toolbar() {
           </div>
         </div>
       )}
+
+      {/* Settings dialog */}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );
 }
