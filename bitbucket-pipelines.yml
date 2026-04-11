@@ -1,0 +1,242 @@
+image: ubuntu:24.04
+
+definitions:
+  caches:
+    cargo:
+      key:
+        files:
+          - src-tauri/Cargo.lock
+      path: /root/.cargo/registry
+    cargo-target:
+      key:
+        files:
+          - src-tauri/Cargo.lock
+      path: src-tauri/target
+    pnpm:
+      key:
+        files:
+          - pnpm-lock.yaml
+      path: .pnpm-store
+
+  steps:
+    - step: &install-system-deps
+        name: Install system dependencies
+        script:
+          - apt-get update && apt-get install -y
+              build-essential
+              curl
+              wget
+              pkg-config
+              libssl-dev
+              libgtk-3-dev
+              libwebkit2gtk-4.1-dev
+              libayatana-appindicator3-dev
+              librsvg2-dev
+              libglib2.0-dev
+              libsoup-3.0-dev
+              libjavascriptcoregtk-4.1-dev
+
+    - step: &setup-rust
+        name: Setup Rust
+        script:
+          - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
+          - source $HOME/.cargo/env
+
+    - step: &setup-node
+        name: Setup Node.js + pnpm
+        script:
+          - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          - apt-get install -y nodejs
+          - corepack enable
+          - corepack prepare pnpm@latest --activate
+          - pnpm config set store-dir .pnpm-store
+
+pipelines:
+  default:
+    # --------------------------------------------------------
+    # Step 1: Frontend — lint, typecheck, test
+    # --------------------------------------------------------
+    - step:
+        name: "Frontend: lint + typecheck + test"
+        caches:
+          - pnpm
+          - node
+        script:
+          # Node.js + pnpm
+          - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          - apt-get install -y nodejs
+          - corepack enable
+          - corepack prepare pnpm@latest --activate
+          - pnpm config set store-dir .pnpm-store
+
+          # Install dependencies
+          - pnpm install --frozen-lockfile
+
+          # Lint
+          - pnpm lint
+
+          # Type check
+          - pnpm typecheck
+
+          # Test
+          - pnpm test
+
+    # --------------------------------------------------------
+    # Step 2: Backend — fmt, clippy, test
+    # --------------------------------------------------------
+    - step:
+        name: "Backend: fmt + clippy + test"
+        size: 2x  # Rust compilation needs more memory
+        caches:
+          - cargo
+          - cargo-target
+        script:
+          # System deps
+          - apt-get update && apt-get install -y
+              build-essential curl pkg-config
+              libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+              libayatana-appindicator3-dev librsvg2-dev
+              libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
+          # Rust
+          - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
+          - source $HOME/.cargo/env
+
+          # Format check
+          - cd src-tauri && cargo fmt -- --check
+
+          # Clippy
+          - cargo clippy -- -D warnings
+
+          # Test
+          - cargo test
+
+    # --------------------------------------------------------
+    # Step 3: Build Linux (solo su main e tag)
+    # --------------------------------------------------------
+    - step:
+        name: "Build: Linux (deb + AppImage)"
+        size: 2x
+        caches:
+          - pnpm
+          - node
+          - cargo
+          - cargo-target
+        script:
+          # System deps
+          - apt-get update && apt-get install -y
+              build-essential curl pkg-config
+              libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+              libayatana-appindicator3-dev librsvg2-dev
+              libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+              file
+
+          # Rust
+          - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          - source $HOME/.cargo/env
+
+          # Node.js + pnpm
+          - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          - apt-get install -y nodejs
+          - corepack enable
+          - corepack prepare pnpm@latest --activate
+          - pnpm config set store-dir .pnpm-store
+
+          # Tauri CLI
+          - cargo install tauri-cli --locked
+
+          # Build
+          - pnpm install --frozen-lockfile
+          - pnpm tauri build
+
+        artifacts:
+          - src-tauri/target/release/bundle/deb/**
+          - src-tauri/target/release/bundle/appimage/**
+
+  # --------------------------------------------------------
+  # Pipeline per i pull request
+  # --------------------------------------------------------
+  pull-requests:
+    "**":
+      - step:
+          name: "Frontend: lint + typecheck + test"
+          caches:
+            - pnpm
+            - node
+          script:
+            - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+            - apt-get install -y nodejs
+            - corepack enable
+            - corepack prepare pnpm@latest --activate
+            - pnpm config set store-dir .pnpm-store
+            - pnpm install --frozen-lockfile
+            - pnpm lint
+            - pnpm typecheck
+            - pnpm test
+
+      - step:
+          name: "Backend: fmt + clippy + test"
+          size: 2x
+          caches:
+            - cargo
+            - cargo-target
+          script:
+            - apt-get update && apt-get install -y
+                build-essential curl pkg-config
+                libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+                libayatana-appindicator3-dev librsvg2-dev
+                libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+            - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
+            - source $HOME/.cargo/env
+            - cd src-tauri && cargo fmt -- --check
+            - cargo clippy -- -D warnings
+            - cargo test
+
+  # --------------------------------------------------------
+  # Pipeline per i tag (release)
+  # --------------------------------------------------------
+  tags:
+    "v*":
+      - step:
+          name: "Build: Linux release"
+          size: 2x
+          caches:
+            - pnpm
+            - node
+            - cargo
+            - cargo-target
+          script:
+            - apt-get update && apt-get install -y
+                build-essential curl pkg-config
+                libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+                libayatana-appindicator3-dev librsvg2-dev
+                libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+                file
+            - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+            - source $HOME/.cargo/env
+            - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+            - apt-get install -y nodejs
+            - corepack enable
+            - corepack prepare pnpm@latest --activate
+            - pnpm config set store-dir .pnpm-store
+            - cargo install tauri-cli --locked
+            - pnpm install --frozen-lockfile
+            - pnpm tauri build
+          artifacts:
+            - src-tauri/target/release/bundle/deb/**
+            - src-tauri/target/release/bundle/appimage/**
+
+      - step:
+          name: "Upload to Bitbucket Downloads"
+          script:
+            - apt-get update && apt-get install -y curl jq
+            - |
+              for file in src-tauri/target/release/bundle/deb/*.deb src-tauri/target/release/bundle/appimage/*.AppImage; do
+                if [ -f "$file" ]; then
+                  echo "Uploading $(basename $file)..."
+                  curl -X POST \
+                    -u "${BB_AUTH_STRING}" \
+                    "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" \
+                    --form files=@"$file"
+                fi
+              done

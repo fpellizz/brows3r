@@ -1,0 +1,99 @@
+[package]
+name = "brows3r"
+version = "0.1.0"
+description = "Cross-platform S3-compatible object storage browser"
+authors = ["brows3r contributors"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "brows3r_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-shell = "2"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# S3 / AWS
+aws-sdk-s3 = "1"
+aws-sdk-sts = "1"
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+aws-credential-types = "1"
+aws-sigv4 = "1"
+aws-smithy-runtime-api = "1"
+aws-types = "1"
+
+# HTTP
+reqwest = { version = "0.12", features = ["rustls-tls", "stream", "socks"] }
+rustls = "0.23"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Database
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Credential storage
+keyring = "3"
+
+# Encryption fallback
+age = "0.10"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Checksums
+md-5 = "0.10"
+sha2 = "0.10"
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Regex
+regex = "1"
+
+# Concurrency
+governor = "0.7"
+
+# CSV export
+csv = "1"
+
+# Glob patterns
+globset = "0.4"
+
+# Platform directories
+dirs = "5"
+
+# UUID for transfer IDs
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Type generation for TypeScript
+specta = { version = "=2.0.0-rc.24", features = ["derive"] }
+tauri-specta = { version = "=2.0.0-rc.24", features = ["typescript"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

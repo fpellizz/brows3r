@@ -1,0 +1,39 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: brows3r-minio
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Create a test bucket on startup
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/test-bucket &&
+        mc mb --ignore-existing local/photos &&
+        mc mb --ignore-existing local/backups &&
+        echo 'Hello from brows3r!' | mc pipe local/test-bucket/hello.txt &&
+        echo 'Test file 1' | mc pipe local/test-bucket/docs/readme.txt &&
+        echo 'Test file 2' | mc pipe local/test-bucket/docs/notes.txt &&
+        echo 'Done - buckets and test files created'
+      "
+
+volumes:
+  minio-data:

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#2563eb"/>
+  <path d="M20 22h24v4H20zM20 30h24v4H20zM20 38h24v4H20z" fill="white" opacity="0.9"/>
+  <circle cx="48" cy="48" r="12" fill="#22c55e"/>
+  <text x="48" y="53" text-anchor="middle" font-size="14" font-weight="bold" fill="white" font-family="monospace">S3</text>
+</svg>

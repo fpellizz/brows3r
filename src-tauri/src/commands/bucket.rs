@@ -1,0 +1,135 @@
+use tauri::State;
+
+use crate::models::bucket::{BucketDetails, BucketInfo, CreateBucketRequest};
+use crate::s3::client::S3ClientPool;
+use crate::store::credentials;
+use crate::store::database::Database;
+
+use super::connection::build_s3_config;
+
+/// Helper to get an S3 client for a connection ID.
+async fn get_client(
+    db: &State<'_, Database>,
+    pool: &State<'_, S3ClientPool>,
+    connection_id: &str,
+) -> Result<aws_sdk_s3::Client, String> {
+    let conn = crate::store::database::get_connection(db, connection_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Connection not found: {connection_id}"))?;
+
+    let secret_key = credentials::get_secret_key(connection_id)?;
+    let session_token = credentials::get_session_token(connection_id)?;
+    let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
+
+    pool.get_or_create(connection_id, &config)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_buckets(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+) -> Result<Vec<BucketInfo>, String> {
+    tracing::info!("list_buckets called for connection {connection_id}");
+
+    let client = get_client(&db, &pool, &connection_id).await
+        .map_err(|e| {
+            tracing::error!("get_client failed: {e}");
+            e
+        })?;
+
+    let buckets = crate::s3::client::list_buckets(&client)
+        .await
+        .map_err(|e| {
+            tracing::error!("list_buckets S3 call failed: {e}");
+            e.to_string()
+        })?;
+
+    tracing::info!("Found {} buckets", buckets.len());
+
+    Ok(buckets
+        .into_iter()
+        .map(|b| BucketInfo {
+            name: b.name,
+            creation_date: b.creation_date,
+            region: None,
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn create_bucket(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    request: CreateBucketRequest,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+
+    crate::s3::client::create_bucket(&client, &request.name, request.region.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_bucket(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+
+    crate::s3::client::delete_bucket(&client, &bucket)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_bucket_info(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<BucketDetails, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+
+    // Get bucket location
+    let location = client
+        .get_bucket_location()
+        .bucket(&bucket)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let region = location
+        .location_constraint()
+        .map(|l| l.as_str().to_string());
+
+    // Get versioning status
+    let versioning = client
+        .get_bucket_versioning()
+        .bucket(&bucket)
+        .send()
+        .await
+        .ok()
+        .and_then(|v| {
+            v.status().map(|s| match s.as_str() {
+                "Enabled" => crate::models::bucket::VersioningStatus::Enabled,
+                "Suspended" => crate::models::bucket::VersioningStatus::Suspended,
+                _ => crate::models::bucket::VersioningStatus::Disabled,
+            })
+        });
+
+    Ok(BucketDetails {
+        name: bucket,
+        region,
+        creation_date: None,
+        versioning,
+        encryption: None,
+        object_count: None,
+        total_size: None,
+    })
+}
