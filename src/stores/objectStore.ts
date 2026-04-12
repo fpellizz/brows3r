@@ -52,43 +52,6 @@ interface ObjectState {
   clearSelection: () => void;
   deleteSelected: (connectionId: string) => Promise<void>;
   setFilterText: (text: string) => void;
-  getFilteredObjects: () => ObjectInfo[];
-}
-
-/** Match a display name against a filter string.
- *  - If filter starts with `/` and ends with `/`, treat as regex
- *  - If filter contains `*` or `?`, treat as glob pattern
- *  - Otherwise, case-insensitive substring match
- */
-function matchesFilter(displayName: string, filter: string): boolean {
-  if (!filter) return true;
-
-  // Regex mode: /pattern/
-  if (filter.startsWith("/") && filter.endsWith("/") && filter.length > 2) {
-    try {
-      const regex = new RegExp(filter.slice(1, -1), "i");
-      return regex.test(displayName);
-    } catch {
-      return displayName.toLowerCase().includes(filter.toLowerCase());
-    }
-  }
-
-  // Glob mode: contains * or ?
-  if (filter.includes("*") || filter.includes("?")) {
-    const escaped = filter
-      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-      .replace(/\*/g, ".*")
-      .replace(/\?/g, ".");
-    try {
-      const regex = new RegExp(`^${escaped}$`, "i");
-      return regex.test(displayName);
-    } catch {
-      return displayName.toLowerCase().includes(filter.toLowerCase());
-    }
-  }
-
-  // Simple substring match
-  return displayName.toLowerCase().includes(filter.toLowerCase());
 }
 
 export const useObjectStore = create<ObjectState>((set, get) => ({
@@ -238,10 +201,4 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
   },
 
   setFilterText: (text) => set({ filterText: text }),
-
-  getFilteredObjects: () => {
-    const { objects, filterText } = get();
-    if (!filterText) return objects;
-    return objects.filter((o) => matchesFilter(o.display_name, filterText));
-  },
 }));

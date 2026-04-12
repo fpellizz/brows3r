@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { open as openFileDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import {
   Upload,
   Download,
@@ -18,6 +18,7 @@ import { useTransferStore } from "@/stores/transferStore";
 import { useUiStore } from "@/stores/uiStore";
 import { tauriInvoke } from "@/lib/tauri";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { InputDialog } from "@/components/common/InputDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 
 export function Toolbar() {
@@ -37,7 +38,6 @@ export function Toolbar() {
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -103,12 +103,12 @@ export function Toolbar() {
     await deleteSelected(activeConnectionId);
   };
 
-  const handleNewFolder = async () => {
-    if (!activeConnectionId || !currentBucket || !newFolderName.trim()) return;
+  const handleNewFolder = async (folderName: string) => {
+    if (!activeConnectionId || !currentBucket) return;
 
     const prefix = currentPrefix
-      ? `${currentPrefix}${newFolderName.trim()}`
-      : newFolderName.trim();
+      ? `${currentPrefix}${folderName}`
+      : folderName;
 
     try {
       await tauriInvoke("create_folder", {
@@ -116,8 +116,6 @@ export function Toolbar() {
         bucket: currentBucket,
         prefix,
       });
-      setNewFolderName("");
-      setNewFolderOpen(false);
       fetchObjects(activeConnectionId);
     } catch (e) {
       console.error("Failed to create folder:", e);
@@ -242,37 +240,16 @@ export function Toolbar() {
         onConfirm={handleDelete}
       />
 
-      {/* New folder inline dialog */}
-      {newFolderOpen && (
-        <div className="absolute top-10 left-40 z-50 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl p-4 w-72">
-          <p className="text-sm font-medium mb-2">{t("toolbar.newFolder")}</p>
-          <input
-            className="input-field mb-3"
-            placeholder="Folder name"
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleNewFolder();
-              if (e.key === "Escape") setNewFolderOpen(false);
-            }}
-            autoFocus
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              className="px-3 py-1.5 text-xs border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
-              onClick={() => setNewFolderOpen(false)}
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              className="px-3 py-1.5 text-xs bg-brand-600 text-white rounded-md hover:bg-brand-700"
-              onClick={handleNewFolder}
-            >
-              {t("common.ok")}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* New folder dialog */}
+      <InputDialog
+        open={newFolderOpen}
+        onOpenChange={setNewFolderOpen}
+        title={t("toolbar.newFolder")}
+        label={t("object.name")}
+        placeholder="Folder name"
+        confirmLabel={t("common.ok")}
+        onConfirm={handleNewFolder}
+      />
 
       {/* Settings dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
