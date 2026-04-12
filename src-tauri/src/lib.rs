@@ -60,6 +60,8 @@ pub fn run() {
             commands::transfer::resume_transfer,
             commands::transfer::cancel_transfer,
             commands::transfer::list_transfers,
+            // Import commands
+            commands::import::import_connections,
             // Config commands
             commands::config::get_settings,
             commands::config::update_settings,

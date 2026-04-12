@@ -9,13 +9,16 @@ import {
   Pencil,
   Trash2,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import { useConnectionStore, type Connection } from "@/stores/connectionStore";
 import { useObjectStore } from "@/stores/objectStore";
+import { useUiStore } from "@/stores/uiStore";
 import { tauriInvoke } from "@/lib/tauri";
 import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InputDialog } from "@/components/common/InputDialog";
+import { ImportDialog } from "@/components/connection/ImportDialog";
 
 interface BucketInfo {
   name: string;
@@ -48,17 +51,11 @@ export function Sidebar() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingConnection, setDeletingConnection] =
     useState<Connection | null>(null);
-
-  // Bucket dialog state
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [createBucketOpen, setCreateBucketOpen] = useState(false);
-  const [createBucketConnId, setCreateBucketConnId] = useState<string | null>(
-    null,
-  );
+  const [createBucketConnId, setCreateBucketConnId] = useState<string | null>(null);
   const [deleteBucketOpen, setDeleteBucketOpen] = useState(false);
-  const [deletingBucket, setDeletingBucket] = useState<{
-    connId: string;
-    name: string;
-  } | null>(null);
+  const [deletingBucket, setDeletingBucket] = useState<{ connId: string; name: string } | null>(null);
 
   const openNewDialog = () => {
     setEditingConnection(null);
@@ -134,8 +131,12 @@ export function Sidebar() {
     loadBuckets(connectionId, true);
   };
 
+  const updateTab = useUiStore((s) => s.updateTab);
+  const activeTabId = useUiStore((s) => s.activeTabId);
+
   const selectBucket = (connectionId: string, bucketName: string) => {
     setActiveConnection(connectionId);
+    updateTab(activeTabId, { connectionId });
     setCurrentBucket(bucketName);
     fetchObjects(connectionId);
   };
@@ -160,7 +161,6 @@ export function Sidebar() {
         connectionId: deletingBucket.connId,
         bucket: deletingBucket.name,
       });
-      // If we deleted the active bucket, clear object view
       if (currentBucket === deletingBucket.name) {
         setCurrentBucket(null);
       }
@@ -177,11 +177,7 @@ export function Sidebar() {
     setCreateBucketOpen(true);
   };
 
-  const confirmDeleteBucket = (
-    connId: string,
-    bucketName: string,
-    e: React.MouseEvent,
-  ) => {
+  const confirmDeleteBucket = (connId: string, bucketName: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setDeletingBucket({ connId, name: bucketName });
     setDeleteBucketOpen(true);
@@ -195,13 +191,22 @@ export function Sidebar() {
           <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
             {t("sidebar.connections")}
           </span>
-          <button
-            className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-            title={t("sidebar.addConnection")}
-            onClick={openNewDialog}
-          >
-            <Plus size={14} />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              title={t("import.title")}
+              onClick={() => setImportDialogOpen(true)}
+            >
+              <Download size={14} />
+            </button>
+            <button
+              className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              title={t("sidebar.addConnection")}
+              onClick={openNewDialog}
+            >
+              <Plus size={14} />
+            </button>
+          </div>
         </div>
 
         {/* Connection tree */}
@@ -310,14 +315,9 @@ export function Sidebar() {
                           <button
                             className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 shrink-0"
                             title={t("bucket.delete")}
-                            onClick={(e) =>
-                              confirmDeleteBucket(conn.id, bucket.name, e)
-                            }
+                            onClick={(e) => confirmDeleteBucket(conn.id, bucket.name, e)}
                           >
-                            <Trash2
-                              size={11}
-                              className="text-zinc-400 hover:text-red-500"
-                            />
+                            <Trash2 size={11} className="text-zinc-400 hover:text-red-500" />
                           </button>
                         </div>
                       ))
@@ -364,12 +364,16 @@ export function Sidebar() {
         open={deleteBucketOpen}
         onOpenChange={setDeleteBucketOpen}
         title={t("bucket.delete")}
-        description={t("bucket.deleteConfirm", {
-          name: deletingBucket?.name ?? "",
-        })}
+        description={t("bucket.deleteConfirm", { name: deletingBucket?.name ?? "" })}
         confirmLabel={t("common.delete")}
         destructive
         onConfirm={handleDeleteBucket}
+      />
+
+      {/* Import connections dialog */}
+      <ImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
       />
     </>
   );

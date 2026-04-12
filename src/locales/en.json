@@ -112,6 +112,21 @@
     "verifyChecksum": "Verify Checksum",
     "confirmDelete": "Confirm Before Delete"
   },
+  "import": {
+    "title": "Import Connections",
+    "selectSource": "Select source",
+    "aws": "AWS CLI",
+    "rclone": "rclone",
+    "s3cmd": "s3cmd",
+    "minio": "MinIO Client",
+    "found": "{{count}} connection(s) found",
+    "noConnections": "No connections found",
+    "importSelected": "Import Selected",
+    "imported": "{{count}} connection(s) imported",
+    "error": "Failed to read configuration",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all"
+  },
   "common": {
     "ok": "OK",
     "cancel": "Cancel",
