@@ -10,6 +10,7 @@ import {
   Search,
   Settings,
   PanelBottom,
+  X,
 } from "lucide-react";
 import { useObjectStore } from "@/stores/objectStore";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -31,10 +32,14 @@ export function Toolbar() {
   const startUpload = useTransferStore((s) => s.startUpload);
   const startDownload = useTransferStore((s) => s.startDownload);
 
+  const filterText = useObjectStore((s) => s.filterText);
+  const setFilterText = useObjectStore((s) => s.setFilterText);
+
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const hasSelection = selectedKeys.size > 0;
   const hasBucket = !!currentBucket;
@@ -86,7 +91,9 @@ export function Toolbar() {
     if (!destDir) return;
 
     const dir = typeof destDir === "string" ? destDir : destDir.path;
-    const keys = Array.from(selectedKeys);
+    // Filter out folder keys — only download files
+    const keys = Array.from(selectedKeys).filter((k) => !k.endsWith("/"));
+    if (keys.length === 0) return;
 
     await startDownload(activeConnectionId, currentBucket, keys, dir);
   };
@@ -165,6 +172,14 @@ export function Toolbar() {
           icon={<Search size={16} />}
           label={t("toolbar.search")}
           disabled={!hasBucket}
+          onClick={() => {
+            if (searchOpen) {
+              setFilterText("");
+              setSearchOpen(false);
+            } else {
+              setSearchOpen(true);
+            }
+          }}
         />
 
         {/* Spacer */}
@@ -183,12 +198,45 @@ export function Toolbar() {
         />
       </div>
 
+      {/* Search bar */}
+      {searchOpen && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
+          <Search size={14} className="text-zinc-400 shrink-0" />
+          <input
+            className="flex-1 bg-transparent text-sm outline-none placeholder-zinc-400"
+            placeholder={`${t("toolbar.search")}... (*, ?, /regex/)`}
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setFilterText("");
+                setSearchOpen(false);
+              }
+            }}
+            autoFocus
+          />
+          {filterText && (
+            <button
+              className="p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              onClick={() => setFilterText("")}
+            >
+              <X size={14} className="text-zinc-400" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Delete confirmation */}
       <ConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
         title={t("toolbar.delete")}
         description={`Delete ${selectedKeys.size} selected object(s)?`}
+        items={Array.from(selectedKeys).map((k) =>
+          k.endsWith("/")
+            ? k
+            : k.split("/").pop() ?? k
+        )}
         confirmLabel={t("common.delete")}
         destructive
         onConfirm={handleDelete}

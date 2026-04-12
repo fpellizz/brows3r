@@ -65,7 +65,8 @@
     "moveTo": "Move To",
     "copyTo": "Copy To",
     "empty": "This bucket is empty",
-    "emptyFolder": "This folder is empty"
+    "emptyFolder": "This folder is empty",
+    "noResults": "No objects match the filter"
   },
   "transfer": {
     "title": "Transfers",

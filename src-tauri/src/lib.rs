@@ -47,6 +47,8 @@ pub fn run() {
             commands::object::head_object,
             commands::object::delete_objects,
             commands::object::copy_object,
+            commands::object::move_object,
+            commands::object::rename_object,
             commands::object::create_folder,
             commands::object::get_presigned_url,
             commands::object::get_object_preview,

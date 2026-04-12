@@ -6,6 +6,8 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
+  /** Optional list of items to display (e.g. files to delete) */
+  items?: string[];
   confirmLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
@@ -16,6 +18,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  items,
   confirmLabel,
   destructive = false,
   onConfirm,
@@ -31,6 +34,22 @@ export function ConfirmDialog({
           <Dialog.Description className="mt-2 text-sm text-zinc-500">
             {description}
           </Dialog.Description>
+          {items && items.length > 0 && (
+            <div className="mt-3 max-h-48 overflow-y-auto rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-2">
+              <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-0.5">
+                {items.slice(0, 50).map((item) => (
+                  <li key={item} className="truncate">
+                    {item}
+                  </li>
+                ))}
+                {items.length > 50 && (
+                  <li className="text-zinc-400 italic">
+                    ...and {items.length - 50} more
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
           <div className="flex justify-end gap-2 mt-6">
             <Dialog.Close asChild>
               <button className="px-4 py-2 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">

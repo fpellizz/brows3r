@@ -11,7 +11,6 @@ import { useDropZone } from "@/hooks/useDropZone";
 
 export function ObjectTable() {
   const { t } = useTranslation();
-  const objects = useObjectStore((s) => s.objects);
   const currentBucket = useObjectStore((s) => s.currentBucket);
   const currentPrefix = useObjectStore((s) => s.currentPrefix);
   const selectedKeys = useObjectStore((s) => s.selectedKeys);
@@ -22,9 +21,13 @@ export function ObjectTable() {
   const loading = useObjectStore((s) => s.loading);
   const isTruncated = useObjectStore((s) => s.isTruncated);
   const fetchMore = useObjectStore((s) => s.fetchMore);
+  const getFilteredObjects = useObjectStore((s) => s.getFilteredObjects);
+  const filterText = useObjectStore((s) => s.filterText);
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
   const startUpload = useTransferStore((s) => s.startUpload);
   const openPreview = useUiStore((s) => s.openPreview);
+
+  const objects = getFilteredObjects();
 
   const handleDrop = useCallback(
     async (paths: string[]) => {
@@ -173,9 +176,11 @@ export function ObjectTable() {
           {!loading && objects.length === 0 && (
             <tr>
               <td colSpan={5} className="px-2 py-8 text-center text-zinc-400">
-                {currentPrefix
-                  ? t("object.emptyFolder")
-                  : t("object.empty")}
+                {filterText
+                  ? t("object.noResults")
+                  : currentPrefix
+                    ? t("object.emptyFolder")
+                    : t("object.empty")}
               </td>
             </tr>
           )}
