@@ -65,7 +65,8 @@
     "moveTo": "Sposta In",
     "copyTo": "Copia In",
     "empty": "Questo bucket e' vuoto",
-    "emptyFolder": "Questa cartella e' vuota"
+    "emptyFolder": "Questa cartella e' vuota",
+    "noResults": "Nessun oggetto corrisponde al filtro"
   },
   "transfer": {
     "title": "Trasferimenti",

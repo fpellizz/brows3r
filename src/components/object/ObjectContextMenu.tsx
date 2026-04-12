@@ -6,10 +6,12 @@ import {
   Trash2,
   Copy,
   Link,
-  FileText,
   FolderOpen,
   Eye,
   Info,
+  Pencil,
+  FolderInput,
+  CopyPlus,
 } from "lucide-react";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -18,6 +20,7 @@ import { useConnectionStore } from "@/stores/connectionStore";
 import { useTransferStore } from "@/stores/transferStore";
 import { useUiStore } from "@/stores/uiStore";
 import { tauriInvoke } from "@/lib/tauri";
+import { InputDialog } from "@/components/common/InputDialog";
 
 interface ObjectContextMenuProps {
   object: ObjectInfo;
@@ -31,11 +34,16 @@ export function ObjectContextMenu({
   const { t } = useTranslation();
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
   const currentBucket = useObjectStore((s) => s.currentBucket);
+  const currentPrefix = useObjectStore((s) => s.currentPrefix);
   const fetchObjects = useObjectStore((s) => s.fetchObjects);
   const navigateToPrefix = useObjectStore((s) => s.navigateToPrefix);
   const startDownload = useTransferStore((s) => s.startDownload);
   const openPreview = useUiStore((s) => s.openPreview);
   const openDetails = useUiStore((s) => s.openDetails);
+
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [copyToOpen, setCopyToOpen] = useState(false);
+  const [moveToOpen, setMoveToOpen] = useState(false);
 
   const handleDetails = () => {
     openDetails({
@@ -115,73 +123,207 @@ export function ObjectContextMenu({
     }
   };
 
+  const handleRename = async (newName: string) => {
+    if (!activeConnectionId || !currentBucket) return;
+
+    const newKey = currentPrefix ? `${currentPrefix}${newName}` : newName;
+
+    try {
+      await tauriInvoke("rename_object", {
+        connectionId: activeConnectionId,
+        bucket: currentBucket,
+        oldKey: object.key,
+        newKey,
+      });
+      fetchObjects(activeConnectionId);
+    } catch (e) {
+      console.error("Failed to rename object:", e);
+    }
+  };
+
+  const handleCopyTo = async (destPath: string) => {
+    if (!activeConnectionId || !currentBucket) return;
+
+    // destPath can be "bucket/prefix/key" or just "prefix/key" (same bucket)
+    let destBucket = currentBucket;
+    let destKey = destPath;
+
+    if (destPath.includes(":")) {
+      // Format: bucket:key
+      const [b, ...rest] = destPath.split(":");
+      destBucket = b;
+      destKey = rest.join(":");
+    }
+
+    try {
+      await tauriInvoke("copy_object", {
+        request: {
+          connection_id: activeConnectionId,
+          source_bucket: currentBucket,
+          source_key: object.key,
+          dest_bucket: destBucket,
+          dest_key: destKey,
+        },
+      });
+      fetchObjects(activeConnectionId);
+    } catch (e) {
+      console.error("Failed to copy object:", e);
+    }
+  };
+
+  const handleMoveTo = async (destPath: string) => {
+    if (!activeConnectionId || !currentBucket) return;
+
+    let destBucket = currentBucket;
+    let destKey = destPath;
+
+    if (destPath.includes(":")) {
+      const [b, ...rest] = destPath.split(":");
+      destBucket = b;
+      destKey = rest.join(":");
+    }
+
+    try {
+      await tauriInvoke("move_object", {
+        request: {
+          connection_id: activeConnectionId,
+          source_bucket: currentBucket,
+          source_key: object.key,
+          dest_bucket: destBucket,
+          dest_key: destKey,
+        },
+      });
+      fetchObjects(activeConnectionId);
+    } catch (e) {
+      console.error("Failed to move object:", e);
+    }
+  };
+
   return (
-    <ContextMenu.Root>
-      <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
+    <>
+      <ContextMenu.Root>
+        <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
 
-      <ContextMenu.Portal>
-        <ContextMenu.Content className="min-w-[180px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50">
-          {object.is_folder ? (
-            <MenuItem
-              icon={<FolderOpen size={14} />}
-              label="Open"
-              onClick={handleOpen}
-            />
-          ) : (
-            <>
+        <ContextMenu.Portal>
+          <ContextMenu.Content className="min-w-[180px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-50">
+            {object.is_folder ? (
               <MenuItem
-                icon={<Eye size={14} />}
-                label="Preview"
-                onClick={handlePreview}
+                icon={<FolderOpen size={14} />}
+                label="Open"
+                onClick={handleOpen}
               />
-              <MenuItem
-                icon={<Download size={14} />}
-                label={t("toolbar.download")}
-                onClick={handleDownload}
-              />
-            </>
-          )}
+            ) : (
+              <>
+                <MenuItem
+                  icon={<Eye size={14} />}
+                  label="Preview"
+                  onClick={handlePreview}
+                />
+                <MenuItem
+                  icon={<Download size={14} />}
+                  label={t("toolbar.download")}
+                  onClick={handleDownload}
+                />
+              </>
+            )}
 
-          <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+            <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 
-          <MenuItem
-            icon={<Copy size={14} />}
-            label={t("object.copyKey")}
-            onClick={handleCopyKey}
-          />
-          <MenuItem
-            icon={<Copy size={14} />}
-            label="Copy S3 URI"
-            onClick={handleCopyS3Uri}
-          />
+            {!object.is_folder && (
+              <>
+                <MenuItem
+                  icon={<Pencil size={14} />}
+                  label={t("object.rename")}
+                  onClick={() => setRenameOpen(true)}
+                />
+                <MenuItem
+                  icon={<CopyPlus size={14} />}
+                  label={t("object.copyTo")}
+                  onClick={() => setCopyToOpen(true)}
+                />
+                <MenuItem
+                  icon={<FolderInput size={14} />}
+                  label={t("object.moveTo")}
+                  onClick={() => setMoveToOpen(true)}
+                />
 
-          {!object.is_folder && (
+                <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+              </>
+            )}
+
             <MenuItem
-              icon={<Link size={14} />}
-              label={`${t("object.presignedUrl")} (1h)`}
-              onClick={handlePresignedUrl}
+              icon={<Copy size={14} />}
+              label={t("object.copyKey")}
+              onClick={handleCopyKey}
             />
-          )}
+            <MenuItem
+              icon={<Copy size={14} />}
+              label="Copy S3 URI"
+              onClick={handleCopyS3Uri}
+            />
 
-          <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+            {!object.is_folder && (
+              <MenuItem
+                icon={<Link size={14} />}
+                label={`${t("object.presignedUrl")} (1h)`}
+                onClick={handlePresignedUrl}
+              />
+            )}
 
-          <MenuItem
-            icon={<Info size={14} />}
-            label="Properties"
-            onClick={handleDetails}
-          />
+            <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 
-          <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+            <MenuItem
+              icon={<Info size={14} />}
+              label="Properties"
+              onClick={handleDetails}
+            />
 
-          <MenuItem
-            icon={<Trash2 size={14} />}
-            label={t("common.delete")}
-            onClick={handleDelete}
-            destructive
-          />
-        </ContextMenu.Content>
-      </ContextMenu.Portal>
-    </ContextMenu.Root>
+            <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+
+            <MenuItem
+              icon={<Trash2 size={14} />}
+              label={t("common.delete")}
+              onClick={handleDelete}
+              destructive
+            />
+          </ContextMenu.Content>
+        </ContextMenu.Portal>
+      </ContextMenu.Root>
+
+      {/* Rename dialog */}
+      <InputDialog
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        title={t("object.rename")}
+        label={t("object.name")}
+        defaultValue={object.display_name}
+        onConfirm={handleRename}
+      />
+
+      {/* Copy To dialog */}
+      <InputDialog
+        open={copyToOpen}
+        onOpenChange={setCopyToOpen}
+        title={t("object.copyTo")}
+        description="Enter destination path. Use bucket:path for cross-bucket copy."
+        label="Destination"
+        defaultValue={object.key}
+        placeholder="prefix/filename.ext or bucket:prefix/filename.ext"
+        onConfirm={handleCopyTo}
+      />
+
+      {/* Move To dialog */}
+      <InputDialog
+        open={moveToOpen}
+        onOpenChange={setMoveToOpen}
+        title={t("object.moveTo")}
+        description="Enter destination path. Use bucket:path for cross-bucket move."
+        label="Destination"
+        defaultValue={object.key}
+        placeholder="prefix/filename.ext or bucket:prefix/filename.ext"
+        onConfirm={handleMoveTo}
+      />
+    </>
   );
 }
 

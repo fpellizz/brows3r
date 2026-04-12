@@ -15,6 +15,7 @@ import { useObjectStore } from "@/stores/objectStore";
 import { tauriInvoke } from "@/lib/tauri";
 import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { InputDialog } from "@/components/common/InputDialog";
 
 interface BucketInfo {
   name: string;
@@ -47,6 +48,17 @@ export function Sidebar() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingConnection, setDeletingConnection] =
     useState<Connection | null>(null);
+
+  // Bucket dialog state
+  const [createBucketOpen, setCreateBucketOpen] = useState(false);
+  const [createBucketConnId, setCreateBucketConnId] = useState<string | null>(
+    null,
+  );
+  const [deleteBucketOpen, setDeleteBucketOpen] = useState(false);
+  const [deletingBucket, setDeletingBucket] = useState<{
+    connId: string;
+    name: string;
+  } | null>(null);
 
   const openNewDialog = () => {
     setEditingConnection(null);
@@ -128,6 +140,53 @@ export function Sidebar() {
     fetchObjects(connectionId);
   };
 
+  const handleCreateBucket = async (bucketName: string) => {
+    if (!createBucketConnId) return;
+    try {
+      await tauriInvoke("create_bucket", {
+        connectionId: createBucketConnId,
+        request: { name: bucketName, region: null },
+      });
+      await loadBuckets(createBucketConnId, true);
+    } catch (e) {
+      console.error("Failed to create bucket:", e);
+    }
+  };
+
+  const handleDeleteBucket = async () => {
+    if (!deletingBucket) return;
+    try {
+      await tauriInvoke("delete_bucket", {
+        connectionId: deletingBucket.connId,
+        bucket: deletingBucket.name,
+      });
+      // If we deleted the active bucket, clear object view
+      if (currentBucket === deletingBucket.name) {
+        setCurrentBucket(null);
+      }
+      await loadBuckets(deletingBucket.connId, true);
+    } catch (e) {
+      console.error("Failed to delete bucket:", e);
+    }
+    setDeletingBucket(null);
+  };
+
+  const openCreateBucket = (connectionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCreateBucketConnId(connectionId);
+    setCreateBucketOpen(true);
+  };
+
+  const confirmDeleteBucket = (
+    connId: string,
+    bucketName: string,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    setDeletingBucket({ connId, name: bucketName });
+    setDeleteBucketOpen(true);
+  };
+
   return (
     <>
       <div className="h-full flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
@@ -186,13 +245,22 @@ export function Sidebar() {
                   {/* Inline action buttons (visible on hover) */}
                   <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
                     {expandedConnections.has(conn.id) && (
-                      <button
-                        className="p-0.5 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
-                        title="Refresh buckets"
-                        onClick={(e) => refreshBuckets(conn.id, e)}
-                      >
-                        <RefreshCw size={12} className="text-zinc-500" />
-                      </button>
+                      <>
+                        <button
+                          className="p-0.5 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                          title={t("bucket.create")}
+                          onClick={(e) => openCreateBucket(conn.id, e)}
+                        >
+                          <Plus size={12} className="text-zinc-500" />
+                        </button>
+                        <button
+                          className="p-0.5 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                          title="Refresh buckets"
+                          onClick={(e) => refreshBuckets(conn.id, e)}
+                        >
+                          <RefreshCw size={12} className="text-zinc-500" />
+                        </button>
+                      </>
                     )}
                     <button
                       className="p-0.5 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
@@ -224,9 +292,9 @@ export function Sidebar() {
                       </div>
                     ) : (
                       buckets[conn.id]?.map((bucket) => (
-                        <button
+                        <div
                           key={bucket.name}
-                          className={`w-full flex items-center gap-1.5 px-2 py-1 text-sm hover:bg-zinc-200 dark:hover:bg-zinc-800 ${
+                          className={`group/bucket w-full flex items-center gap-1.5 px-2 py-1 text-sm hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
                             currentBucket === bucket.name &&
                             activeConnectionId === conn.id
                               ? "bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300"
@@ -238,8 +306,20 @@ export function Sidebar() {
                             size={14}
                             className="text-amber-500 shrink-0"
                           />
-                          <span className="truncate">{bucket.name}</span>
-                        </button>
+                          <span className="truncate flex-1">{bucket.name}</span>
+                          <button
+                            className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 shrink-0"
+                            title={t("bucket.delete")}
+                            onClick={(e) =>
+                              confirmDeleteBucket(conn.id, bucket.name, e)
+                            }
+                          >
+                            <Trash2
+                              size={11}
+                              className="text-zinc-400 hover:text-red-500"
+                            />
+                          </button>
+                        </div>
                       ))
                     )}
                   </div>
@@ -257,7 +337,7 @@ export function Sidebar() {
         editConnection={editingConnection}
       />
 
-      {/* Delete confirmation */}
+      {/* Delete connection confirmation */}
       <ConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
@@ -266,6 +346,30 @@ export function Sidebar() {
         confirmLabel={t("common.delete")}
         destructive
         onConfirm={handleDelete}
+      />
+
+      {/* Create bucket dialog */}
+      <InputDialog
+        open={createBucketOpen}
+        onOpenChange={setCreateBucketOpen}
+        title={t("bucket.create")}
+        label={t("bucket.name")}
+        placeholder="my-new-bucket"
+        confirmLabel={t("connection.create")}
+        onConfirm={handleCreateBucket}
+      />
+
+      {/* Delete bucket confirmation */}
+      <ConfirmDialog
+        open={deleteBucketOpen}
+        onOpenChange={setDeleteBucketOpen}
+        title={t("bucket.delete")}
+        description={t("bucket.deleteConfirm", {
+          name: deletingBucket?.name ?? "",
+        })}
+        confirmLabel={t("common.delete")}
+        destructive
+        onConfirm={handleDeleteBucket}
       />
     </>
   );

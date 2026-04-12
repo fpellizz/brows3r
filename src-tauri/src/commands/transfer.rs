@@ -80,6 +80,8 @@ pub async fn start_upload(
         let local = local_path.clone();
         let tid = transfer_id.clone();
 
+        let progress_tid = tid.clone();
+        let progress_app = app_handle.clone();
         tokio::spawn(async move {
             let result = crate::transfer::upload::upload_file(
                 &client,
@@ -88,7 +90,7 @@ pub async fn start_upload(
                 std::path::Path::new(&local),
                 None,
                 None,
-                |uploaded, total| {
+                move |uploaded, total| {
                     let speed = 0i64; // TODO: calculate actual speed
                     let eta = if speed > 0 {
                         ((total - uploaded) as i64) / speed
@@ -96,10 +98,10 @@ pub async fn start_upload(
                         0
                     };
 
-                    let _ = app_handle.emit(
+                    let _ = progress_app.emit(
                         "transfer:progress",
                         TransferProgressEvent {
-                            id: tid.clone(),
+                            id: progress_tid.clone(),
                             transferred_bytes: uploaded as i64,
                             total_bytes: total as i64,
                             speed_bps: speed,

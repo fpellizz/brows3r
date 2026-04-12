@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Globe, Palette, ArrowUpDown } from "lucide-react";
+import { X, Globe, Palette, ArrowUpDown, Minus, Plus } from "lucide-react";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
+import { applyTheme } from "@/lib/theme";
 import i18n from "@/lib/i18n";
 
 interface SettingsDialogProps {
@@ -80,12 +81,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <TabTrigger value="appearance" icon={<Palette size={14} />} label={t("settings.appearance")} />
             </Tabs.List>
 
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="flex-1 overflow-y-auto px-6 py-5">
               {/* General */}
-              <Tabs.Content value="general" className="space-y-5">
+              <Tabs.Content value="general" className="space-y-6">
                 <SettingRow label={t("settings.language")}>
                   <select
-                    className="input-field w-48"
+                    className="select-field w-52"
                     value={local.general.language}
                     onChange={(e) =>
                       setLocal({
@@ -101,7 +102,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
                 <SettingRow label="Log Level">
                   <select
-                    className="input-field w-48"
+                    className="select-field w-52"
                     value={local.general.log_level}
                     onChange={(e) =>
                       setLocal({
@@ -144,111 +145,72 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
               {/* Transfers */}
               <Tabs.Content value="transfers" className="space-y-5">
-                <SettingRow label={t("settings.maxConcurrent")}>
-                  <input
-                    type="number"
-                    className="input-field w-24"
-                    min={1}
-                    max={16}
-                    value={local.transfer.max_concurrent_transfers}
-                    onChange={(e) =>
-                      setLocal({
-                        ...local,
-                        transfer: {
-                          ...local.transfer,
-                          max_concurrent_transfers: Number(e.target.value),
-                        },
-                      })
-                    }
-                  />
-                </SettingRow>
+                <NumberSetting
+                  label={t("settings.maxConcurrent")}
+                  value={local.transfer.max_concurrent_transfers}
+                  min={1}
+                  max={16}
+                  onChange={(v) =>
+                    setLocal({
+                      ...local,
+                      transfer: { ...local.transfer, max_concurrent_transfers: v },
+                    })
+                  }
+                />
 
-                <SettingRow label={t("settings.maxParts")}>
-                  <input
-                    type="number"
-                    className="input-field w-24"
-                    min={1}
-                    max={16}
-                    value={local.transfer.max_concurrent_parts}
-                    onChange={(e) =>
-                      setLocal({
-                        ...local,
-                        transfer: {
-                          ...local.transfer,
-                          max_concurrent_parts: Number(e.target.value),
-                        },
-                      })
-                    }
-                  />
-                </SettingRow>
+                <NumberSetting
+                  label={t("settings.maxParts")}
+                  value={local.transfer.max_concurrent_parts}
+                  min={1}
+                  max={16}
+                  onChange={(v) =>
+                    setLocal({
+                      ...local,
+                      transfer: { ...local.transfer, max_concurrent_parts: v },
+                    })
+                  }
+                />
 
-                <SettingRow label={t("settings.multipartThreshold")}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      className="input-field w-24"
-                      min={5}
-                      max={5120}
-                      value={local.transfer.multipart_threshold_mb}
-                      onChange={(e) =>
-                        setLocal({
-                          ...local,
-                          transfer: {
-                            ...local.transfer,
-                            multipart_threshold_mb: Number(e.target.value),
-                          },
-                        })
-                      }
-                    />
-                    <span className="text-xs text-zinc-400">MB</span>
-                  </div>
-                </SettingRow>
+                <NumberSetting
+                  label={t("settings.multipartThreshold")}
+                  value={local.transfer.multipart_threshold_mb}
+                  min={5}
+                  max={5120}
+                  onChange={(v) =>
+                    setLocal({
+                      ...local,
+                      transfer: { ...local.transfer, multipart_threshold_mb: v },
+                    })
+                  }
+                />
 
-                <SettingRow label={t("settings.partSize")}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      className="input-field w-24"
-                      min={5}
-                      max={5120}
-                      value={local.transfer.part_size_mb}
-                      onChange={(e) =>
-                        setLocal({
-                          ...local,
-                          transfer: {
-                            ...local.transfer,
-                            part_size_mb: Number(e.target.value),
-                          },
-                        })
-                      }
-                    />
-                    <span className="text-xs text-zinc-400">MB</span>
-                  </div>
-                </SettingRow>
+                <NumberSetting
+                  label={t("settings.partSize")}
+                  value={local.transfer.part_size_mb}
+                  min={5}
+                  max={5120}
+                  onChange={(v) =>
+                    setLocal({
+                      ...local,
+                      transfer: { ...local.transfer, part_size_mb: v },
+                    })
+                  }
+                />
 
-                <SettingRow label={t("settings.maxBandwidth")}>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      className="input-field w-24"
-                      min={0}
-                      placeholder="Unlimited"
-                      value={local.transfer.max_bandwidth_mbps ?? ""}
-                      onChange={(e) =>
-                        setLocal({
-                          ...local,
-                          transfer: {
-                            ...local.transfer,
-                            max_bandwidth_mbps: e.target.value
-                              ? Number(e.target.value)
-                              : null,
-                          },
-                        })
-                      }
-                    />
-                    <span className="text-xs text-zinc-400">MB/s (0 = unlimited)</span>
-                  </div>
-                </SettingRow>
+                <NumberSetting
+                  label={t("settings.maxBandwidth")}
+                  value={local.transfer.max_bandwidth_mbps ?? 0}
+                  min={0}
+                  onChange={(v) =>
+                    setLocal({
+                      ...local,
+                      transfer: {
+                        ...local.transfer,
+                        max_bandwidth_mbps: v || null,
+                      },
+                    })
+                  }
+                />
 
                 <SettingToggle
                   label={t("settings.verifyChecksum")}
@@ -264,16 +226,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </Tabs.Content>
 
               {/* Appearance */}
-              <Tabs.Content value="appearance" className="space-y-5">
+              <Tabs.Content value="appearance" className="space-y-6">
                 <SettingRow label={t("settings.theme")}>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     {(["system", "light", "dark"] as const).map((theme) => (
                       <button
                         key={theme}
-                        className={`px-4 py-2 text-sm rounded-md border transition-colors ${
+                        className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
                           local.ui.theme === theme
                             ? "bg-brand-600 text-white border-brand-600"
-                            : "border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                            : "border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                         }`}
                         onClick={() =>
                           setLocal({
@@ -363,8 +325,10 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-zinc-700 dark:text-zinc-300">{label}</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm text-zinc-700 dark:text-zinc-300 shrink-0">
+        {label}
+      </span>
       {children}
     </div>
   );
@@ -382,22 +346,26 @@ function SettingToggle({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
         <p className="text-sm text-zinc-700 dark:text-zinc-300">{label}</p>
         {description && (
           <p className="text-xs text-zinc-400 mt-0.5">{description}</p>
         )}
       </div>
       <button
-        className={`relative w-10 h-5 rounded-full shrink-0 transition-colors ${
-          checked ? "bg-brand-600" : "bg-zinc-300 dark:bg-zinc-600"
+        role="switch"
+        aria-checked={checked}
+        className={`relative w-11 h-6 rounded-full shrink-0 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
+          checked
+            ? "bg-brand-600"
+            : "bg-zinc-300 dark:bg-zinc-600"
         }`}
         onClick={() => onChange(!checked)}
       >
         <span
-          className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-            checked ? "translate-x-5" : "translate-x-0.5"
+          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+            checked ? "translate-x-5" : "translate-x-0"
           }`}
         />
       </button>
@@ -405,18 +373,69 @@ function SettingToggle({
   );
 }
 
-function applyTheme(theme: "light" | "dark" | "system") {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-  } else if (theme === "light") {
-    root.classList.remove("dark");
-  } else {
-    // System: follow OS preference
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }
+function NumberSetting({
+  label,
+  value,
+  min,
+  max,
+  suffix,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min?: number;
+  max?: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+}) {
+  const decrement = () => {
+    const next = value - 1;
+    if (min !== undefined && next < min) return;
+    onChange(next);
+  };
+  const increment = () => {
+    const next = value + 1;
+    if (max !== undefined && next > max) return;
+    onChange(next);
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm text-zinc-700 dark:text-zinc-300 shrink-0">
+        {label}
+      </span>
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center border border-zinc-300 dark:border-zinc-600 rounded-md overflow-hidden">
+          <button
+            className="px-2 py-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+            onClick={decrement}
+            tabIndex={-1}
+          >
+            <Minus size={12} />
+          </button>
+          <input
+            type="number"
+            className="w-14 text-center text-sm bg-transparent outline-none border-x border-zinc-300 dark:border-zinc-600 py-1.5 number-field-inline"
+            min={min}
+            max={max}
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+          />
+          <button
+            className="px-2 py-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+            onClick={increment}
+            tabIndex={-1}
+          >
+            <Plus size={12} />
+          </button>
+        </div>
+        {suffix && (
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 w-8">
+            {suffix}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
+

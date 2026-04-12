@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { File, Folder, ChevronUp, Upload } from "lucide-react";
 import { useObjectStore, type ObjectInfo } from "@/stores/objectStore";
@@ -11,7 +11,7 @@ import { useDropZone } from "@/hooks/useDropZone";
 
 export function ObjectTable() {
   const { t } = useTranslation();
-  const objects = useObjectStore((s) => s.objects);
+  const rawObjects = useObjectStore((s) => s.objects);
   const currentBucket = useObjectStore((s) => s.currentBucket);
   const currentPrefix = useObjectStore((s) => s.currentPrefix);
   const selectedKeys = useObjectStore((s) => s.selectedKeys);
@@ -22,9 +22,42 @@ export function ObjectTable() {
   const loading = useObjectStore((s) => s.loading);
   const isTruncated = useObjectStore((s) => s.isTruncated);
   const fetchMore = useObjectStore((s) => s.fetchMore);
+  const filterText = useObjectStore((s) => s.filterText);
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
   const startUpload = useTransferStore((s) => s.startUpload);
   const openPreview = useUiStore((s) => s.openPreview);
+
+  const objects = useMemo(() => {
+    if (!filterText) return rawObjects;
+    return rawObjects.filter((o) => {
+      const name = o.display_name.toLowerCase();
+      const filter = filterText;
+
+      // Regex mode: /pattern/
+      if (filter.startsWith("/") && filter.endsWith("/") && filter.length > 2) {
+        try {
+          return new RegExp(filter.slice(1, -1), "i").test(o.display_name);
+        } catch {
+          return name.includes(filter.toLowerCase());
+        }
+      }
+
+      // Glob mode: contains * or ?
+      if (filter.includes("*") || filter.includes("?")) {
+        const escaped = filter
+          .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+          .replace(/\*/g, ".*")
+          .replace(/\?/g, ".");
+        try {
+          return new RegExp(`^${escaped}$`, "i").test(o.display_name);
+        } catch {
+          return name.includes(filter.toLowerCase());
+        }
+      }
+
+      return name.includes(filter.toLowerCase());
+    });
+  }, [rawObjects, filterText]);
 
   const handleDrop = useCallback(
     async (paths: string[]) => {
@@ -173,9 +206,11 @@ export function ObjectTable() {
           {!loading && objects.length === 0 && (
             <tr>
               <td colSpan={5} className="px-2 py-8 text-center text-zinc-400">
-                {currentPrefix
-                  ? t("object.emptyFolder")
-                  : t("object.empty")}
+                {filterText
+                  ? t("object.noResults")
+                  : currentPrefix
+                    ? t("object.emptyFolder")
+                    : t("object.empty")}
               </td>
             </tr>
           )}

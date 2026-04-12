@@ -6,6 +6,8 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
+  /** Optional list of items to display (e.g. files to delete) */
+  items?: string[];
   confirmLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
@@ -16,6 +18,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  items,
   confirmLabel,
   destructive = false,
   onConfirm,
@@ -25,12 +28,28 @@ export function ConfirmDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6">
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6 z-50">
           <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
           <Dialog.Description className="mt-2 text-sm text-zinc-500">
             {description}
           </Dialog.Description>
+          {items && items.length > 0 && (
+            <div className="mt-3 max-h-48 overflow-y-auto rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-2">
+              <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-0.5">
+                {items.slice(0, 50).map((item) => (
+                  <li key={item} className="truncate">
+                    {item}
+                  </li>
+                ))}
+                {items.length > 50 && (
+                  <li className="text-zinc-400 italic">
+                    ...and {items.length - 50} more
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
           <div className="flex justify-end gap-2 mt-6">
             <Dialog.Close asChild>
               <button className="px-4 py-2 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">

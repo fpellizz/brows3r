@@ -182,6 +182,57 @@ pub async fn copy_object(
 }
 
 #[tauri::command]
+pub async fn move_object(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    request: CopyObjectRequest,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &request.connection_id).await?;
+
+    // Copy to new location
+    crate::s3::client::copy_object(
+        &client,
+        &request.source_bucket,
+        &request.source_key,
+        &request.dest_bucket,
+        &request.dest_key,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // Delete original
+    crate::s3::client::delete_objects(&client, &request.source_bucket, &[request.source_key.clone()])
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn rename_object(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    old_key: String,
+    new_key: String,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+
+    // Copy to new key
+    crate::s3::client::copy_object(&client, &bucket, &old_key, &bucket, &new_key)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Delete original
+    crate::s3::client::delete_objects(&client, &bucket, &[old_key])
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn create_folder(
     db: State<'_, Database>,
     pool: State<'_, S3ClientPool>,

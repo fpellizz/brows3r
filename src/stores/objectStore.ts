@@ -38,6 +38,7 @@ interface ObjectState {
   isTruncated: boolean;
   loading: boolean;
   error: string | null;
+  filterText: string;
 
   setCurrentBucket: (bucket: string | null) => void;
   navigateToPrefix: (prefix: string) => void;
@@ -50,6 +51,7 @@ interface ObjectState {
   selectAll: () => void;
   clearSelection: () => void;
   deleteSelected: (connectionId: string) => Promise<void>;
+  setFilterText: (text: string) => void;
 }
 
 export const useObjectStore = create<ObjectState>((set, get) => ({
@@ -61,6 +63,7 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
   isTruncated: false,
   loading: false,
   error: null,
+  filterText: "",
 
   setCurrentBucket: (bucket) => {
     set({
@@ -70,6 +73,7 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
       selectedKeys: new Set(),
       continuationToken: null,
       isTruncated: false,
+      filterText: "",
     });
   },
 
@@ -80,6 +84,7 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
       selectedKeys: new Set(),
       continuationToken: null,
       isTruncated: false,
+      filterText: "",
     });
   },
 
@@ -194,4 +199,6 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
     set({ selectedKeys: new Set() });
     await get().fetchObjects(connectionId);
   },
+
+  setFilterText: (text) => set({ filterText: text }),
 }));

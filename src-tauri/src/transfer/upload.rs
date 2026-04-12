@@ -20,7 +20,7 @@ pub async fn upload_file<F>(
     progress_callback: F,
 ) -> Result<String, S3Error>
 where
-    F: Fn(u64, u64) + Send + Sync,
+    F: Fn(u64, u64) + Send + Sync + 'static,
 {
     let file_size = tokio::fs::metadata(local_path)
         .await
