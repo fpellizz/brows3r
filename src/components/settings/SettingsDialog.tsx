@@ -176,7 +176,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   value={local.transfer.multipart_threshold_mb}
                   min={5}
                   max={5120}
-                  suffix="MB"
                   onChange={(v) =>
                     setLocal({
                       ...local,
@@ -190,7 +189,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   value={local.transfer.part_size_mb}
                   min={5}
                   max={5120}
-                  suffix="MB"
                   onChange={(v) =>
                     setLocal({
                       ...local,
@@ -203,7 +201,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   label={t("settings.maxBandwidth")}
                   value={local.transfer.max_bandwidth_mbps ?? 0}
                   min={0}
-                  suffix="MB/s"
                   onChange={(v) =>
                     setLocal({
                       ...local,
