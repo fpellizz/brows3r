@@ -21,11 +21,24 @@ function createTab(overrides?: Partial<Tab>): Tab {
 
 const defaultTab = createTab();
 
+export interface PreviewTarget {
+  key: string;
+  displayName: string;
+}
+
+export interface DetailsTarget {
+  key: string;
+  displayName: string;
+  isFolder: boolean;
+}
+
 interface UiState {
   sidebarWidth: number;
   showTransferPanel: boolean;
   showTerminalPanel: boolean;
   showDetailsPanel: boolean;
+  previewObject: PreviewTarget | null;
+  detailsObject: DetailsTarget | null;
 
   tabs: Tab[];
   activeTabId: string;
@@ -34,6 +47,10 @@ interface UiState {
   toggleTransferPanel: () => void;
   toggleTerminalPanel: () => void;
   toggleDetailsPanel: () => void;
+  openPreview: (target: PreviewTarget) => void;
+  closePreview: () => void;
+  openDetails: (target: DetailsTarget) => void;
+  closeDetails: () => void;
 
   addTab: (overrides?: Partial<Tab>) => string;
   closeTab: (id: string) => void;
@@ -47,6 +64,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   showTransferPanel: true,
   showTerminalPanel: false,
   showDetailsPanel: false,
+  previewObject: null,
+  detailsObject: null,
 
   tabs: [defaultTab],
   activeTabId: defaultTab.id,
@@ -58,6 +77,10 @@ export const useUiStore = create<UiState>((set, get) => ({
     set((s) => ({ showTerminalPanel: !s.showTerminalPanel })),
   toggleDetailsPanel: () =>
     set((s) => ({ showDetailsPanel: !s.showDetailsPanel })),
+  openPreview: (target) => set({ previewObject: target, detailsObject: null }),
+  closePreview: () => set({ previewObject: null }),
+  openDetails: (target) => set({ detailsObject: target, previewObject: null }),
+  closeDetails: () => set({ detailsObject: null }),
 
   addTab: (overrides) => {
     const tab = createTab(overrides);
