@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import { X, Globe, Palette, ArrowUpDown } from "lucide-react";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
+import { applyTheme } from "@/lib/theme";
 import i18n from "@/lib/i18n";
 
 interface SettingsDialogProps {
@@ -411,18 +412,3 @@ function SettingToggle({
   );
 }
 
-function applyTheme(theme: "light" | "dark" | "system") {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-  } else if (theme === "light") {
-    root.classList.remove("dark");
-  } else {
-    // System: follow OS preference
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }
-}
