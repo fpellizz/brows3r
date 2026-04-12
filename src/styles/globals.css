@@ -69,6 +69,7 @@ input {
   border: 1px solid theme(--color-zinc-300);
   border-radius: 0.375rem;
   background: white;
+  color: theme(--color-zinc-900);
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -78,6 +79,57 @@ input {
   box-shadow: 0 0 0 2px theme(--color-brand-500 / 25%);
 }
 
+/* Reusable select style */
+.select-field {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid theme(--color-zinc-300);
+  border-radius: 0.375rem;
+  background-color: white;
+  color: theme(--color-zinc-900);
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.select-field:focus {
+  border-color: theme(--color-brand-500);
+  box-shadow: 0 0 0 2px theme(--color-brand-500 / 25%);
+}
+
+.select-field option {
+  background: white;
+  color: theme(--color-zinc-900);
+  padding: 0.375rem;
+}
+
+/* Number input — hide browser spinners */
+.number-field {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid theme(--color-zinc-300);
+  border-radius: 0.375rem;
+  background: white;
+  color: theme(--color-zinc-900);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.number-field:focus {
+  border-color: theme(--color-brand-500);
+  box-shadow: 0 0 0 2px theme(--color-brand-500 / 25%);
+}
+
+.number-field::-webkit-inner-spin-button,
+.number-field::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
 @media (prefers-color-scheme: dark) {
   .input-field {
     background: theme(--color-zinc-800);
@@ -85,6 +137,29 @@ input {
     color: theme(--color-zinc-100);
   }
   .input-field:focus {
+    border-color: theme(--color-brand-400);
+  }
+
+  .select-field {
+    background-color: theme(--color-zinc-800);
+    border-color: theme(--color-zinc-700);
+    color: theme(--color-zinc-100);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  .select-field:focus {
+    border-color: theme(--color-brand-400);
+  }
+  .select-field option {
+    background: theme(--color-zinc-800);
+    color: theme(--color-zinc-100);
+  }
+
+  .number-field {
+    background: theme(--color-zinc-800);
+    border-color: theme(--color-zinc-700);
+    color: theme(--color-zinc-100);
+  }
+  .number-field:focus {
     border-color: theme(--color-brand-400);
   }
 }

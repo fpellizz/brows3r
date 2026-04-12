@@ -314,7 +314,7 @@ export function ConnectionDialog({
                   Provider
                 </label>
                 <select
-                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="select-field w-full"
                   value={selectedPreset}
                   onChange={(e) => applyPreset(e.target.value)}
                 >
@@ -413,14 +413,14 @@ export function ConnectionDialog({
               <Field label={t("connection.signatureVersion")}>
                 <select
                   {...register("signature_version")}
-                  className="input-field"
+                  className="select-field w-full"
                 >
                   <option value="v4">Signature V4</option>
                   <option value="v2">Signature V2</option>
                 </select>
               </Field>
               <Field label={t("connection.pathStyle")}>
-                <select {...register("path_style")} className="input-field">
+                <select {...register("path_style")} className="select-field w-full">
                   <option value="auto">Auto</option>
                   <option value="path">Path Style</option>
                   <option value="virtual">Virtual Hosted</option>
