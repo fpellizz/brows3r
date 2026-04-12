@@ -49,6 +49,7 @@ pub fn run() {
             commands::object::copy_object,
             commands::object::create_folder,
             commands::object::get_presigned_url,
+            commands::object::get_object_preview,
             // Transfer commands
             commands::transfer::start_upload,
             commands::transfer::start_download,

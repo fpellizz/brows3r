@@ -8,12 +8,15 @@ import {
   Link,
   FileText,
   FolderOpen,
+  Eye,
+  Info,
 } from "lucide-react";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { useObjectStore, type ObjectInfo } from "@/stores/objectStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useTransferStore } from "@/stores/transferStore";
+import { useUiStore } from "@/stores/uiStore";
 import { tauriInvoke } from "@/lib/tauri";
 
 interface ObjectContextMenuProps {
@@ -31,6 +34,22 @@ export function ObjectContextMenu({
   const fetchObjects = useObjectStore((s) => s.fetchObjects);
   const navigateToPrefix = useObjectStore((s) => s.navigateToPrefix);
   const startDownload = useTransferStore((s) => s.startDownload);
+  const openPreview = useUiStore((s) => s.openPreview);
+  const openDetails = useUiStore((s) => s.openDetails);
+
+  const handleDetails = () => {
+    openDetails({
+      key: object.key,
+      displayName: object.display_name,
+      isFolder: object.is_folder,
+    });
+  };
+
+  const handlePreview = () => {
+    if (!object.is_folder) {
+      openPreview({ key: object.key, displayName: object.display_name });
+    }
+  };
 
   const handleOpen = () => {
     if (object.is_folder && activeConnectionId) {
@@ -109,11 +128,18 @@ export function ObjectContextMenu({
               onClick={handleOpen}
             />
           ) : (
-            <MenuItem
-              icon={<Download size={14} />}
-              label={t("toolbar.download")}
-              onClick={handleDownload}
-            />
+            <>
+              <MenuItem
+                icon={<Eye size={14} />}
+                label="Preview"
+                onClick={handlePreview}
+              />
+              <MenuItem
+                icon={<Download size={14} />}
+                label={t("toolbar.download")}
+                onClick={handleDownload}
+              />
+            </>
           )}
 
           <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
@@ -136,6 +162,14 @@ export function ObjectContextMenu({
               onClick={handlePresignedUrl}
             />
           )}
+
+          <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
+
+          <MenuItem
+            icon={<Info size={14} />}
+            label="Properties"
+            onClick={handleDetails}
+          />
 
           <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
 

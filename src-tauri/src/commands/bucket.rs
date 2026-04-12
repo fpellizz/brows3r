@@ -17,8 +17,31 @@ async fn get_client(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {connection_id}"))?;
 
-    let secret_key = credentials::get_secret_key(connection_id)?;
-    let session_token = credentials::get_session_token(connection_id)?;
+    // Try in-memory first, then fall back to DB-stored secret
+    let secret_key = match credentials::get_secret_key(connection_id) {
+        Ok(key) => key,
+        Err(_) => {
+            let key = crate::store::database::get_db_secret(db, connection_id)
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| format!("Secret key not found for connection {connection_id}"))?;
+            // Cache in memory for subsequent calls
+            let _ = credentials::store_secret_key(connection_id, &key);
+            key
+        }
+    };
+
+    let session_token = match credentials::get_session_token(connection_id) {
+        Ok(Some(token)) => Some(token),
+        _ => {
+            let token = crate::store::database::get_db_session_token(db, connection_id)
+                .map_err(|e| e.to_string())?;
+            if let Some(ref t) = token {
+                let _ = credentials::store_session_token(connection_id, t);
+            }
+            token
+        }
+    };
+
     let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
 
     pool.get_or_create(connection_id, &config)

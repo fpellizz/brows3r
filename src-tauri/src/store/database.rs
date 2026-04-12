@@ -47,6 +47,8 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
             endpoint TEXT NOT NULL,
             region TEXT NOT NULL,
             access_key_id TEXT NOT NULL,
+            encrypted_secret TEXT,
+            encrypted_session_token TEXT,
             signature_version TEXT NOT NULL DEFAULT 'v4',
             path_style TEXT NOT NULL DEFAULT 'auto',
             proxy TEXT,
@@ -96,6 +98,20 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
             ON pending_transfers(status);
         ",
     )?;
+
+    // Migration: add encrypted_secret columns if missing (existing DBs)
+    let cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(connections)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    if !cols.iter().any(|c| c == "encrypted_secret") {
+        conn.execute_batch(
+            "ALTER TABLE connections ADD COLUMN encrypted_secret TEXT;
+             ALTER TABLE connections ADD COLUMN encrypted_session_token TEXT;",
+        )?;
+    }
 
     Ok(())
 }
@@ -261,4 +277,62 @@ fn path_style_str(v: &PathStyle) -> &str {
         PathStyle::Path => "path",
         PathStyle::Virtual => "virtual",
     }
+}
+
+// --- Secrets stored in DB (base64-obfuscated, not truly encrypted) ---
+
+pub fn store_db_secret(db: &Database, connection_id: &str, secret: &str) -> Result<(), rusqlite::Error> {
+    use base64::Engine;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(secret);
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "UPDATE connections SET encrypted_secret = ?1 WHERE id = ?2",
+        rusqlite::params![encoded, connection_id],
+    )?;
+    Ok(())
+}
+
+pub fn get_db_secret(db: &Database, connection_id: &str) -> Result<Option<String>, rusqlite::Error> {
+    use base64::Engine;
+    let conn = db.conn.lock().unwrap();
+    let result: Option<String> = conn.query_row(
+        "SELECT encrypted_secret FROM connections WHERE id = ?1",
+        [connection_id],
+        |row| row.get(0),
+    ).ok().flatten();
+
+    Ok(result.and_then(|encoded| {
+        base64::engine::general_purpose::STANDARD
+            .decode(&encoded)
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+    }))
+}
+
+pub fn store_db_session_token(db: &Database, connection_id: &str, token: &str) -> Result<(), rusqlite::Error> {
+    use base64::Engine;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(token);
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "UPDATE connections SET encrypted_session_token = ?1 WHERE id = ?2",
+        rusqlite::params![encoded, connection_id],
+    )?;
+    Ok(())
+}
+
+pub fn get_db_session_token(db: &Database, connection_id: &str) -> Result<Option<String>, rusqlite::Error> {
+    use base64::Engine;
+    let conn = db.conn.lock().unwrap();
+    let result: Option<String> = conn.query_row(
+        "SELECT encrypted_session_token FROM connections WHERE id = ?1",
+        [connection_id],
+        |row| row.get(0),
+    ).ok().flatten();
+
+    Ok(result.and_then(|encoded| {
+        base64::engine::general_purpose::STANDARD
+            .decode(&encoded)
+            .ok()
+            .and_then(|bytes| String::from_utf8(bytes).ok())
+    }))
 }

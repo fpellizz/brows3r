@@ -906,6 +906,7 @@ dependencies = [
  "aws-sigv4",
  "aws-smithy-runtime-api",
  "aws-types",
+ "base64 0.22.1",
  "chrono",
  "csv",
  "dirs 5.0.1",
