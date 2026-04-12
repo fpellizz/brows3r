@@ -5,6 +5,10 @@ import { tauriInvoke } from "@/lib/tauri";
 import { formatBytes } from "@/lib/format";
 import { ImagePreview } from "./ImagePreview";
 import { TextPreview } from "./TextPreview";
+import { PdfPreview } from "./PdfPreview";
+import { VideoPreview } from "./VideoPreview";
+import { AudioPreview } from "./AudioPreview";
+import { MarkdownPreview } from "./MarkdownPreview";
 
 interface PreviewResponse {
   preview_type: string;
@@ -33,6 +37,7 @@ export function PreviewPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [presignedUrl, setPresignedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,12 +45,28 @@ export function PreviewPanel({
     async function load() {
       setLoading(true);
       setError(null);
+      setPresignedUrl(null);
       try {
         const result = await tauriInvoke<PreviewResponse>(
           "get_object_preview",
           { connectionId, bucket, key: objectKey },
         );
-        if (!cancelled) setPreview(result);
+        if (cancelled) return;
+        setPreview(result);
+
+        // For pdf/video/audio, fetch a presigned URL for streaming
+        if (["pdf", "video", "audio"].includes(result.preview_type)) {
+          const url = await tauriInvoke<string>("get_presigned_url", {
+            request: {
+              connection_id: connectionId,
+              bucket,
+              key: objectKey,
+              expiry_secs: 3600,
+              method: "get",
+            },
+          });
+          if (!cancelled) setPresignedUrl(url);
+        }
       } catch (e) {
         if (!cancelled) setError(String(e));
       } finally {
@@ -101,14 +122,20 @@ export function PreviewPanel({
         )}
 
         {!loading && !error && preview && (
-          <PreviewContent preview={preview} />
+          <PreviewContent preview={preview} presignedUrl={presignedUrl} />
         )}
       </div>
     </div>
   );
 }
 
-function PreviewContent({ preview }: { preview: PreviewResponse }) {
+function PreviewContent({
+  preview,
+  presignedUrl,
+}: {
+  preview: PreviewResponse;
+  presignedUrl: string | null;
+}) {
   switch (preview.preview_type) {
     case "text":
       return (
@@ -118,12 +145,27 @@ function PreviewContent({ preview }: { preview: PreviewResponse }) {
           fileName=""
         />
       );
+    case "markdown":
+      return <MarkdownPreview content={preview.content} />;
     case "image":
       return (
         <ImagePreview
           base64Data={preview.content}
           contentType={preview.content_type}
         />
+      );
+    case "pdf":
+      if (!presignedUrl) return null;
+      return <PdfPreview url={presignedUrl} />;
+    case "video":
+      if (!presignedUrl) return null;
+      return (
+        <VideoPreview url={presignedUrl} contentType={preview.content_type} />
+      );
+    case "audio":
+      if (!presignedUrl) return null;
+      return (
+        <AudioPreview url={presignedUrl} contentType={preview.content_type} />
       );
     default:
       return (

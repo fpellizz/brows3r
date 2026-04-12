@@ -66,7 +66,15 @@
     "copyTo": "Copy To",
     "empty": "This bucket is empty",
     "emptyFolder": "This folder is empty",
-    "noResults": "No objects match the filter"
+    "noResults": "No objects match the filter",
+    "addMetadata": "Add",
+    "removeMetadata": "Remove",
+    "noMetadata": "No custom metadata",
+    "metadataKey": "Key",
+    "metadataValue": "Value",
+    "saveMetadata": "Save",
+    "saving": "Saving...",
+    "metadataSaved": "Metadata saved successfully"
   },
   "transfer": {
     "title": "Transfers",
