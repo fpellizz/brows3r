@@ -1,9 +1,11 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use aws_sdk_s3::Client;
 use tokio::io::AsyncWriteExt;
 
 use crate::s3::error::S3Error;
+use crate::transfer::throttle::BandwidthThrottle;
 
 /// Download an object to a local file.
 pub async fn download_file<F>(
@@ -11,6 +13,7 @@ pub async fn download_file<F>(
     bucket: &str,
     key: &str,
     local_path: &Path,
+    throttle: Option<Arc<BandwidthThrottle>>,
     progress_callback: F,
 ) -> Result<(), S3Error>
 where
@@ -55,9 +58,15 @@ where
         .await
         .map_err(|e| S3Error::SdkError(e.to_string()))?
     {
+        let chunk_len = chunk.len() as u64;
         file.write_all(&chunk).await.map_err(S3Error::IoError)?;
-        downloaded += chunk.len() as u64;
+        downloaded += chunk_len;
         progress_callback(downloaded, total_size);
+
+        // Apply bandwidth throttling
+        if let Some(ref t) = throttle {
+            t.acquire(chunk_len).await;
+        }
     }
 
     file.flush().await.map_err(S3Error::IoError)?;

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Globe, Palette, ArrowUpDown, Minus, Plus } from "lucide-react";
+import { X, Globe, Palette, ArrowUpDown, Minus, Plus, Trash2, Clock } from "lucide-react";
+import type { BandwidthSchedule } from "@/stores/settingsStore";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
 import { applyTheme } from "@/lib/theme";
 import i18n from "@/lib/i18n";
@@ -223,6 +224,76 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     })
                   }
                 />
+
+                {/* Bandwidth schedules */}
+                <div className="pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={14} className="text-zinc-400" />
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        {t("settings.bandwidthSchedules")}
+                      </span>
+                    </div>
+                    <button
+                      className="flex items-center gap-1 text-xs text-brand-500 hover:text-brand-600"
+                      onClick={() => {
+                        const schedule: BandwidthSchedule = {
+                          name: `Schedule ${(local.transfer.bandwidth_schedules?.length ?? 0) + 1}`,
+                          start_time: "09:00",
+                          end_time: "18:00",
+                          days: [0, 1, 2, 3, 4],
+                          max_bandwidth_mbps: 10,
+                        };
+                        setLocal({
+                          ...local,
+                          transfer: {
+                            ...local.transfer,
+                            bandwidth_schedules: [
+                              ...(local.transfer.bandwidth_schedules ?? []),
+                              schedule,
+                            ],
+                          },
+                        });
+                      }}
+                    >
+                      <Plus size={12} />
+                      Add
+                    </button>
+                  </div>
+
+                  {(!local.transfer.bandwidth_schedules ||
+                    local.transfer.bandwidth_schedules.length === 0) && (
+                    <p className="text-xs text-zinc-400 italic">
+                      {t("settings.noSchedules")}
+                    </p>
+                  )}
+
+                  <div className="space-y-3">
+                    {local.transfer.bandwidth_schedules?.map((sched, idx) => (
+                      <ScheduleRow
+                        key={idx}
+                        schedule={sched}
+                        onChange={(updated) => {
+                          const schedules = [...(local.transfer.bandwidth_schedules ?? [])];
+                          schedules[idx] = updated;
+                          setLocal({
+                            ...local,
+                            transfer: { ...local.transfer, bandwidth_schedules: schedules },
+                          });
+                        }}
+                        onRemove={() => {
+                          const schedules = (local.transfer.bandwidth_schedules ?? []).filter(
+                            (_, i) => i !== idx,
+                          );
+                          setLocal({
+                            ...local,
+                            transfer: { ...local.transfer, bandwidth_schedules: schedules },
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
               </Tabs.Content>
 
               {/* Appearance */}
@@ -434,6 +505,89 @@ function NumberSetting({
             {suffix}
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function ScheduleRow({
+  schedule,
+  onChange,
+  onRemove,
+}: {
+  schedule: BandwidthSchedule;
+  onChange: (s: BandwidthSchedule) => void;
+  onRemove: () => void;
+}) {
+  const toggleDay = (day: number) => {
+    const days = schedule.days.includes(day)
+      ? schedule.days.filter((d) => d !== day)
+      : [...schedule.days, day].sort();
+    onChange({ ...schedule, days });
+  };
+
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+      {/* Name + delete */}
+      <div className="flex items-center gap-2">
+        <input
+          className="input-field flex-1 !py-1 text-xs"
+          value={schedule.name}
+          onChange={(e) => onChange({ ...schedule, name: e.target.value })}
+          placeholder="Schedule name"
+        />
+        <button
+          className="p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
+          onClick={onRemove}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      {/* Time range + bandwidth */}
+      <div className="flex items-center gap-2 text-xs">
+        <input
+          type="time"
+          className="input-field !py-1 !px-2 !text-xs w-24"
+          value={schedule.start_time}
+          onChange={(e) => onChange({ ...schedule, start_time: e.target.value })}
+        />
+        <span className="text-zinc-400">-</span>
+        <input
+          type="time"
+          className="input-field !py-1 !px-2 !text-xs w-24"
+          value={schedule.end_time}
+          onChange={(e) => onChange({ ...schedule, end_time: e.target.value })}
+        />
+        <input
+          type="number"
+          className="number-field !py-1 !px-2 !text-xs w-16 text-center"
+          min={1}
+          value={schedule.max_bandwidth_mbps}
+          onChange={(e) =>
+            onChange({ ...schedule, max_bandwidth_mbps: Number(e.target.value) })
+          }
+        />
+        <span className="text-zinc-400">MB/s</span>
+      </div>
+
+      {/* Day toggles */}
+      <div className="flex gap-1">
+        {DAY_LABELS.map((label, idx) => (
+          <button
+            key={idx}
+            className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+              schedule.days.includes(idx)
+                ? "bg-brand-600 text-white"
+                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            }`}
+            onClick={() => toggleDay(idx)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
     </div>
   );

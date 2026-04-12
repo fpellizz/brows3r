@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import { tauriInvoke } from "@/lib/tauri";
 
+export interface BandwidthSchedule {
+  name: string;
+  start_time: string;
+  end_time: string;
+  days: number[];
+  max_bandwidth_mbps: number;
+}
+
 export interface AppSettings {
   general: {
     language: string;
@@ -14,6 +22,7 @@ export interface AppSettings {
     multipart_threshold_mb: number;
     part_size_mb: number;
     max_bandwidth_mbps: number | null;
+    bandwidth_schedules: BandwidthSchedule[];
     verify_checksum: boolean;
     retry_count: number;
   };

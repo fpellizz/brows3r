@@ -110,7 +110,9 @@
     "partSize": "Dimensione Parte (MB)",
     "maxBandwidth": "Banda Massima (MB/s)",
     "verifyChecksum": "Verifica Checksum",
-    "confirmDelete": "Conferma Prima di Eliminare"
+    "confirmDelete": "Conferma Prima di Eliminare",
+    "bandwidthSchedules": "Fasce Orarie Banda",
+    "noSchedules": "Nessuna fascia configurata. Il limite globale si applica sempre."
   },
   "import": {
     "title": "Importa Connessioni",

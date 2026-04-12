@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+use crate::transfer::throttle::BandwidthSchedule;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct AppSettings {
     pub general: GeneralSettings,
@@ -23,6 +25,7 @@ pub struct TransferSettings {
     pub multipart_threshold_mb: u32,
     pub part_size_mb: u32,
     pub max_bandwidth_mbps: Option<u32>,
+    pub bandwidth_schedules: Vec<BandwidthSchedule>,
     pub verify_checksum: bool,
     pub retry_count: u32,
 }
@@ -69,6 +72,7 @@ impl Default for AppSettings {
                 multipart_threshold_mb: 100,
                 part_size_mb: 8,
                 max_bandwidth_mbps: None,
+                bandwidth_schedules: vec![],
                 verify_checksum: true,
                 retry_count: 3,
             },
