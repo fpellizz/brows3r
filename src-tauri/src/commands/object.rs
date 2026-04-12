@@ -293,6 +293,45 @@ pub async fn get_presigned_url(
     }
 }
 
+#[tauri::command]
+pub async fn update_object_metadata(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    key: String,
+    content_type: Option<String>,
+    metadata: Vec<crate::models::object::MetadataEntry>,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+
+    let copy_source = format!("{bucket}/{key}");
+
+    let mut meta_map = std::collections::HashMap::new();
+    for entry in &metadata {
+        meta_map.insert(entry.key.clone(), entry.value.clone());
+    }
+
+    let mut request = client
+        .copy_object()
+        .copy_source(&copy_source)
+        .bucket(&bucket)
+        .key(&key)
+        .metadata_directive(aws_sdk_s3::types::MetadataDirective::Replace)
+        .set_metadata(Some(meta_map));
+
+    if let Some(ct) = content_type {
+        request = request.content_type(ct);
+    }
+
+    request
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 /// Max preview size: 5 MB
 const MAX_PREVIEW_BYTES: i64 = 5 * 1024 * 1024;
 
@@ -337,6 +376,17 @@ pub async fn get_object_preview(
 
     let preview_type = classify_content_type(&content_type, &key);
 
+    // PDF, video, and audio don't need content download — frontend uses presigned URLs
+    if preview_type == "pdf" || preview_type == "video" || preview_type == "audio" {
+        return Ok(PreviewResponse {
+            preview_type,
+            content: String::new(),
+            content_type,
+            size,
+            truncated: false,
+        });
+    }
+
     if preview_type == "unsupported" || size == 0 {
         return Ok(PreviewResponse {
             preview_type,
@@ -361,8 +411,9 @@ pub async fn get_object_preview(
         // Text: download first 500KB only
     }
 
+    let is_text_like = preview_type == "text" || preview_type == "markdown";
     let text_limit = 512 * 1024i64; // 500 KB for text
-    let download_limit = if preview_type == "text" {
+    let _download_limit = if is_text_like {
         text_limit.min(size)
     } else {
         size.min(MAX_PREVIEW_BYTES)
@@ -372,7 +423,7 @@ pub async fn get_object_preview(
     let mut request = client.get_object().bucket(&bucket).key(&key);
     let truncated;
 
-    if preview_type == "text" && size > text_limit {
+    if is_text_like && size > text_limit {
         request = request.range(format!("bytes=0-{}", text_limit - 1));
         truncated = true;
     } else {
@@ -389,7 +440,7 @@ pub async fn get_object_preview(
         .into_bytes();
 
     let content = match preview_type.as_str() {
-        "text" => {
+        "text" | "markdown" => {
             // Try to decode as UTF-8
             String::from_utf8(bytes.to_vec()).unwrap_or_else(|_| {
                 // Lossy conversion for non-UTF8 text files
@@ -415,6 +466,26 @@ pub async fn get_object_preview(
 fn classify_content_type(content_type: &str, key: &str) -> String {
     let ct = content_type.to_lowercase();
 
+    // PDF
+    if ct == "application/pdf" {
+        return "pdf".to_string();
+    }
+
+    // Video
+    if ct == "video/mp4" || ct == "video/webm" {
+        return "video".to_string();
+    }
+
+    // Audio
+    if ct == "audio/mpeg" || ct == "audio/ogg" || ct == "audio/wav" || ct == "audio/flac" {
+        return "audio".to_string();
+    }
+
+    // Markdown (before generic text)
+    if ct == "text/markdown" {
+        return "markdown".to_string();
+    }
+
     // Images
     if ct.starts_with("image/") {
         return "image".to_string();
@@ -438,8 +509,20 @@ fn classify_content_type(content_type: &str, key: &str) -> String {
     // Fallback: guess from extension
     let ext = key.rsplit('.').next().unwrap_or("").to_lowercase();
     match ext.as_str() {
+        // Markdown
+        "md" | "markdown" => "markdown".to_string(),
+
+        // PDF
+        "pdf" => "pdf".to_string(),
+
+        // Video
+        "mp4" | "webm" => "video".to_string(),
+
+        // Audio
+        "mp3" | "ogg" | "wav" | "flac" => "audio".to_string(),
+
         // Text/code
-        "txt" | "md" | "markdown" | "csv" | "tsv" | "log" | "ini" | "cfg" | "conf"
+        "txt" | "csv" | "tsv" | "log" | "ini" | "cfg" | "conf"
         | "json" | "xml" | "yaml" | "yml" | "toml" | "html" | "htm" | "css" | "js"
         | "ts" | "tsx" | "jsx" | "py" | "rb" | "rs" | "go" | "java" | "c" | "h"
         | "cpp" | "hpp" | "cs" | "sh" | "bash" | "zsh" | "fish" | "ps1" | "bat"

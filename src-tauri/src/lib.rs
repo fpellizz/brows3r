@@ -50,6 +50,7 @@ pub fn run() {
             commands::object::move_object,
             commands::object::rename_object,
             commands::object::create_folder,
+            commands::object::update_object_metadata,
             commands::object::get_presigned_url,
             commands::object::get_object_preview,
             // Transfer commands
