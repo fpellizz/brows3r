@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-brightgreen" alt="Platforms">
   <img src="https://img.shields.io/badge/license-proprietary-red" alt="License">
   <img src="https://img.shields.io/badge/rust-1.77%2B-orange" alt="Rust">
@@ -254,9 +254,9 @@ Output in `src-tauri/target/release/bundle/`:
 
 | Package | Path | Install command |
 |---------|------|-----------------|
-| `.deb` | `bundle/deb/brows3r_1.0.2_amd64.deb` | `sudo dpkg -i brows3r_*.deb` |
-| `.rpm` | `bundle/rpm/brows3r-1.0.2-1.x86_64.rpm` | `sudo rpm -i brows3r-*.rpm` |
-| `.AppImage` | `bundle/appimage/brows3r_1.0.2_amd64.AppImage` | `chmod +x brows3r_*.AppImage && ./brows3r_*.AppImage` |
+| `.deb` | `bundle/deb/brows3r_1.1.0_amd64.deb` | `sudo dpkg -i brows3r_*.deb` |
+| `.rpm` | `bundle/rpm/brows3r-1.1.0-1.x86_64.rpm` | `sudo rpm -i brows3r-*.rpm` |
+| `.AppImage` | `bundle/appimage/brows3r_1.1.0_amd64.AppImage` | `chmod +x brows3r_*.AppImage && ./brows3r_*.AppImage` |
 
 > **Nota:** Per generare il pacchetto `.rpm` da una macchina Debian/Ubuntu serve il pacchetto `rpm`:
 > ```bash
@@ -281,7 +281,7 @@ The script automatically installs missing dependencies:
 - pnpm
 - Tauri CLI
 
-Output: `src-tauri\target\release\bundle\nsis\brows3r_1.0.2_x64-setup.exe`
+Output: `src-tauri\target\release\bundle\nsis\brows3r_1.1.0_x64-setup.exe`
 
 ---
 
@@ -300,7 +300,7 @@ Automated via **Bitbucket Pipelines** (`bitbucket-pipelines.yml`):
 ```bash
 # 1. Update version in src-tauri/tauri.conf.json and Cargo.toml
 # 2. Commit and tag
-git tag v1.0.2
+git tag v1.1.0
 git push --tags
 
 # 3. Pipeline builds .deb + .rpm + .AppImage and uploads to Bitbucket Downloads
