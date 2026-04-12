@@ -121,34 +121,95 @@ Bundle size: **~15 MB** | RAM idle: **~60 MB**
 
 ### Prerequisites
 
-**Linux (Ubuntu/Debian):**
+The automated setup script detects your distro and installs everything:
+
 ```bash
-# Quick setup — installs everything and starts dev mode
-./scripts/install-prerequisites.sh
+./scripts/install-prerequisites.sh    # Ubuntu/Debian, Fedora/RHEL/CentOS
 ```
 
-**Linux (manual):**
+Or install manually per distro:
+
+<details>
+<summary><strong>Ubuntu / Debian / Linux Mint / Pop!_OS</strong></summary>
+
 ```bash
-sudo apt install build-essential curl pkg-config \
+sudo apt update
+sudo apt install -y build-essential curl wget pkg-config \
   libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev \
   libayatana-appindicator3-dev librsvg2-dev \
   libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
+# Per generare pacchetti .rpm da Debian (opzionale)
+sudo apt install -y rpm
+```
+</details>
+
+<details>
+<summary><strong>Fedora 38+</strong></summary>
+
+```bash
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y curl wget pkg-config \
+  openssl-devel gtk3-devel webkit2gtk4.1-devel \
+  libappindicator-gtk3-devel librsvg2-devel \
+  glib2-devel libsoup3-devel javascriptcoregtk4.1-devel
+```
+</details>
+
+<details>
+<summary><strong>RHEL 9 / CentOS Stream 9 / Rocky Linux 9 / AlmaLinux 9</strong></summary>
+
+```bash
+# Abilita EPEL e CRB (necessari per alcune dipendenze)
+sudo dnf install -y epel-release
+sudo dnf config-manager --set-enabled crb    # CentOS/Rocky/Alma
+# oppure: sudo subscription-manager repos --enable codeready-builder-for-rhel-9-x86_64-rpms   # RHEL
+
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y curl wget pkg-config \
+  openssl-devel gtk3-devel webkit2gtk4.1-devel \
+  libappindicator-gtk3-devel librsvg2-devel \
+  glib2-devel libsoup3-devel javascriptcoregtk4.1-devel
+```
+
+> **Nota:** Su RHEL/CentOS/Rocky, `webkit2gtk4.1-devel` potrebbe non essere disponibile nei repo standard. In tal caso:
+> ```bash
+> # Verificare la disponibilita'
+> dnf search webkit2gtk
+> # Se non disponibile, considerare Fedora o compilare WebKitGTK da sorgente
+> ```
+</details>
+
+<details>
+<summary><strong>Rust + Node.js + pnpm + Tauri CLI (tutte le distro)</strong></summary>
+
+```bash
 # Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
 
-# Node.js 22+
+# Node.js 22+ (via NodeSource)
+# Debian/Ubuntu:
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
-sudo apt install nodejs
+sudo apt install -y nodejs
+# Fedora/RHEL:
+curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+sudo dnf install -y nodejs
+
+# pnpm
 corepack enable
+corepack prepare pnpm@latest --activate
 
 # Tauri CLI
 cargo install tauri-cli --locked
 ```
+</details>
 
-**Windows:**
+<details>
+<summary><strong>Windows</strong></summary>
 
-See [Build for Windows](#build-for-windows) below.
+See [Build for Windows](#build-for-windows) below. The build script installs all dependencies automatically.
+</details>
 
 ### Development
 
@@ -186,20 +247,22 @@ cargo test                    # Unit + integration tests
 ### Build for Linux
 
 ```bash
-# Install rpm tools (needed for .rpm output)
-sudo apt install rpm
-
-# Build all Linux packages
 pnpm tauri build
 ```
 
 Output in `src-tauri/target/release/bundle/`:
 
-| Package | Path |
-|---------|------|
-| `.deb` | `bundle/deb/brows3r_0.1.0_amd64.deb` |
-| `.rpm` | `bundle/rpm/brows3r-0.1.0-1.x86_64.rpm` |
-| `.AppImage` | `bundle/appimage/brows3r_0.1.0_amd64.AppImage` |
+| Package | Path | Install command |
+|---------|------|-----------------|
+| `.deb` | `bundle/deb/brows3r_0.1.0_amd64.deb` | `sudo dpkg -i brows3r_*.deb` |
+| `.rpm` | `bundle/rpm/brows3r-0.1.0-1.x86_64.rpm` | `sudo rpm -i brows3r-*.rpm` |
+| `.AppImage` | `bundle/appimage/brows3r_0.1.0_amd64.AppImage` | `chmod +x brows3r_*.AppImage && ./brows3r_*.AppImage` |
+
+> **Nota:** Per generare il pacchetto `.rpm` da una macchina Debian/Ubuntu serve il pacchetto `rpm`:
+> ```bash
+> sudo apt install rpm
+> ```
+> Su Fedora/RHEL non serve: `rpmbuild` e' gia' incluso nel gruppo "Development Tools".
 
 ### Build for Windows
 
