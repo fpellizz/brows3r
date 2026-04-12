@@ -389,15 +389,118 @@ brows3r/
 
 ### 5.3 CI/CD
 
-| Step | Tool |
-|------|------|
-| **CI** | Bitbucket Pipelines |
-| **Lint Rust** | clippy |
-| **Lint TS** | Biome (lint + format, sostituto di ESLint + Prettier) |
-| **Format Rust** | rustfmt |
-| **Build Linux** | Bitbucket Pipelines (ubuntu:24.04, step 2x per Rust) |
-| **Release** | Tauri updater + Bitbucket Downloads (upload via API su tag `v*`) |
-| **Code signing** | Apple Developer ID + Windows Authenticode + GPG per Linux |
+La CI/CD e' gestita tramite **Bitbucket Pipelines** per Linux e **script manuali** per Windows.
+
+Configurazione: `bitbucket-pipelines.yml`
+
+#### 5.3.1 Pipeline Linux (Bitbucket Pipelines)
+
+L'immagine base e' `ubuntu:24.04`. La pipeline installa automaticamente Rust, Node.js 22, pnpm e Tauri CLI.
+
+| Trigger | Step | Cosa fa | Artifacts |
+|---------|------|---------|-----------|
+| **Ogni push** (default) | Frontend: lint + typecheck + test | `pnpm lint`, `pnpm typecheck`, `pnpm test` | - |
+| **Ogni push** (default) | Backend: fmt + clippy + test | `cargo fmt --check`, `cargo clippy`, `cargo test` | - |
+| **Ogni push** (default) | Build Linux | `pnpm tauri build` | `.deb`, `.rpm`, `.AppImage` |
+| **Pull request** | Frontend + Backend checks | Lint, typecheck, test (no build) | - |
+| **Tag `v*`** | Build Linux release | `pnpm tauri build` (release ottimizzato) | `.deb`, `.rpm`, `.AppImage` |
+| **Tag `v*`** | Upload to Bitbucket Downloads | Upload pacchetti via Bitbucket API | - |
+
+**Pacchetti generati (Linux):**
+
+| Formato | Path | Destinatari |
+|---------|------|-------------|
+| `.deb` | `src-tauri/target/release/bundle/deb/` | Ubuntu, Debian, Linux Mint, Pop!_OS |
+| `.rpm` | `src-tauri/target/release/bundle/rpm/` | Fedora, RHEL, CentOS, Rocky, Alma |
+| `.AppImage` | `src-tauri/target/release/bundle/appimage/` | Qualsiasi distro Linux (portable) |
+
+**Cache Bitbucket Pipelines:**
+
+| Cache | Key | Path | Scopo |
+|-------|-----|------|-------|
+| `cargo` | `src-tauri/Cargo.lock` | `~/.cargo/registry` | Registry crate Rust |
+| `cargo-target` | `src-tauri/Cargo.lock` | `src-tauri/target` | Compilati Rust |
+| `pnpm` | `pnpm-lock.yaml` | `.pnpm-store` | Pacchetti npm |
+
+**Dipendenze sistema installate nella pipeline:**
+
+```
+build-essential curl pkg-config file rpm
+libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
+libayatana-appindicator3-dev librsvg2-dev
+libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+```
+
+**Variabili di ambiente richieste per il rilascio (`v*` tags):**
+
+| Variabile | Dove configurarla | Uso |
+|-----------|-------------------|-----|
+| `BB_AUTH_STRING` | Bitbucket repo settings > Pipelines > Variables | `user:app_password` per upload su Bitbucket Downloads |
+
+#### 5.3.2 Build Windows (manuale)
+
+La build Windows e' gestita da script locali in `scripts/`:
+
+| File | Scopo |
+|------|-------|
+| `scripts/build-windows.bat` | Launcher — bypassa le PowerShell execution policy e lancia lo script PS1 |
+| `scripts/build-windows.ps1` | Script principale — installa dipendenze e builda il pacchetto `.exe` |
+
+**Dipendenze installate automaticamente dallo script (se mancanti):**
+
+| Dipendenza | Metodo installazione | Note |
+|------------|---------------------|------|
+| Visual Studio Build Tools | `vs_buildtools.exe` (C++ workload) | Richiede privilegi admin |
+| Rust | rustup (`rustup-init.exe`) | Toolchain stable |
+| Node.js 22 LTS | MSI installer | |
+| pnpm | `corepack enable` / `npm install -g` | |
+| Tauri CLI | `cargo install tauri-cli --locked` | |
+
+**Utilizzo:**
+
+```
+git clone <repo>
+cd brows3r
+scripts\build-windows.bat
+```
+
+Lo script apre automaticamente la cartella contenente l'installer al termine della build.
+
+**Pacchetti generati (Windows):**
+
+| Formato | Path | Tipo |
+|---------|------|------|
+| `.exe` (NSIS) | `src-tauri/target/release/bundle/nsis/` | Installer con wizard di installazione |
+
+#### 5.3.3 Bundle targets configurati
+
+In `src-tauri/tauri.conf.json`, i target di bundle sono:
+
+```json
+"targets": ["deb", "rpm", "appimage", "nsis"]
+```
+
+| Target | Piattaforma | Formato |
+|--------|-------------|---------|
+| `deb` | Linux | Pacchetto Debian `.deb` |
+| `rpm` | Linux | Pacchetto RPM `.rpm` |
+| `appimage` | Linux | AppImage portable `.AppImage` |
+| `nsis` | Windows | Installer `.exe` (NSIS) |
+
+#### 5.3.4 Flusso di rilascio
+
+```
+1. Merge PR su main
+2. git tag v0.1.0
+3. git push --tags
+4. Pipeline Bitbucket:
+   a. Build .deb + .rpm + .AppImage
+   b. Upload su Bitbucket Downloads
+5. Su macchina Windows:
+   a. git pull
+   b. scripts\build-windows.bat
+   c. .exe generato in src-tauri/target/release/bundle/nsis/
+```
 
 ### 5.4 Comandi principali di sviluppo
 

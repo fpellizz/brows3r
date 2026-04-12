@@ -23,6 +23,20 @@ pnpm install
 pnpm tauri dev
 ```
 
+## Build & Distribution
+
+```bash
+# Build Linux packages (.deb + .rpm + .AppImage)
+pnpm tauri build
+
+# Build Windows (from Windows machine)
+scripts\build-windows.bat
+```
+
+Packages output: `src-tauri/target/release/bundle/`
+
+CI/CD: Bitbucket Pipelines builds Linux on every push and uploads to Bitbucket Downloads on `v*` tags. See `TECH_STACK.md` section 5.3 for full details.
+
 ## Project structure
 
 - `src-tauri/` — Rust backend (commands, S3 layer, transfer engine, store)
