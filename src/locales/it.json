@@ -112,6 +112,21 @@
     "verifyChecksum": "Verifica Checksum",
     "confirmDelete": "Conferma Prima di Eliminare"
   },
+  "import": {
+    "title": "Importa Connessioni",
+    "selectSource": "Seleziona sorgente",
+    "aws": "AWS CLI",
+    "rclone": "rclone",
+    "s3cmd": "s3cmd",
+    "minio": "MinIO Client",
+    "found": "{{count}} connessione/i trovata/e",
+    "noConnections": "Nessuna connessione trovata",
+    "importSelected": "Importa Selezionate",
+    "imported": "{{count}} connessione/i importata/e",
+    "error": "Impossibile leggere la configurazione",
+    "selectAll": "Seleziona tutto",
+    "deselectAll": "Deseleziona tutto"
+  },
   "common": {
     "ok": "OK",
     "cancel": "Annulla",
