@@ -158,3 +158,14 @@ input {
 .dark .number-field:focus {
   border-color: theme(--color-brand-400);
 }
+
+/* Inline number input inside stepper group — no own border */
+.number-field-inline {
+  -moz-appearance: textfield;
+  border: none;
+}
+.number-field-inline::-webkit-inner-spin-button,
+.number-field-inline::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
