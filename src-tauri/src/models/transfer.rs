@@ -73,6 +73,36 @@ pub struct TransferCompleteEvent {
     pub etag: Option<String>,
 }
 
+/// A successfully-uploaded multipart part, persisted between sessions so an
+/// interrupted upload can be resumed without re-uploading completed parts.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct UploadedPart {
+    pub part_number: i32,
+    pub etag: String,
+    pub size: i64,
+}
+
+/// A multipart upload that was interrupted (app crash, network failure,
+/// power loss) and can potentially be resumed at startup.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct RecoverableUpload {
+    pub id: String,
+    pub connection_id: String,
+    /// Display name of the connection if it still exists; `None` if the
+    /// connection was deleted (resume impossible — only Discard is valid).
+    pub connection_name: Option<String>,
+    pub bucket: String,
+    pub key: String,
+    pub local_path: String,
+    pub total_bytes: i64,
+    pub uploaded_bytes: i64,
+    pub upload_id: String,
+    pub part_size_bytes: i64,
+    pub uploaded_parts: Vec<UploadedPart>,
+    pub created_at: String,
+    pub updated_at: Option<String>,
+}
+
 impl TransferItem {
     pub fn new_upload(
         connection_id: String,
