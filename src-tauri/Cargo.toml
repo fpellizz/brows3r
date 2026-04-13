@@ -86,6 +86,10 @@ globset = "0.4"
 # Platform directories
 dirs = "5"
 
+# Set filesystem timestamps (used by sync to mirror S3 mtime on downloaded
+# files — avoids spurious "local newer than remote" on subsequent syncs)
+filetime = "0.2"
+
 # UUID for transfer IDs
 uuid = { version = "1", features = ["v4", "serde"] }
 
