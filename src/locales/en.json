@@ -144,5 +144,15 @@
     "confirm": "Confirm",
     "yes": "Yes",
     "no": "No"
+  },
+  "recovery": {
+    "title": "Interrupted uploads",
+    "description": "{{count}} multipart upload(s) were interrupted. Resume them now or discard.",
+    "resume": "Resume",
+    "resuming": "Resuming...",
+    "discard": "Discard",
+    "discarding": "Discarding...",
+    "later": "Later",
+    "connectionRemoved": "Connection no longer exists — only Discard is available."
   }
 }

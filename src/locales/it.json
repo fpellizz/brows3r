@@ -132,6 +132,16 @@
     "selectAll": "Seleziona tutto",
     "deselectAll": "Deseleziona tutto"
   },
+  "recovery": {
+    "title": "Upload interrotti",
+    "description": "{{count}} upload multipart sono stati interrotti. Riprendili ora o scartali.",
+    "resume": "Riprendi",
+    "resuming": "Ripresa in corso...",
+    "discard": "Scarta",
+    "discarding": "Scarto in corso...",
+    "later": "Più tardi",
+    "connectionRemoved": "La connessione non esiste più — è disponibile solo Scarta."
+  },
   "common": {
     "ok": "OK",
     "cancel": "Annulla",
