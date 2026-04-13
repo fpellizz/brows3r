@@ -439,17 +439,40 @@ pub async fn get_object_preview(
         .map_err(|e| e.to_string())?
         .into_bytes();
 
+    // For image formats the browser can't render natively (currently TIFF),
+    // transcode to PNG on the backend so the frontend can display them.
+    let mut effective_content_type = content_type.clone();
+    let content_bytes: Vec<u8> = if preview_type == "image"
+        && is_tiff(&content_type, &key)
+    {
+        match transcode_tiff_to_png(&bytes) {
+            Ok(png) => {
+                effective_content_type = "image/png".to_string();
+                png
+            }
+            Err(e) => {
+                tracing::warn!("TIFF transcode failed for {}: {}", key, e);
+                // Fall back to returning raw bytes — browser will fail to
+                // render but the preview_type stays "image" so the user at
+                // least sees a clear broken-image rather than "unsupported".
+                bytes.to_vec()
+            }
+        }
+    } else {
+        bytes.to_vec()
+    };
+
     let content = match preview_type.as_str() {
         "text" | "markdown" => {
             // Try to decode as UTF-8
-            String::from_utf8(bytes.to_vec()).unwrap_or_else(|_| {
+            String::from_utf8(content_bytes).unwrap_or_else(|bytes| {
                 // Lossy conversion for non-UTF8 text files
-                String::from_utf8_lossy(&bytes).to_string()
+                String::from_utf8_lossy(&bytes.into_bytes()).to_string()
             })
         }
         "image" => {
             // Base64 encode for frontend rendering
-            base64::engine::general_purpose::STANDARD.encode(&bytes)
+            base64::engine::general_purpose::STANDARD.encode(&content_bytes)
         }
         _ => String::new(),
     };
@@ -457,10 +480,31 @@ pub async fn get_object_preview(
     Ok(PreviewResponse {
         preview_type,
         content,
-        content_type,
+        content_type: effective_content_type,
         size,
         truncated,
     })
+}
+
+fn is_tiff(content_type: &str, key: &str) -> bool {
+    let ct = content_type.to_lowercase();
+    if ct == "image/tiff" || ct == "image/tif" || ct == "image/x-tiff" {
+        return true;
+    }
+    let ext = key.rsplit('.').next().unwrap_or("").to_lowercase();
+    ext == "tif" || ext == "tiff"
+}
+
+fn transcode_tiff_to_png(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    use image::ImageFormat;
+    use std::io::Cursor;
+
+    let img = image::load_from_memory_with_format(bytes, ImageFormat::Tiff)
+        .map_err(|e| e.to_string())?;
+    let mut out = Cursor::new(Vec::new());
+    img.write_to(&mut out, ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+    Ok(out.into_inner())
 }
 
 fn classify_content_type(content_type: &str, key: &str) -> String {
@@ -532,7 +576,8 @@ fn classify_content_type(content_type: &str, key: &str) -> String {
         | "erl" | "hs" | "ml" | "vim" | "el" | "lisp" | "clj" => "text".to_string(),
 
         // Images
-        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico" => "image".to_string(),
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico"
+        | "tif" | "tiff" => "image".to_string(),
 
         _ => "unsupported".to_string(),
     }
