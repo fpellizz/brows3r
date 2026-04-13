@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use globset::{Glob, GlobSetBuilder};
 use tauri::{Emitter, State, AppHandle};
 
 use crate::models::transfer::{
@@ -14,6 +15,29 @@ use crate::transfer::throttle::BandwidthThrottle;
 
 use super::connection::build_s3_config;
 
+/// Build a GlobSet from user-configured exclude patterns. Returns an error
+/// (with the offending pattern) if any pattern is invalid, so the user gets
+/// a clear message instead of a silent drop.
+fn build_exclude_set(patterns: &[String]) -> Result<Option<globset::GlobSet>, String> {
+    let cleaned: Vec<&String> = patterns
+        .iter()
+        .filter(|p| !p.trim().is_empty())
+        .collect();
+    if cleaned.is_empty() {
+        return Ok(None);
+    }
+    let mut builder = GlobSetBuilder::new();
+    for p in cleaned {
+        let glob = Glob::new(p.trim())
+            .map_err(|e| format!("Invalid exclude pattern '{p}': {e}"))?;
+        builder.add(glob);
+    }
+    builder
+        .build()
+        .map(Some)
+        .map_err(|e| format!("Failed to build exclude pattern set: {e}"))
+}
+
 #[tauri::command]
 pub async fn start_upload(
     app: AppHandle,
@@ -22,6 +46,32 @@ pub async fn start_upload(
     queue: State<'_, TransferQueue>,
     request: StartUploadRequest,
 ) -> Result<Vec<String>, String> {
+    // Apply user-configured glob exclude patterns (matched against file
+    // basenames). Skipped files are silently dropped from the queue — the
+    // caller can compare returned IDs vs requested paths to detect skips.
+    let settings = crate::store::config::load_settings(&app);
+    let exclude_set = build_exclude_set(&settings.transfer.upload_exclude_patterns)?;
+    let local_paths: Vec<String> = if let Some(set) = &exclude_set {
+        request
+            .local_paths
+            .iter()
+            .filter(|p| {
+                let basename = std::path::Path::new(p)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("");
+                !set.is_match(basename)
+            })
+            .cloned()
+            .collect()
+    } else {
+        request.local_paths.clone()
+    };
+
+    if local_paths.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let conn = crate::store::database::get_connection(&db, &request.connection_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {}", request.connection_id))?;
@@ -46,7 +96,7 @@ pub async fn start_upload(
 
     let mut transfer_ids = Vec::new();
 
-    for local_path in &request.local_paths {
+    for local_path in &local_paths {
         let path = std::path::Path::new(local_path);
         let file_name = path
             .file_name()

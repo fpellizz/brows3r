@@ -25,6 +25,7 @@ export interface AppSettings {
     bandwidth_schedules: BandwidthSchedule[];
     verify_checksum: boolean;
     retry_count: number;
+    upload_exclude_patterns: string[];
   };
   ui: {
     theme: "light" | "dark" | "system";

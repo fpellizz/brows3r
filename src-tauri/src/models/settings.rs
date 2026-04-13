@@ -28,6 +28,11 @@ pub struct TransferSettings {
     pub bandwidth_schedules: Vec<BandwidthSchedule>,
     pub verify_checksum: bool,
     pub retry_count: u32,
+    /// Glob patterns matched against file basenames; matching files are
+    /// excluded from upload. Examples: `*.tmp`, `.DS_Store`, `Thumbs.db`.
+    /// `#[serde(default)]` keeps existing settings.json files compatible.
+    #[serde(default)]
+    pub upload_exclude_patterns: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -75,6 +80,7 @@ impl Default for AppSettings {
                 bandwidth_schedules: vec![],
                 verify_checksum: true,
                 retry_count: 3,
+                upload_exclude_patterns: vec![],
             },
             ui: UiSettings {
                 theme: Theme::System,
