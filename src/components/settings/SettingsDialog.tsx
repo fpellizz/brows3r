@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Globe, Palette, ArrowUpDown, Minus, Plus, Trash2, Clock } from "lucide-react";
+import { X, Globe, Palette, ArrowUpDown, Minus, Plus, Trash2, Clock, Filter } from "lucide-react";
 import type { BandwidthSchedule } from "@/stores/settingsStore";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
 import { applyTheme } from "@/lib/theme";
@@ -22,10 +22,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Local copy for editing
   const [local, setLocal] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && settings) {
       setLocal(structuredClone(settings));
+      setSaveError(null);
     }
   }, [open, settings]);
 
@@ -38,6 +40,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const handleSave = async () => {
     if (!local) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await updateSettings(local);
 
@@ -50,6 +53,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       applyTheme(local.ui.theme);
 
       onOpenChange(false);
+    } catch (e) {
+      // Show backend validation errors inline (e.g. invalid glob patterns)
+      // so the user can fix them without losing their edits.
+      setSaveError(String(e));
     } finally {
       setSaving(false);
     }
@@ -294,6 +301,92 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     ))}
                   </div>
                 </div>
+
+                {/* Upload exclude patterns */}
+                <div className="pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <Filter size={14} className="text-zinc-400" />
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        {t("settings.uploadExcludePatterns")}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs text-brand-500 hover:text-brand-600"
+                      onClick={() => {
+                        setLocal({
+                          ...local,
+                          transfer: {
+                            ...local.transfer,
+                            upload_exclude_patterns: [
+                              ...(local.transfer.upload_exclude_patterns ?? []),
+                              "",
+                            ],
+                          },
+                        });
+                      }}
+                    >
+                      <Plus size={12} />
+                      Add
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-zinc-400 mb-2">
+                    {t("settings.uploadExcludePatternsHint")}
+                  </p>
+
+                  {(!local.transfer.upload_exclude_patterns ||
+                    local.transfer.upload_exclude_patterns.length === 0) && (
+                    <p className="text-xs text-zinc-400 italic">
+                      {t("settings.noExcludePatterns")}
+                    </p>
+                  )}
+
+                  <div className="space-y-2">
+                    {local.transfer.upload_exclude_patterns?.map((pattern, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={pattern}
+                          placeholder="*.tmp"
+                          className="flex-1 px-2 py-1 text-xs font-mono rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
+                          onChange={(e) => {
+                            const patterns = [
+                              ...(local.transfer.upload_exclude_patterns ?? []),
+                            ];
+                            patterns[idx] = e.target.value;
+                            setLocal({
+                              ...local,
+                              transfer: {
+                                ...local.transfer,
+                                upload_exclude_patterns: patterns,
+                              },
+                            });
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="p-1 text-zinc-400 hover:text-red-500"
+                          onClick={() => {
+                            const patterns = (
+                              local.transfer.upload_exclude_patterns ?? []
+                            ).filter((_, i) => i !== idx);
+                            setLocal({
+                              ...local,
+                              transfer: {
+                                ...local.transfer,
+                                upload_exclude_patterns: patterns,
+                              },
+                            });
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </Tabs.Content>
 
               {/* Appearance */}
@@ -348,19 +441,32 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </Tabs.Root>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
-            <Dialog.Close asChild>
-              <button className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                {t("common.cancel")}
+          <div className="flex items-center justify-between gap-4 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
+            <div className="min-w-0 flex-1">
+              {saveError && (
+                <p className="text-xs text-red-600 dark:text-red-400 break-words">
+                  {saveError}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                >
+                  {t("common.cancel")}
+                </button>
+              </Dialog.Close>
+              <button
+                type="button"
+                className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {t("common.save")}
               </button>
-            </Dialog.Close>
-            <button
-              className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {t("common.save")}
-            </button>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

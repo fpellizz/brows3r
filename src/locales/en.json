@@ -112,7 +112,10 @@
     "verifyChecksum": "Verify Checksum",
     "confirmDelete": "Confirm Before Delete",
     "bandwidthSchedules": "Bandwidth Schedules",
-    "noSchedules": "No schedules configured. Global limit applies at all times."
+    "noSchedules": "No schedules configured. Global limit applies at all times.",
+    "uploadExcludePatterns": "Upload Exclude Patterns",
+    "uploadExcludePatternsHint": "Glob patterns matched against file names. Files matching any pattern are skipped during upload.",
+    "noExcludePatterns": "No exclude patterns configured. All selected files will be uploaded."
   },
   "import": {
     "title": "Import Connections",

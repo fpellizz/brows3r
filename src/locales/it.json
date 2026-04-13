@@ -112,7 +112,10 @@
     "verifyChecksum": "Verifica Checksum",
     "confirmDelete": "Conferma Prima di Eliminare",
     "bandwidthSchedules": "Fasce Orarie Banda",
-    "noSchedules": "Nessuna fascia configurata. Il limite globale si applica sempre."
+    "noSchedules": "Nessuna fascia configurata. Il limite globale si applica sempre.",
+    "uploadExcludePatterns": "Pattern di Esclusione Upload",
+    "uploadExcludePatternsHint": "Pattern glob confrontati con il nome dei file. I file che corrispondono vengono saltati durante l'upload.",
+    "noExcludePatterns": "Nessun pattern configurato. Tutti i file selezionati verranno caricati."
   },
   "import": {
     "title": "Importa Connessioni",
