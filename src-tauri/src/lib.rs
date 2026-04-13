@@ -22,6 +22,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .manage(s3::client::S3ClientPool::new())
         .manage(transfer::queue::TransferQueue::new(4))
+        .manage(std::sync::Arc::new(transfer::throttle::BandwidthThrottle::new()))
         .setup(|app| {
             // Initialize database
             let app_handle = app.handle().clone();

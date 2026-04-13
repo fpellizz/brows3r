@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tauri::{Emitter, State, AppHandle};
 
 use crate::models::transfer::{
@@ -8,6 +10,7 @@ use crate::s3::client::S3ClientPool;
 use crate::store::credentials;
 use crate::store::database::Database;
 use crate::transfer::queue::TransferQueue;
+use crate::transfer::throttle::BandwidthThrottle;
 
 use super::connection::build_s3_config;
 
@@ -148,6 +151,7 @@ pub async fn start_download(
     db: State<'_, Database>,
     pool: State<'_, S3ClientPool>,
     queue: State<'_, TransferQueue>,
+    throttle: State<'_, Arc<BandwidthThrottle>>,
     request: StartDownloadRequest,
 ) -> Result<Vec<String>, String> {
     let conn = crate::store::database::get_connection(&db, &request.connection_id)
@@ -209,6 +213,7 @@ pub async fn start_download(
         let bucket = request.bucket.clone();
         let key = key.clone();
         let tid = transfer_id.clone();
+        let dl_throttle = Arc::clone(&throttle);
 
         tokio::spawn(async move {
             let result = crate::transfer::download::download_file(
@@ -216,6 +221,7 @@ pub async fn start_download(
                 &bucket,
                 &key,
                 &local_path,
+                Some(dl_throttle),
                 |downloaded, total| {
                     let _ = app_handle.emit(
                         "transfer:progress",

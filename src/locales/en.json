@@ -110,7 +110,9 @@
     "partSize": "Part Size (MB)",
     "maxBandwidth": "Max Bandwidth (MB/s)",
     "verifyChecksum": "Verify Checksum",
-    "confirmDelete": "Confirm Before Delete"
+    "confirmDelete": "Confirm Before Delete",
+    "bandwidthSchedules": "Bandwidth Schedules",
+    "noSchedules": "No schedules configured. Global limit applies at all times."
   },
   "import": {
     "title": "Import Connections",
