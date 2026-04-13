@@ -18,7 +18,9 @@ use super::connection::build_s3_config;
 /// Build a GlobSet from user-configured exclude patterns. Returns an error
 /// (with the offending pattern) if any pattern is invalid, so the user gets
 /// a clear message instead of a silent drop.
-fn build_exclude_set(patterns: &[String]) -> Result<Option<globset::GlobSet>, String> {
+pub(crate) fn build_exclude_set(
+    patterns: &[String],
+) -> Result<Option<globset::GlobSet>, String> {
     let cleaned: Vec<&String> = patterns
         .iter()
         .filter(|p| !p.trim().is_empty())

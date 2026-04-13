@@ -16,6 +16,10 @@ pub fn update_settings(
     throttle: State<'_, Arc<BandwidthThrottle>>,
     settings: AppSettings,
 ) -> Result<(), String> {
+    // Validate exclude patterns up-front so the user gets a clear error at
+    // save time, rather than on their next upload attempt.
+    super::transfer::build_exclude_set(&settings.transfer.upload_exclude_patterns)?;
+
     // Update throttle config from settings
     throttle.update_config(
         settings.transfer.max_bandwidth_mbps,

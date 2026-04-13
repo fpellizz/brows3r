@@ -22,10 +22,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Local copy for editing
   const [local, setLocal] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && settings) {
       setLocal(structuredClone(settings));
+      setSaveError(null);
     }
   }, [open, settings]);
 
@@ -38,6 +40,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const handleSave = async () => {
     if (!local) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await updateSettings(local);
 
@@ -50,6 +53,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       applyTheme(local.ui.theme);
 
       onOpenChange(false);
+    } catch (e) {
+      // Show backend validation errors inline (e.g. invalid glob patterns)
+      // so the user can fix them without losing their edits.
+      setSaveError(String(e));
     } finally {
       setSaving(false);
     }
@@ -434,19 +441,32 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </Tabs.Root>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
-            <Dialog.Close asChild>
-              <button className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                {t("common.cancel")}
+          <div className="flex items-center justify-between gap-4 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
+            <div className="min-w-0 flex-1">
+              {saveError && (
+                <p className="text-xs text-red-600 dark:text-red-400 break-words">
+                  {saveError}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                >
+                  {t("common.cancel")}
+                </button>
+              </Dialog.Close>
+              <button
+                type="button"
+                className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {t("common.save")}
               </button>
-            </Dialog.Close>
-            <button
-              className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {t("common.save")}
-            </button>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
