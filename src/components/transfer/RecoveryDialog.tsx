@@ -67,7 +67,7 @@ export function RecoveryDialog() {
     setBusy((b) => ({ ...b, [upload.id]: "resume" }));
     setError(null);
     try {
-      await tauriInvoke("resume_upload", { transfer_id: upload.id });
+      await tauriInvoke("resume_upload", { transferId: upload.id });
       // The backend re-enqueues the item into the in-memory queue; refresh
       // the frontend store so the transfer panel picks it up and the
       // incoming `transfer:progress` events have a matching row to update.
@@ -89,7 +89,7 @@ export function RecoveryDialog() {
     setBusy((b) => ({ ...b, [upload.id]: "discard" }));
     setError(null);
     try {
-      await tauriInvoke("discard_upload", { transfer_id: upload.id });
+      await tauriInvoke("discard_upload", { transferId: upload.id });
       setUploads((u) => u.filter((x) => x.id !== upload.id));
     } catch (e) {
       setError(String(e));
