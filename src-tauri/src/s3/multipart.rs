@@ -6,7 +6,23 @@ use aws_sdk_s3::primitives::ByteStream;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::Semaphore;
 
+use crate::models::transfer::UploadedPart;
+
 use super::error::S3Error;
+
+/// Hook for persisting multipart upload state so an interrupted upload can
+/// be resumed on the next app launch. The `MultipartUploader` doesn't need
+/// to know about SQLite/Tauri/etc. — callers wire these methods to whatever
+/// storage they want (or pass `None` to disable persistence entirely).
+pub trait MultipartPersistence: Send + Sync {
+    /// Called once after `create_multipart_upload` returns, before any
+    /// parts are uploaded.
+    fn record_upload_id(&self, upload_id: &str, part_size_bytes: i64);
+
+    /// Called after each `upload_part` succeeds. Implementations should
+    /// expect concurrent calls (one per part-upload task).
+    fn record_part(&self, part: UploadedPart);
+}
 
 /// Default part size: 8 MB
 const DEFAULT_PART_SIZE: usize = 8 * 1024 * 1024;
@@ -62,10 +78,13 @@ impl MultipartUploader {
     /// Execute a multipart upload from a file path with parallel part uploads.
     ///
     /// `progress_callback` is called after each part completes with (bytes_uploaded_so_far, total_bytes).
+    /// `persistence` (when `Some`) receives the upload_id and each completed part
+    /// so the upload can be resumed across app restarts.
     pub async fn upload<F>(
         &self,
         file_path: &std::path::Path,
         progress_callback: F,
+        persistence: Option<Arc<dyn MultipartPersistence>>,
     ) -> Result<String, S3Error>
     where
         F: Fn(u64, u64) + Send + Sync + 'static,
@@ -90,6 +109,13 @@ impl MultipartUploader {
             .ok_or_else(|| S3Error::MultipartError("No upload ID returned".to_string()))?
             .to_string();
 
+        // Persist upload_id + part size BEFORE any parts go up so a crash
+        // between create and the first part still leaves a recoverable row
+        // (the user can Discard it from the recovery dialog).
+        if let Some(p) = persistence.as_ref() {
+            p.record_upload_id(&upload_id, self.part_size as i64);
+        }
+
         // Calculate total parts
         let total_parts = ((file_size as usize + self.part_size - 1) / self.part_size).max(1);
 
@@ -111,6 +137,7 @@ impl MultipartUploader {
             let sem = semaphore.clone();
             let progress = bytes_uploaded.clone();
             let cb = progress_cb.clone();
+            let persist = persistence.clone();
 
             let part_number = (part_idx + 1) as i32;
             let offset = part_idx as u64 * part_size as u64;
@@ -165,6 +192,18 @@ impl MultipartUploader {
                     .e_tag()
                     .unwrap_or_default()
                     .to_string();
+
+                // Persist the completed part so it survives a crash. Done
+                // BEFORE updating progress so a recoverable row never claims
+                // more bytes than are actually durable in the persistence
+                // layer.
+                if let Some(p) = persist.as_ref() {
+                    p.record_part(UploadedPart {
+                        part_number,
+                        etag: etag.clone(),
+                        size: bytes_read as i64,
+                    });
+                }
 
                 // Update progress
                 let uploaded = progress.fetch_add(bytes_read as u64, Ordering::Relaxed) + bytes_read as u64;

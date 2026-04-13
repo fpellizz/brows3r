@@ -1,19 +1,59 @@
 use std::sync::Arc;
 
 use globset::{Glob, GlobSetBuilder};
-use tauri::{Emitter, State, AppHandle};
+use tauri::{Emitter, Manager, State, AppHandle};
 
 use crate::models::transfer::{
     StartDownloadRequest, StartUploadRequest, TransferCompleteEvent, TransferItem,
-    TransferProgressEvent, TransferStatus,
+    TransferProgressEvent, TransferStatus, UploadedPart,
 };
 use crate::s3::client::S3ClientPool;
+use crate::s3::multipart::MultipartPersistence;
 use crate::store::credentials;
 use crate::store::database::Database;
 use crate::transfer::queue::TransferQueue;
 use crate::transfer::throttle::BandwidthThrottle;
 
 use super::connection::build_s3_config;
+
+/// Bridges the `MultipartPersistence` trait (in the S3 layer) to the SQLite
+/// `pending_transfers` table. Held as `Arc<dyn ...>` so the multipart
+/// uploader's parallel part tasks all share the same persistence sink.
+struct DbMultipartPersistence {
+    app: AppHandle,
+    transfer_id: String,
+}
+
+impl MultipartPersistence for DbMultipartPersistence {
+    fn record_upload_id(&self, upload_id: &str, part_size_bytes: i64) {
+        let db = self.app.state::<Database>();
+        if let Err(e) = crate::store::database::update_pending_upload_id(
+            &db,
+            &self.transfer_id,
+            upload_id,
+            part_size_bytes,
+        ) {
+            tracing::warn!(
+                "Failed to persist upload_id for transfer {}: {}",
+                self.transfer_id,
+                e
+            );
+        }
+    }
+
+    fn record_part(&self, part: UploadedPart) {
+        let db = self.app.state::<Database>();
+        if let Err(e) =
+            crate::store::database::append_pending_part(&db, &self.transfer_id, part)
+        {
+            tracing::warn!(
+                "Failed to persist completed part for transfer {}: {}",
+                self.transfer_id,
+                e
+            );
+        }
+    }
+}
 
 /// Build a GlobSet from user-configured exclude patterns. Returns an error
 /// (with the offending pattern) if any pattern is invalid, so the user gets
@@ -126,6 +166,15 @@ pub async fn start_upload(
         let transfer_id = item.id.clone();
         transfer_ids.push(transfer_id.clone());
 
+        // Persist BEFORE the upload task starts so a crash between enqueue
+        // and the first network call still leaves a row to recover (or
+        // discard) on next launch. Failures here are logged but don't
+        // block the upload — persistence is best-effort, the upload itself
+        // is the source of truth.
+        if let Err(e) = crate::store::database::insert_pending_transfer(&db, &item) {
+            tracing::warn!("Failed to persist pending transfer {}: {}", item.id, e);
+        }
+
         queue.enqueue(item).await;
 
         // Spawn the upload task
@@ -137,6 +186,10 @@ pub async fn start_upload(
 
         let progress_tid = tid.clone();
         let progress_app = app_handle.clone();
+        let persistence: Arc<dyn MultipartPersistence> = Arc::new(DbMultipartPersistence {
+            app: app_handle.clone(),
+            transfer_id: tid.clone(),
+        });
         tokio::spawn(async move {
             let result = crate::transfer::upload::upload_file(
                 &client,
@@ -164,8 +217,18 @@ pub async fn start_upload(
                         },
                     );
                 },
+                Some(persistence),
             )
             .await;
+
+            // Clean up the pending row. On success the upload is done, so
+            // there's nothing to recover. On failure we ALSO delete: the
+            // user can retry from the UI, and leaving stale rows around
+            // would clutter the recovery dialog with already-failed
+            // attempts. (User-initiated cancel goes through a different
+            // path that calls `abort_multipart_upload` first.)
+            let db = app_handle.state::<Database>();
+            let _ = crate::store::database::delete_pending_transfer(&db, &tid);
 
             match result {
                 Ok(etag) => {
