@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, RotateCcw, Trash2, X } from "lucide-react";
 import { tauriInvoke } from "@/lib/tauri";
 import { formatBytes } from "@/lib/format";
+import { useTransferStore } from "@/stores/transferStore";
 
 interface UploadedPart {
   part_number: number;
@@ -34,6 +35,7 @@ interface RecoverableUpload {
  */
 export function RecoveryDialog() {
   const { t } = useTranslation();
+  const fetchTransfers = useTransferStore((s) => s.fetchTransfers);
   const [uploads, setUploads] = useState<RecoverableUpload[]>([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<Record<string, "resume" | "discard" | undefined>>({});
@@ -65,9 +67,12 @@ export function RecoveryDialog() {
     setBusy((b) => ({ ...b, [upload.id]: "resume" }));
     setError(null);
     try {
-      await tauriInvoke("resume_upload", { transferId: upload.id });
-      // Optimistic: drop the row from the dialog. The transfer panel will
-      // pick up progress events from the backend.
+      await tauriInvoke("resume_upload", { transfer_id: upload.id });
+      // The backend re-enqueues the item into the in-memory queue; refresh
+      // the frontend store so the transfer panel picks it up and the
+      // incoming `transfer:progress` events have a matching row to update.
+      await fetchTransfers();
+      // Drop from the dialog.
       setUploads((u) => u.filter((x) => x.id !== upload.id));
     } catch (e) {
       setError(String(e));
@@ -84,7 +89,7 @@ export function RecoveryDialog() {
     setBusy((b) => ({ ...b, [upload.id]: "discard" }));
     setError(null);
     try {
-      await tauriInvoke("discard_upload", { transferId: upload.id });
+      await tauriInvoke("discard_upload", { transfer_id: upload.id });
       setUploads((u) => u.filter((x) => x.id !== upload.id));
     } catch (e) {
       setError(String(e));

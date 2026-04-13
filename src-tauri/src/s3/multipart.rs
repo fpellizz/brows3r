@@ -333,6 +333,10 @@ where
             req = req.part_number_marker(m.to_string());
         }
         let out = req.send().await.map_err(|e| {
+            tracing::error!(
+                "resume list_parts failed for bucket={} key={} upload_id={}: {}",
+                bucket, key, upload_id, e
+            );
             // S3 returns NoSuchUpload if the upload was aborted/expired.
             // Surface a clear hint so the UI can prompt to Discard.
             S3Error::MultipartError(format!(
@@ -358,6 +362,14 @@ where
 
     let already_done: std::collections::HashSet<i32> =
         existing.iter().map(|(pn, _)| *pn).collect();
+
+    tracing::info!(
+        "resume: {} part(s) already on S3, {} part(s) to upload (total {}, part_size={})",
+        already_done.len(),
+        total_parts - already_done.len(),
+        total_parts,
+        part_size,
+    );
 
     // Compute already-uploaded bytes for accurate initial progress.
     let already_bytes: u64 = (1..=total_parts)

@@ -518,7 +518,16 @@ pub async fn resume_upload(
         transfer_id: tid.clone(),
     });
 
+    tracing::info!(
+        "resume_upload: starting transfer {} (upload_id={}, {}/{} bytes already uploaded)",
+        tid,
+        upload_id,
+        pending.uploaded_bytes,
+        pending.total_bytes,
+    );
+
     tokio::spawn(async move {
+        tracing::info!("resume_upload[{}]: calling list_parts on S3...", tid);
         let result = crate::s3::multipart::resume_upload(
             &client,
             &bucket,
@@ -548,6 +557,7 @@ pub async fn resume_upload(
 
         match result {
             Ok(etag) => {
+                tracing::info!("resume_upload[{}]: completed successfully (etag={})", tid, etag);
                 let _ = app_handle.emit(
                     "transfer:complete",
                     TransferCompleteEvent {
@@ -559,6 +569,7 @@ pub async fn resume_upload(
                 );
             }
             Err(e) => {
+                tracing::error!("resume_upload[{}]: FAILED: {}", tid, e);
                 let _ = app_handle.emit(
                     "transfer:complete",
                     TransferCompleteEvent {
