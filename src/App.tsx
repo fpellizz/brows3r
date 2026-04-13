@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { RecoveryDialog } from "@/components/transfer/RecoveryDialog";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTransferStore } from "@/stores/transferStore";
@@ -27,5 +28,10 @@ export function App() {
     }
   }, [settings]);
 
-  return <AppShell />;
+  return (
+    <>
+      <AppShell />
+      <RecoveryDialog />
+    </>
+  );
 }

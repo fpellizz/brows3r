@@ -61,6 +61,9 @@ pub fn run() {
             commands::transfer::resume_transfer,
             commands::transfer::cancel_transfer,
             commands::transfer::list_transfers,
+            commands::transfer::list_recoverable_uploads,
+            commands::transfer::resume_upload,
+            commands::transfer::discard_upload,
             // Import commands
             commands::import::import_connections,
             // Config commands

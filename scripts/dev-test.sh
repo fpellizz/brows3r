@@ -47,8 +47,15 @@ ok "Tutti i prerequisiti presenti"
 step "2. Avvio MinIO (docker compose)"
 # --------------------------------------------------
 
-# Ferma eventuali istanze precedenti
-docker compose down -v --remove-orphans 2>/dev/null || true
+# Ferma eventuali istanze precedenti (salvo KEEP_MINIO=1, utile per
+# testare il resume di upload multipart: serve che MinIO preservi i
+# volumi tra restart dell'app — altrimenti gli upload_id in corso
+# vengono persi e list_parts risponde NoSuchUpload).
+if [ "${KEEP_MINIO:-}" != "1" ]; then
+  docker compose down -v --remove-orphans 2>/dev/null || true
+else
+  info "KEEP_MINIO=1 — istanza MinIO esistente preservata (niente 'down')"
+fi
 
 info "Avvio MinIO..."
 docker compose up -d
@@ -121,6 +128,12 @@ echo "  6. Clicca su 'test-bucket' per navigare i file"
 echo "  7. Prova upload, download, tasto destro, ecc."
 echo ""
 echo -e "  ${YELLOW}Ctrl+C per fermare tutto${NC}"
+if [ "${KEEP_MINIO:-}" = "1" ]; then
+  echo -e "  ${YELLOW}KEEP_MINIO=1 attivo: MinIO resta su anche dopo Ctrl+C${NC}"
+else
+  echo -e "  ${CYAN}Tip: KEEP_MINIO=1 ./scripts/dev-test.sh per preservare MinIO${NC}"
+  echo -e "  ${CYAN}     (necessario per testare il resume di upload multipart)${NC}"
+fi
 echo ""
 
 # Avvia tauri dev (bloccante — Ctrl+C per uscire)

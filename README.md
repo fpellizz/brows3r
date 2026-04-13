@@ -83,6 +83,7 @@
 ### Transfer Engine
 - Concurrent transfer queue with pause/resume/cancel
 - **Parallel multipart upload** (configurable part count, default 4)
+- **Multipart upload resume** — interrupted uploads (app crash, kill, power loss) are detected on the next launch and can be resumed from where they stopped, re-uploading only the missing parts
 - Progress tracking with speed and ETA
 - Automatic multipart threshold (default 100 MB)
 - Configurable bandwidth limits
@@ -378,7 +379,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] Bucket browsing and CRUD
 - [x] Object navigation with breadcrumb + address bar
 - [x] Multiple tabs
-- [x] Upload (single + parallel multipart)
+- [x] Upload (single + parallel multipart, with resume across restarts)
 - [x] Download with folder selection
 - [x] Copy / Move / Rename
 - [x] Search/filter (substring, glob, regex)

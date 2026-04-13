@@ -5,6 +5,7 @@ use rusqlite::Connection;
 use tauri::{AppHandle, Manager};
 
 use crate::models::connection::{Connection as ConnProfile, SignatureVersion, PathStyle};
+use crate::models::transfer::{RecoverableUpload, TransferItem, UploadedPart};
 
 /// Application database state, managed by Tauri.
 pub struct Database {
@@ -87,7 +88,11 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
             transferred_bytes INTEGER NOT NULL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'queued',
             priority INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            upload_id TEXT,
+            uploaded_parts TEXT,
+            part_size_bytes INTEGER,
+            updated_at TEXT
         );
 
         CREATE INDEX IF NOT EXISTS idx_transfer_history_conn
@@ -112,6 +117,33 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
              ALTER TABLE connections ADD COLUMN encrypted_session_token TEXT;",
         )?;
     }
+
+    // Migration: add multipart resume columns to pending_transfers if missing
+    // (existing DBs that predate the feature).
+    let pending_cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(pending_transfers)")?
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    if !pending_cols.iter().any(|c| c == "upload_id") {
+        conn.execute_batch(
+            "ALTER TABLE pending_transfers ADD COLUMN upload_id TEXT;
+             ALTER TABLE pending_transfers ADD COLUMN uploaded_parts TEXT;
+             ALTER TABLE pending_transfers ADD COLUMN part_size_bytes INTEGER;
+             ALTER TABLE pending_transfers ADD COLUMN updated_at TEXT;",
+        )?;
+    }
+
+    // Index on upload_id is created after the column is guaranteed to exist
+    // (either by the initial CREATE TABLE for fresh DBs, or by the ALTER
+    // above for migrated DBs). Cannot live in the first batch because for
+    // existing DBs the CREATE TABLE IF NOT EXISTS is a no-op and the index
+    // would reference a not-yet-added column.
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_pending_transfers_upload_id
+             ON pending_transfers(upload_id);",
+    )?;
 
     Ok(())
 }
@@ -335,4 +367,178 @@ pub fn get_db_session_token(db: &Database, connection_id: &str) -> Result<Option
             .ok()
             .and_then(|bytes| String::from_utf8(bytes).ok())
     }))
+}
+
+// --- Pending transfers / multipart resume ---
+//
+// `pending_transfers` records in-flight uploads so a multipart upload can be
+// resumed across app restarts. The flow is:
+//   1. `insert_pending_transfer` when a transfer is enqueued
+//   2. `update_pending_upload_id` after `create_multipart_upload` returns
+//   3. `append_pending_part` after each `upload_part` succeeds
+//   4. `delete_pending_transfer` after `complete_multipart_upload` (or after
+//      a user-initiated cancel + abort)
+// Single-part uploads only hit (1) and (4) — they aren't resumable but we
+// still track them so the queue UI can survive a restart.
+
+/// Insert a queued transfer into pending_transfers. Idempotent on `id`
+/// (uses INSERT OR REPLACE so re-enqueueing is safe).
+pub fn insert_pending_transfer(db: &Database, item: &TransferItem) -> Result<(), rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    let transfer_type = match item.transfer_type {
+        crate::models::transfer::TransferType::Upload => "upload",
+        crate::models::transfer::TransferType::Download => "download",
+    };
+    conn.execute(
+        "INSERT OR REPLACE INTO pending_transfers (
+            id, transfer_type, connection_id, bucket, key, local_path,
+            total_bytes, transferred_bytes, status, priority, created_at,
+            upload_id, uploaded_parts, part_size_bytes, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, NULL, NULL, NULL, ?12)",
+        rusqlite::params![
+            item.id,
+            transfer_type,
+            item.connection_id,
+            item.bucket,
+            item.key,
+            item.local_path,
+            item.total_bytes,
+            item.transferred_bytes,
+            "queued",
+            0,
+            item.created_at,
+            item.created_at,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Record the S3-issued multipart `upload_id` and the chosen part size, so
+/// startup recovery can find this upload and use the same chunking.
+pub fn update_pending_upload_id(
+    db: &Database,
+    transfer_id: &str,
+    upload_id: &str,
+    part_size_bytes: i64,
+) -> Result<(), rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE pending_transfers
+         SET upload_id = ?2, part_size_bytes = ?3, updated_at = ?4
+         WHERE id = ?1",
+        rusqlite::params![transfer_id, upload_id, part_size_bytes, now],
+    )?;
+    Ok(())
+}
+
+/// Append a successfully-uploaded part to the persisted parts list and bump
+/// `transferred_bytes`. Reads the current JSON, mutates, writes back — done
+/// under the same lock so concurrent part-completion callbacks can't race.
+pub fn append_pending_part(
+    db: &Database,
+    transfer_id: &str,
+    part: UploadedPart,
+) -> Result<(), rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let existing_json: Option<String> = conn
+        .query_row(
+            "SELECT uploaded_parts FROM pending_transfers WHERE id = ?1",
+            [transfer_id],
+            |row| row.get(0),
+        )
+        .ok()
+        .flatten();
+
+    let mut parts: Vec<UploadedPart> = existing_json
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
+
+    let part_size = part.size;
+    parts.push(part);
+    let new_json = serde_json::to_string(&parts).unwrap_or_else(|_| "[]".to_string());
+
+    conn.execute(
+        "UPDATE pending_transfers
+         SET uploaded_parts = ?2,
+             transferred_bytes = transferred_bytes + ?3,
+             updated_at = ?4
+         WHERE id = ?1",
+        rusqlite::params![transfer_id, new_json, part_size, now],
+    )?;
+    Ok(())
+}
+
+/// Remove a pending transfer (called on successful completion, user cancel,
+/// or after a Discard action from the recovery UI).
+pub fn delete_pending_transfer(db: &Database, transfer_id: &str) -> Result<(), rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "DELETE FROM pending_transfers WHERE id = ?1",
+        [transfer_id],
+    )?;
+    Ok(())
+}
+
+/// Fetch a single pending transfer's resume metadata. Returns `None` if the
+/// row doesn't exist or isn't a multipart upload (no upload_id).
+pub fn get_pending_multipart(
+    db: &Database,
+    transfer_id: &str,
+) -> Result<Option<RecoverableUpload>, rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT p.id, p.connection_id, c.name, p.bucket, p.key, p.local_path,
+                p.total_bytes, p.transferred_bytes, p.upload_id,
+                p.part_size_bytes, p.uploaded_parts, p.created_at, p.updated_at
+         FROM pending_transfers p
+         LEFT JOIN connections c ON c.id = p.connection_id
+         WHERE p.id = ?1 AND p.upload_id IS NOT NULL",
+    )?;
+    let mut rows = stmt.query_map([transfer_id], row_to_recoverable)?;
+    rows.next().transpose()
+}
+
+/// List all interrupted multipart uploads (rows with a non-null `upload_id`).
+/// Joined with `connections` so the UI can show the connection name and
+/// detect orphaned uploads (connection deleted while upload was in flight).
+pub fn list_recoverable_uploads(db: &Database) -> Result<Vec<RecoverableUpload>, rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT p.id, p.connection_id, c.name, p.bucket, p.key, p.local_path,
+                p.total_bytes, p.transferred_bytes, p.upload_id,
+                p.part_size_bytes, p.uploaded_parts, p.created_at, p.updated_at
+         FROM pending_transfers p
+         LEFT JOIN connections c ON c.id = p.connection_id
+         WHERE p.upload_id IS NOT NULL
+         ORDER BY p.created_at DESC",
+    )?;
+    let rows = stmt.query_map([], row_to_recoverable)?;
+    rows.collect()
+}
+
+fn row_to_recoverable(row: &rusqlite::Row<'_>) -> rusqlite::Result<RecoverableUpload> {
+    let parts_json: Option<String> = row.get(10)?;
+    let uploaded_parts: Vec<UploadedPart> = parts_json
+        .as_deref()
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
+    Ok(RecoverableUpload {
+        id: row.get(0)?,
+        connection_id: row.get(1)?,
+        connection_name: row.get(2)?,
+        bucket: row.get(3)?,
+        key: row.get(4)?,
+        local_path: row.get(5)?,
+        total_bytes: row.get(6)?,
+        uploaded_bytes: row.get(7)?,
+        upload_id: row.get(8)?,
+        part_size_bytes: row.get::<_, Option<i64>>(9)?.unwrap_or(0),
+        uploaded_parts,
+        created_at: row.get(11)?,
+        updated_at: row.get(12)?,
+    })
 }
