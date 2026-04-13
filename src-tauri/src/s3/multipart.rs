@@ -333,14 +333,22 @@ where
             req = req.part_number_marker(m.to_string());
         }
         let out = req.send().await.map_err(|e| {
+            // `{}` on SdkError typically gives an opaque "service error";
+            // the actual cause (NoSuchUpload / AccessDenied / signature
+            // mismatch / network) is nested. Walk the source chain so the
+            // user-facing error actually says something useful.
+            let mut detail = format!("{e}");
+            let mut src: Option<&dyn std::error::Error> = std::error::Error::source(&e);
+            while let Some(s) = src {
+                detail.push_str(&format!(" — {s}"));
+                src = s.source();
+            }
             tracing::error!(
                 "resume list_parts failed for bucket={} key={} upload_id={}: {}",
-                bucket, key, upload_id, e
+                bucket, key, upload_id, detail
             );
-            // S3 returns NoSuchUpload if the upload was aborted/expired.
-            // Surface a clear hint so the UI can prompt to Discard.
             S3Error::MultipartError(format!(
-                "Cannot resume upload (S3 list_parts failed; upload may have been aborted or expired): {e}"
+                "Cannot resume upload (S3 list_parts failed; upload may have been aborted or expired): {detail}"
             ))
         })?;
 
