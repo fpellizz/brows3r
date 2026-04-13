@@ -101,8 +101,6 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
             ON transfer_history(created_at);
         CREATE INDEX IF NOT EXISTS idx_pending_transfers_status
             ON pending_transfers(status);
-        CREATE INDEX IF NOT EXISTS idx_pending_transfers_upload_id
-            ON pending_transfers(upload_id);
         ",
     )?;
 
@@ -133,11 +131,19 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
             "ALTER TABLE pending_transfers ADD COLUMN upload_id TEXT;
              ALTER TABLE pending_transfers ADD COLUMN uploaded_parts TEXT;
              ALTER TABLE pending_transfers ADD COLUMN part_size_bytes INTEGER;
-             ALTER TABLE pending_transfers ADD COLUMN updated_at TEXT;
-             CREATE INDEX IF NOT EXISTS idx_pending_transfers_upload_id
-                 ON pending_transfers(upload_id);",
+             ALTER TABLE pending_transfers ADD COLUMN updated_at TEXT;",
         )?;
     }
+
+    // Index on upload_id is created after the column is guaranteed to exist
+    // (either by the initial CREATE TABLE for fresh DBs, or by the ALTER
+    // above for migrated DBs). Cannot live in the first batch because for
+    // existing DBs the CREATE TABLE IF NOT EXISTS is a no-op and the index
+    // would reference a not-yet-added column.
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_pending_transfers_upload_id
+             ON pending_transfers(upload_id);",
+    )?;
 
     Ok(())
 }
