@@ -122,7 +122,11 @@ export function PreviewPanel({
         )}
 
         {!loading && !error && preview && (
-          <PreviewContent preview={preview} presignedUrl={presignedUrl} />
+          <PreviewContent
+            preview={preview}
+            presignedUrl={presignedUrl}
+            fileName={displayName}
+          />
         )}
       </div>
     </div>
@@ -132,9 +136,11 @@ export function PreviewPanel({
 function PreviewContent({
   preview,
   presignedUrl,
+  fileName,
 }: {
   preview: PreviewResponse;
   presignedUrl: string | null;
+  fileName: string;
 }) {
   switch (preview.preview_type) {
     case "text":
@@ -142,7 +148,7 @@ function PreviewContent({
         <TextPreview
           content={preview.content}
           contentType={preview.content_type}
-          fileName=""
+          fileName={fileName}
         />
       );
     case "markdown":
