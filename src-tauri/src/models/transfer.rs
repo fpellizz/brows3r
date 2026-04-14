@@ -103,6 +103,24 @@ pub struct RecoverableUpload {
     pub updated_at: Option<String>,
 }
 
+/// A finished transfer (success or failure) as stored in `transfer_history`.
+/// Lighter than `TransferItem` (no speed/eta/progress) since it represents
+/// an immutable record, not a live queue entry.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct TransferHistoryEntry {
+    pub id: String,
+    pub transfer_type: TransferType,
+    pub connection_id: String,
+    pub bucket: String,
+    pub key: String,
+    pub local_path: String,
+    pub total_bytes: i64,
+    pub status: String,
+    pub error: Option<String>,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+}
+
 impl TransferItem {
     pub fn new_upload(
         connection_id: String,
