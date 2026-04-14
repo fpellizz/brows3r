@@ -80,6 +80,13 @@
 - **Video** (MP4, WebM) with HTML5 player
 - **Audio** (MP3, OGG, WAV, FLAC) with HTML5 player
 
+### Sync
+- **Unidirectional sync** between a local directory and an S3 prefix, both ways
+- Three modes: **new** (copy only missing files), **updated** (also re-copy changed files, detected via `x-amz-meta-brows3r-mtime` stamps), **mirror** (also delete extras at the destination)
+- **Plan → review → execute** workflow: the user always sees the full action list (uploads, downloads, deletes) before anything runs, and mirror-deletes require an explicit second confirmation
+- Live per-file log during execution, with pass/fail/skip counts at the end
+- Honors the same exclude glob patterns configured for uploads
+
 ### Transfer Engine
 - Concurrent transfer queue with pause/resume/cancel
 - **Parallel multipart upload** (configurable part count, default 4)
@@ -392,7 +399,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] CI/CD pipeline (Linux) + Windows build scripts
 - [ ] Object versioning (list versions, restore, delete markers)
 - [ ] Bucket properties (versioning, encryption, policy, CORS, lifecycle)
-- [ ] Sync (unidirectional, with dry-run)
+- [x] Sync (unidirectional, 3 modes: new / updated / mirror, with dry-run)
 - [ ] Integrated S3 terminal (ls, cp, mv, rm, cat)
 - [ ] Batch operations (mass metadata/storage class/ACL changes)
 - [ ] Cross-connection transfers

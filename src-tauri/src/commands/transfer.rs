@@ -218,6 +218,7 @@ pub async fn start_upload(
                     );
                 },
                 Some(persistence),
+                None,
             )
             .await;
 

@@ -10,6 +10,7 @@ import {
   Search,
   Settings,
   PanelBottom,
+  RefreshCcwDot,
   X,
 } from "lucide-react";
 import { useObjectStore } from "@/stores/objectStore";
@@ -20,6 +21,7 @@ import { tauriInvoke } from "@/lib/tauri";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InputDialog } from "@/components/common/InputDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { SyncDialog } from "@/components/sync/SyncDialog";
 
 export function Toolbar() {
   const { t } = useTranslation();
@@ -40,6 +42,7 @@ export function Toolbar() {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
 
   const hasSelection = selectedKeys.size > 0;
   const hasBucket = !!currentBucket;
@@ -179,6 +182,12 @@ export function Toolbar() {
             }
           }}
         />
+        <ToolbarButton
+          icon={<RefreshCcwDot size={16} />}
+          label={t("toolbar.sync")}
+          disabled={!hasBucket}
+          onClick={() => setSyncOpen(true)}
+        />
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -253,6 +262,15 @@ export function Toolbar() {
 
       {/* Settings dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* Sync dialog */}
+      <SyncDialog
+        open={syncOpen}
+        onOpenChange={setSyncOpen}
+        connectionId={activeConnectionId}
+        bucket={currentBucket}
+        prefix={currentPrefix || ""}
+      />
     </>
   );
 }

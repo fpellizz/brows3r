@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -80,11 +81,15 @@ impl MultipartUploader {
     /// `progress_callback` is called after each part completes with (bytes_uploaded_so_far, total_bytes).
     /// `persistence` (when `Some`) receives the upload_id and each completed part
     /// so the upload can be resumed across app restarts.
+    /// `metadata` (when `Some`) is sent as user-metadata on the
+    /// `CreateMultipartUpload` call and becomes `x-amz-meta-*` on the final
+    /// object. Used by the sync engine to stamp `brows3r-mtime`.
     pub async fn upload<F>(
         &self,
         file_path: &std::path::Path,
         progress_callback: F,
         persistence: Option<Arc<dyn MultipartPersistence>>,
+        metadata: Option<HashMap<String, String>>,
     ) -> Result<String, S3Error>
     where
         F: Fn(u64, u64) + Send + Sync + 'static,
@@ -95,11 +100,15 @@ impl MultipartUploader {
             .len();
 
         // Initiate multipart upload
-        let create_output = self
+        let mut create_req = self
             .client
             .create_multipart_upload()
             .bucket(&self.bucket)
-            .key(&self.key)
+            .key(&self.key);
+        if let Some(meta) = metadata.as_ref() {
+            create_req = create_req.set_metadata(Some(meta.clone()));
+        }
+        let create_output = create_req
             .send()
             .await
             .map_err(|e| S3Error::MultipartError(e.to_string()))?;

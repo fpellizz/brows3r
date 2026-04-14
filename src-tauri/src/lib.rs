@@ -69,6 +69,9 @@ pub fn run() {
             // Config commands
             commands::config::get_settings,
             commands::config::update_settings,
+            // Sync commands
+            commands::sync::plan_sync,
+            commands::sync::execute_sync,
         ])
         .run(tauri::generate_context!())
         .expect("error while running brows3r");
