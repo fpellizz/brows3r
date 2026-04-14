@@ -131,7 +131,7 @@ pub async fn list_objects(
     let output = request
         .send()
         .await
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     let objects = output
         .contents()
@@ -170,7 +170,7 @@ pub async fn head_object(
         .key(key)
         .send()
         .await
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     let metadata = output
         .metadata()
@@ -211,7 +211,7 @@ pub async fn delete_objects(
     let delete = Delete::builder()
         .set_objects(Some(objects))
         .build()
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     client
         .delete_objects()
@@ -219,7 +219,7 @@ pub async fn delete_objects(
         .delete(delete)
         .send()
         .await
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     Ok(())
 }
@@ -240,7 +240,7 @@ pub async fn copy_object(
         .key(dest_key)
         .send()
         .await
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     Ok(())
 }
@@ -267,7 +267,7 @@ pub async fn create_bucket(
     request
         .send()
         .await
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     Ok(())
 }
@@ -278,7 +278,7 @@ pub async fn delete_bucket(client: &Client, bucket: &str) -> Result<(), S3Error>
         .bucket(bucket)
         .send()
         .await
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     Ok(())
 }
