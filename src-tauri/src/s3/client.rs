@@ -88,7 +88,7 @@ pub async fn list_buckets(client: &Client) -> Result<Vec<S3Bucket>, S3Error> {
         .send()
         .await
         .map_err(|e| {
-            let msg = format!("{e:#}");
+            let msg = super::error::sdk_error_detail(&e);
             tracing::error!("ListBuckets failed: {msg}");
             S3Error::SdkError(msg)
         })?;
