@@ -11,6 +11,7 @@ import {
   Settings,
   PanelBottom,
   RefreshCcwDot,
+  Info,
   X,
 } from "lucide-react";
 import { useObjectStore } from "@/stores/objectStore";
@@ -22,6 +23,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InputDialog } from "@/components/common/InputDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { SyncDialog } from "@/components/sync/SyncDialog";
+import { AboutDialog } from "@/components/common/AboutDialog";
 
 export function Toolbar() {
   const { t } = useTranslation();
@@ -43,6 +45,7 @@ export function Toolbar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const hasSelection = selectedKeys.size > 0;
   const hasBucket = !!currentBucket;
@@ -203,6 +206,11 @@ export function Toolbar() {
           label={t("toolbar.settings")}
           onClick={() => setSettingsOpen(true)}
         />
+        <ToolbarButton
+          icon={<Info size={16} />}
+          label={t("about.title")}
+          onClick={() => setAboutOpen(true)}
+        />
       </div>
 
       {/* Search bar */}
@@ -262,6 +270,9 @@ export function Toolbar() {
 
       {/* Settings dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* About dialog */}
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 
       {/* Sync dialog */}
       <SyncDialog
