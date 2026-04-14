@@ -226,10 +226,11 @@ pub async fn start_upload(
             .await;
 
             let db = app_handle.state::<Database>();
+            let queue = app_handle.state::<TransferQueue>();
 
             match result {
                 Ok(etag) => {
-                    // Write to transfer_history BEFORE deleting from pending.
+                    queue.complete(&tid).await;
                     let mut done_item = TransferItem::new_upload(
                         request_conn_id.clone(), bucket.clone(),
                         key.clone(), local.clone(), task_size,
@@ -251,6 +252,7 @@ pub async fn start_upload(
                     );
                 }
                 Err(e) => {
+                    queue.fail(&tid, e.to_string()).await;
                     let mut fail_item = TransferItem::new_upload(
                         request_conn_id.clone(), bucket.clone(),
                         key.clone(), local.clone(), task_size,
@@ -380,8 +382,10 @@ pub async fn start_download(
             .await;
 
             let db = app_handle.state::<Database>();
+            let queue = app_handle.state::<TransferQueue>();
             match result {
                 Ok(()) => {
+                    queue.complete(&tid).await;
                     let mut done_item = TransferItem::new_download(
                         dl_conn_id, dl_bucket, dl_key, dl_local, dl_size,
                     );
@@ -402,6 +406,7 @@ pub async fn start_download(
                     );
                 }
                 Err(e) => {
+                    queue.fail(&tid, e.to_string()).await;
                     let mut fail_item = TransferItem::new_download(
                         dl_conn_id, dl_bucket, dl_key, dl_local, dl_size,
                     );
@@ -595,8 +600,10 @@ pub async fn start_cross_transfer(
             .await;
 
             let db = app_handle.state::<Database>();
+            let queue = app_handle.state::<TransferQueue>();
             match result {
                 Ok(()) => {
+                    queue.complete(&tid).await;
                     let mut done = TransferItem::new_upload(
                         conn_id, db_.clone(), dk, format!("cross://{}/{}", sb, sk), file_size,
                     );
@@ -610,6 +617,7 @@ pub async fn start_cross_transfer(
                     });
                 }
                 Err(e) => {
+                    queue.fail(&tid, e.clone()).await;
                     let mut fail = TransferItem::new_upload(
                         conn_id, db_.clone(), dk, format!("cross://{}/{}", sb, sk), file_size,
                     );
