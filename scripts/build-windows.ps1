@@ -110,12 +110,29 @@ Refresh-Path
 if (Test-Command "rustc") {
     $rustVersion = (rustc --version) -replace "rustc\s+", ""
     Write-OK "Rust trovato: $rustVersion"
+} elseif (Test-Command "rustup") {
+    # rustup exists but rustc not in PATH — update and refresh
+    Write-Step "rustup presente, aggiornamento toolchain..."
+    $ErrorActionPreference = "Continue"
+    & rustup update stable 2>&1 | Out-Null
+    $ErrorActionPreference = "Stop"
+    Refresh-Path
+    if (Test-Command "rustc") {
+        Write-OK "Rust aggiornato: $((rustc --version) -replace 'rustc\s+', '')"
+    } else {
+        Write-Err "rustc non trovato dopo update. Riavvia il terminale e riprova."
+        exit 1
+    }
 } else {
     Write-Step "Installazione Rust via rustup..."
     $rustupInit = Get-TempFile "rustup-init.exe"
     Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupInit
 
+    # Temporarily allow non-fatal stderr (rustup-init emits warnings about
+    # existing configs that PowerShell treats as terminating errors).
+    $ErrorActionPreference = "Continue"
     & $rustupInit -y --default-toolchain stable 2>&1 | Out-Null
+    $ErrorActionPreference = "Stop"
     Remove-Item $rustupInit -Force -ErrorAction SilentlyContinue
 
     Refresh-Path
