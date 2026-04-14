@@ -54,6 +54,19 @@ pub struct StartDownloadRequest {
     pub local_dir: String,
 }
 
+/// Request to copy objects from one connection/bucket to another via
+/// download+re-upload (no server-side copy across endpoints).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StartCrossTransferRequest {
+    pub source_connection_id: String,
+    pub source_bucket: String,
+    pub source_keys: Vec<String>,
+    pub dest_connection_id: String,
+    pub dest_bucket: String,
+    pub dest_prefix: Option<String>,
+    pub preserve_metadata: bool,
+}
+
 /// Event emitted during transfer progress
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct TransferProgressEvent {

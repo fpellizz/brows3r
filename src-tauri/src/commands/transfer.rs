@@ -4,8 +4,9 @@ use globset::{Glob, GlobSetBuilder};
 use tauri::{Emitter, Manager, State, AppHandle};
 
 use crate::models::transfer::{
-    RecoverableUpload, StartDownloadRequest, StartUploadRequest, TransferCompleteEvent,
-    TransferItem, TransferProgressEvent, TransferStatus, TransferType, UploadedPart,
+    RecoverableUpload, StartCrossTransferRequest, StartDownloadRequest, StartUploadRequest,
+    TransferCompleteEvent, TransferItem, TransferProgressEvent, TransferStatus, TransferType,
+    UploadedPart,
 };
 use crate::s3::client::S3ClientPool;
 use crate::s3::multipart::MultipartPersistence;
@@ -466,6 +467,235 @@ pub async fn list_transfer_history(
     db: State<'_, Database>,
 ) -> Result<Vec<crate::models::transfer::TransferHistoryEntry>, String> {
     crate::store::database::list_transfer_history(&db, 200).map_err(|e| e.to_string())
+}
+
+/// Copy objects from one S3 connection/bucket to another by downloading to
+/// a temp file and re-uploading. Server-side copy isn't possible across
+/// different endpoints.
+#[tauri::command]
+pub async fn start_cross_transfer(
+    app: AppHandle,
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    queue: State<'_, TransferQueue>,
+    throttle: State<'_, Arc<BandwidthThrottle>>,
+    request: StartCrossTransferRequest,
+) -> Result<Vec<String>, String> {
+    // Build both clients up-front so credential errors surface immediately.
+    let src_conn = crate::store::database::get_connection(&db, &request.source_connection_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Source connection not found: {}", request.source_connection_id))?;
+    let src_secret = credentials::get_secret_key(&request.source_connection_id).or_else(|_| {
+        crate::store::database::get_db_secret(&db, &request.source_connection_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Source secret key not found".to_string())
+    })?;
+    let src_session = credentials::get_session_token(&request.source_connection_id)
+        .unwrap_or_else(|_| {
+            crate::store::database::get_db_session_token(&db, &request.source_connection_id)
+                .unwrap_or(None)
+        });
+    let src_config = build_s3_config(&src_conn, &src_secret, src_session.as_deref());
+    let src_client = pool
+        .get_or_create(&request.source_connection_id, &src_config)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let dst_conn = crate::store::database::get_connection(&db, &request.dest_connection_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Dest connection not found: {}", request.dest_connection_id))?;
+    let dst_secret = credentials::get_secret_key(&request.dest_connection_id).or_else(|_| {
+        crate::store::database::get_db_secret(&db, &request.dest_connection_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Dest secret key not found".to_string())
+    })?;
+    let dst_session = credentials::get_session_token(&request.dest_connection_id)
+        .unwrap_or_else(|_| {
+            crate::store::database::get_db_session_token(&db, &request.dest_connection_id)
+                .unwrap_or(None)
+        });
+    let dst_config = build_s3_config(&dst_conn, &dst_secret, dst_session.as_deref());
+    let dst_client = pool
+        .get_or_create(&request.dest_connection_id, &dst_config)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut transfer_ids = Vec::new();
+
+    for src_key in &request.source_keys {
+        let file_name = src_key.rsplit('/').next().unwrap_or(src_key);
+        let dest_key = match &request.dest_prefix {
+            Some(p) if p.ends_with('/') => format!("{p}{file_name}"),
+            Some(p) if !p.is_empty() => format!("{p}/{file_name}"),
+            _ => file_name.to_string(),
+        };
+
+        // Get size
+        let head = src_client
+            .head_object()
+            .bucket(&request.source_bucket)
+            .key(src_key)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        let file_size = head.content_length().unwrap_or(0);
+        let src_metadata: Option<std::collections::HashMap<String, String>> =
+            if request.preserve_metadata {
+                head.metadata().map(|m| m.clone())
+            } else {
+                None
+            };
+
+        let item = TransferItem::new_upload(
+            request.dest_connection_id.clone(),
+            request.dest_bucket.clone(),
+            dest_key.clone(),
+            format!("cross://{}/{}", request.source_bucket, src_key),
+            file_size,
+        );
+        let tid = item.id.clone();
+        transfer_ids.push(tid.clone());
+
+        if let Err(e) = crate::store::database::insert_pending_transfer(&db, &item) {
+            tracing::warn!("persist cross-transfer pending {}: {}", tid, e);
+        }
+        queue.enqueue(item).await;
+
+        let app_handle = app.clone();
+        let sc = src_client.clone();
+        let dc = dst_client.clone();
+        let sb = request.source_bucket.clone();
+        let db_ = request.dest_bucket.clone();
+        let sk = src_key.clone();
+        let dk = dest_key.clone();
+        let dl_throttle = Arc::clone(&throttle);
+        let conn_id = request.dest_connection_id.clone();
+
+        tokio::spawn(async move {
+            let result = cross_copy_one(
+                &sc, &sb, &sk,
+                &dc, &db_, &dk,
+                file_size as u64,
+                src_metadata,
+                dl_throttle,
+                app_handle.clone(), tid.clone(),
+            )
+            .await;
+
+            let db = app_handle.state::<Database>();
+            match result {
+                Ok(()) => {
+                    let mut done = TransferItem::new_upload(
+                        conn_id, db_.clone(), dk, format!("cross://{}/{}", sb, sk), file_size,
+                    );
+                    done.id = tid.clone();
+                    done.status = TransferStatus::Completed;
+                    done.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                    let _ = crate::store::database::insert_transfer_history(&db, &done);
+                    let _ = crate::store::database::delete_pending_transfer(&db, &tid);
+                    let _ = app_handle.emit("transfer:complete", TransferCompleteEvent {
+                        id: tid, success: true, error: None, etag: None,
+                    });
+                }
+                Err(e) => {
+                    let mut fail = TransferItem::new_upload(
+                        conn_id, db_.clone(), dk, format!("cross://{}/{}", sb, sk), file_size,
+                    );
+                    fail.id = tid.clone();
+                    fail.status = TransferStatus::Failed;
+                    fail.error = Some(e.clone());
+                    fail.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                    let _ = crate::store::database::insert_transfer_history(&db, &fail);
+                    let _ = crate::store::database::delete_pending_transfer(&db, &tid);
+                    let _ = app_handle.emit("transfer:complete", TransferCompleteEvent {
+                        id: tid, success: false, error: Some(e), etag: None,
+                    });
+                }
+            }
+        });
+    }
+
+    Ok(transfer_ids)
+}
+
+/// Download from source → temp file → upload to destination → cleanup.
+async fn cross_copy_one(
+    src: &aws_sdk_s3::Client,
+    src_bucket: &str,
+    src_key: &str,
+    dst: &aws_sdk_s3::Client,
+    dst_bucket: &str,
+    dst_key: &str,
+    total: u64,
+    metadata: Option<std::collections::HashMap<String, String>>,
+    throttle: Arc<BandwidthThrottle>,
+    app: AppHandle,
+    tid: String,
+) -> Result<(), String> {
+    let tmp_dir = std::env::temp_dir().join("brows3r-cross");
+    tokio::fs::create_dir_all(&tmp_dir)
+        .await
+        .map_err(|e| format!("create temp dir: {e}"))?;
+    let tmp_path = tmp_dir.join(format!("{}.tmp", uuid::Uuid::new_v4()));
+
+    // Download phase
+    let dl_app = app.clone();
+    let dl_tid = tid.clone();
+    crate::transfer::download::download_file(
+        src,
+        src_bucket,
+        src_key,
+        &tmp_path,
+        Some(throttle),
+        move |dl, _t| {
+            let _ = dl_app.emit(
+                "transfer:progress",
+                TransferProgressEvent {
+                    id: dl_tid.clone(),
+                    transferred_bytes: (dl / 2) as i64,
+                    total_bytes: total as i64,
+                    speed_bps: 0,
+                    eta_secs: 0,
+                },
+            );
+        },
+    )
+    .await
+    .map_err(|e| format!("download from source: {e}"))?;
+
+    // Upload phase
+    let ul_app = app.clone();
+    let ul_tid = tid.clone();
+    crate::transfer::upload::upload_file(
+        dst,
+        dst_bucket,
+        dst_key,
+        &tmp_path,
+        None,
+        None,
+        move |ul, _t| {
+            let _ = ul_app.emit(
+                "transfer:progress",
+                TransferProgressEvent {
+                    id: ul_tid.clone(),
+                    transferred_bytes: (total / 2 + ul / 2) as i64,
+                    total_bytes: total as i64,
+                    speed_bps: 0,
+                    eta_secs: 0,
+                },
+            );
+        },
+        None,
+        metadata,
+    )
+    .await
+    .map(|_| ())
+    .map_err(|e| format!("upload to destination: {e}"))?;
+
+    // Cleanup temp file
+    let _ = tokio::fs::remove_file(&tmp_path).await;
+
+    Ok(())
 }
 
 /// List all multipart uploads that were interrupted on the previous run
