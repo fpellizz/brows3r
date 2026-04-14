@@ -45,6 +45,11 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
           <div className="px-6 py-5 space-y-4">
             {/* Logo + name */}
             <div className="text-center">
+              <img
+                src="/icon.svg"
+                alt="brows3r"
+                className="w-20 h-20 mx-auto mb-2 rounded-2xl shadow-lg"
+              />
               <h2 className="text-2xl font-bold text-brand-600 dark:text-brand-400">
                 brows3r
               </h2>
