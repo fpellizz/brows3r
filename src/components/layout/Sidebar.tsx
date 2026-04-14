@@ -229,7 +229,7 @@ export function Sidebar() {
               <div key={conn.id}>
                 {/* Connection node */}
                 <div
-                  className={`group w-full flex items-center gap-1.5 px-2 py-1.5 text-[13px] font-normal hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
+                  className={`group w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-normal hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
                     activeConnectionId === conn.id
                       ? "bg-zinc-200 dark:bg-zinc-800"
                       : ""
@@ -299,7 +299,7 @@ export function Sidebar() {
                       buckets[conn.id]?.map((bucket) => (
                         <div
                           key={bucket.name}
-                          className={`group/bucket w-full flex items-center gap-1.5 px-2 py-1 text-[13px] font-normal hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
+                          className={`group/bucket w-full flex items-center gap-1.5 px-2 py-1 text-sm font-normal hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
                             currentBucket === bucket.name &&
                             activeConnectionId === conn.id
                               ? "bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300"
