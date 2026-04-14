@@ -220,7 +220,9 @@ if ($hasTauriCli) {
     Write-OK "Tauri CLI trovato: $tauriVersion"
 } else {
     Write-Step "Installazione Tauri CLI (puo' richiedere qualche minuto)..."
+    $ErrorActionPreference = "Continue"
     cargo install tauri-cli --locked 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    $ErrorActionPreference = "Stop"
     Write-OK "Tauri CLI installato"
 }
 
@@ -228,7 +230,9 @@ if ($hasTauriCli) {
 # 6. Installa dipendenze progetto
 # ════════════════════════════════════════════════════════════
 Write-Step "Installazione dipendenze frontend..."
-pnpm install --frozen-lockfile 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+$ErrorActionPreference = "Continue"
+pnpm install 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+$ErrorActionPreference = "Stop"
 Write-OK "Dipendenze frontend installate"
 
 # ════════════════════════════════════════════════════════════
@@ -241,7 +245,9 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
 $buildStart = Get-Date
+$ErrorActionPreference = "Continue"
 pnpm tauri build 2>&1 | ForEach-Object { Write-Host $_ }
+$ErrorActionPreference = "Stop"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Build fallita!"
