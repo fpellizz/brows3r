@@ -7,6 +7,17 @@
     "addConnection": "Aggiungi Connessione",
     "noConnections": "Nessuna connessione configurata"
   },
+  "crossTransfer": {
+    "title": "Copia su Altra Connessione",
+    "menuLabel": "Copia su connessione...",
+    "description": "Copia {{count}} oggetto/i su un'altra connessione S3 tramite download + re-upload.",
+    "destConnection": "Connessione di destinazione",
+    "destBucket": "Bucket di destinazione",
+    "destPrefix": "Prefisso di destinazione (opzionale)",
+    "preserveMetadata": "Preserva metadata dell'oggetto",
+    "start": "Avvia trasferimento",
+    "starting": "Avvio in corso..."
+  },
   "sync": {
     "title": "Sincronizzazione",
     "direction": "Direzione",
@@ -125,7 +136,9 @@
     "clearCompleted": "Rimuovi Completati",
     "speed": "Velocita'",
     "eta": "Tempo Stimato",
-    "noTransfers": "Nessun trasferimento attivo"
+    "noTransfers": "Nessun trasferimento attivo",
+    "history": "Storico",
+    "noHistory": "Nessun trasferimento nello storico"
   },
   "settings": {
     "title": "Impostazioni",

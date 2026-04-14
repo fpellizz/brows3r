@@ -94,6 +94,9 @@
 - Progress tracking with speed and ETA
 - Automatic multipart threshold (default 100 MB)
 - Configurable bandwidth limits
+- **Cross-connection transfers** — copy objects between different S3 endpoints via download + re-upload, with optional metadata preservation
+- **Transfer history** — completed and failed transfers are persisted to SQLite and visible in the History tab of the transfer panel
+- **Queue persistence** — pending transfers survive app restarts; the transfer panel shows them on relaunch
 
 ### Settings
 - Light / Dark / System theme with instant switching
@@ -402,7 +405,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] Sync (unidirectional, 3 modes: new / updated / mirror, with dry-run)
 - [ ] Integrated S3 terminal (ls, cp, mv, rm, cat)
 - [ ] Batch operations (mass metadata/storage class/ACL changes)
-- [ ] Cross-connection transfers
+- [x] Cross-connection transfers (download + re-upload with metadata)
 - [ ] Bandwidth throttling with time-based schedules
 - [ ] Dashboard and statistics
 - [ ] macOS build + code signing

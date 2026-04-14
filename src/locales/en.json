@@ -93,7 +93,9 @@
     "clearCompleted": "Clear Completed",
     "speed": "Speed",
     "eta": "ETA",
-    "noTransfers": "No active transfers"
+    "noTransfers": "No active transfers",
+    "history": "History",
+    "noHistory": "No transfer history"
   },
   "settings": {
     "title": "Settings",
@@ -145,6 +147,17 @@
     "confirm": "Confirm",
     "yes": "Yes",
     "no": "No"
+  },
+  "crossTransfer": {
+    "title": "Copy to Other Connection",
+    "menuLabel": "Copy to connection...",
+    "description": "Copy {{count}} object(s) to another S3 connection via download + re-upload.",
+    "destConnection": "Destination connection",
+    "destBucket": "Destination bucket",
+    "destPrefix": "Destination prefix (optional)",
+    "preserveMetadata": "Preserve object metadata",
+    "start": "Start transfer",
+    "starting": "Starting..."
   },
   "sync": {
     "title": "Sync",

@@ -48,6 +48,21 @@ pub enum S3Error {
     IoError(#[from] std::io::Error),
 }
 
+/// Walk the `Error::source` chain of an SDK error and join all messages
+/// into one string. `SdkError::to_string()` usually gives just "service
+/// error" or "dispatch failure"; the actual cause (TLS failure, DNS,
+/// NoSuchKey, AccessDenied, ...) is nested further down.
+pub fn sdk_error_detail<E: std::fmt::Display + std::error::Error>(e: &E) -> String {
+    let mut detail = e.to_string();
+    let mut src: Option<&dyn std::error::Error> = std::error::Error::source(e);
+    while let Some(s) = src {
+        detail.push_str(" — ");
+        detail.push_str(&s.to_string());
+        src = s.source();
+    }
+    detail
+}
+
 impl serde::Serialize for S3Error {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

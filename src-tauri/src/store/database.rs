@@ -5,7 +5,9 @@ use rusqlite::Connection;
 use tauri::{AppHandle, Manager};
 
 use crate::models::connection::{Connection as ConnProfile, SignatureVersion, PathStyle};
-use crate::models::transfer::{RecoverableUpload, TransferItem, UploadedPart};
+use crate::models::transfer::{
+    RecoverableUpload, TransferHistoryEntry, TransferItem, TransferType, UploadedPart,
+};
 
 /// Application database state, managed by Tauri.
 pub struct Database {
@@ -517,6 +519,125 @@ pub fn list_recoverable_uploads(db: &Database) -> Result<Vec<RecoverableUpload>,
          ORDER BY p.created_at DESC",
     )?;
     let rows = stmt.query_map([], row_to_recoverable)?;
+    rows.collect()
+}
+
+// --- Transfer history (completed / failed) --------------------------------
+
+/// Record a finished transfer. Called from the upload/download task
+/// completion paths, before deleting the pending row.
+pub fn insert_transfer_history(
+    db: &Database,
+    item: &TransferItem,
+) -> Result<(), rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    let tt = match item.transfer_type {
+        TransferType::Upload => "upload",
+        TransferType::Download => "download",
+    };
+    let status = match item.status {
+        crate::models::transfer::TransferStatus::Completed => "completed",
+        crate::models::transfer::TransferStatus::Failed => "failed",
+        crate::models::transfer::TransferStatus::Cancelled => "cancelled",
+        _ => "unknown",
+    };
+    conn.execute(
+        "INSERT OR REPLACE INTO transfer_history
+            (id, transfer_type, connection_id, bucket, key, local_path,
+             total_bytes, status, error, created_at, completed_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+        rusqlite::params![
+            item.id,
+            tt,
+            item.connection_id,
+            item.bucket,
+            item.key,
+            item.local_path,
+            item.total_bytes,
+            status,
+            item.error,
+            item.created_at,
+            item.completed_at,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Fetch the most recent transfer history entries, newest first.
+pub fn list_transfer_history(
+    db: &Database,
+    limit: i64,
+) -> Result<Vec<TransferHistoryEntry>, rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT id, transfer_type, connection_id, bucket, key, local_path,
+                total_bytes, status, error, created_at, completed_at
+         FROM transfer_history ORDER BY completed_at DESC, created_at DESC
+         LIMIT ?1",
+    )?;
+    let rows = stmt.query_map([limit], |row| {
+        let tt_str: String = row.get(1)?;
+        Ok(TransferHistoryEntry {
+            id: row.get(0)?,
+            transfer_type: if tt_str == "upload" {
+                TransferType::Upload
+            } else {
+                TransferType::Download
+            },
+            connection_id: row.get(2)?,
+            bucket: row.get(3)?,
+            key: row.get(4)?,
+            local_path: row.get(5)?,
+            total_bytes: row.get(6)?,
+            status: row.get(7)?,
+            error: row.get(8)?,
+            created_at: row.get(9)?,
+            completed_at: row.get(10)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// Load all pending transfers (not just multiparts). Used at startup to
+/// re-populate the in-memory queue so the UI shows items that were in
+/// flight when the app was last closed.
+pub fn list_all_pending(db: &Database) -> Result<Vec<TransferItem>, rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT id, transfer_type, connection_id, bucket, key, local_path,
+                total_bytes, transferred_bytes, status, created_at
+         FROM pending_transfers ORDER BY created_at ASC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        let tt_str: String = row.get(1)?;
+        let status_str: String = row.get(8)?;
+        Ok(TransferItem {
+            id: row.get(0)?,
+            transfer_type: if tt_str == "upload" {
+                TransferType::Upload
+            } else {
+                TransferType::Download
+            },
+            connection_id: row.get(2)?,
+            bucket: row.get(3)?,
+            key: row.get(4)?,
+            local_path: row.get(5)?,
+            total_bytes: row.get(6)?,
+            transferred_bytes: row.get(7)?,
+            status: match status_str.as_str() {
+                "completed" => crate::models::transfer::TransferStatus::Completed,
+                "failed" => crate::models::transfer::TransferStatus::Failed,
+                "cancelled" => crate::models::transfer::TransferStatus::Cancelled,
+                "inprogress" => crate::models::transfer::TransferStatus::Queued, // was in-progress → treat as queued on restart
+                _ => crate::models::transfer::TransferStatus::Queued,
+            },
+            speed_bps: None,
+            eta_secs: None,
+            error: None,
+            created_at: row.get(9)?,
+            completed_at: None,
+        })
+    })?;
     rows.collect()
 }
 

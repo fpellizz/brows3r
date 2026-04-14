@@ -4,6 +4,7 @@ mod s3;
 mod store;
 mod transfer;
 
+use tauri::Manager;
 use tracing_subscriber::EnvFilter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,6 +28,28 @@ pub fn run() {
             // Initialize database
             let app_handle = app.handle().clone();
             store::database::init(&app_handle)?;
+
+            // Restore pending transfers from the DB into the in-memory
+            // queue so the transfer panel shows items that were in flight
+            // when the app was last closed. Multipart uploads are handled
+            // separately by the recovery dialog; non-multipart items just
+            // appear as "Queued" so the user can see they exist (and
+            // re-trigger if needed).
+            let db_state = app.state::<store::database::Database>();
+            if let Ok(pending) = store::database::list_all_pending(&db_state) {
+                let count = pending.len();
+                let restore_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let queue = restore_handle.state::<transfer::queue::TransferQueue>();
+                    for item in pending {
+                        queue.enqueue(item).await;
+                    }
+                    if count > 0 {
+                        tracing::info!("Restored {} pending transfer(s) from DB", count);
+                    }
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -61,6 +84,9 @@ pub fn run() {
             commands::transfer::resume_transfer,
             commands::transfer::cancel_transfer,
             commands::transfer::list_transfers,
+            commands::transfer::list_transfer_history,
+            commands::transfer::clear_finished_transfers,
+            commands::transfer::start_cross_transfer,
             commands::transfer::list_recoverable_uploads,
             commands::transfer::resume_upload,
             commands::transfer::discard_upload,

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Upload,
@@ -10,48 +11,91 @@ import {
   Clock,
   Trash2,
 } from "lucide-react";
-import { useTransferStore, type TransferItem } from "@/stores/transferStore";
+import { useTransferStore, type TransferItem, type TransferHistoryEntry } from "@/stores/transferStore";
 import { formatBytes, formatSpeed, formatDuration } from "@/lib/format";
 
 export function TransferPanel() {
   const { t } = useTranslation();
   const transfers = useTransferStore((s) => s.transfers);
+  const history = useTransferStore((s) => s.history);
+  const fetchHistory = useTransferStore((s) => s.fetchHistory);
   const pauseTransfer = useTransferStore((s) => s.pauseTransfer);
   const resumeTransfer = useTransferStore((s) => s.resumeTransfer);
   const cancelTransfer = useTransferStore((s) => s.cancelTransfer);
   const clearCompleted = useTransferStore((s) => s.clearCompleted);
 
+  const [tab, setTab] = useState<"active" | "history">("active");
+
+  // Fetch history when the user switches to the tab (lazy load).
+  useEffect(() => {
+    if (tab === "history") fetchHistory();
+  }, [tab, fetchHistory]);
+
   return (
     <div className="h-full flex flex-col border-t border-zinc-200 dark:border-zinc-800">
-      {/* Header */}
+      {/* Header with tab toggle */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
-        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          {t("transfer.title")}
-        </span>
-        <button
-          className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-          onClick={clearCompleted}
-        >
-          <Trash2 size={12} />
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className={`text-xs font-semibold uppercase tracking-wider ${tab === "active" ? "text-brand-600 dark:text-brand-400" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+            onClick={() => setTab("active")}
+          >
+            {t("transfer.title")}
+          </button>
+          <button
+            type="button"
+            className={`text-xs font-semibold uppercase tracking-wider ${tab === "history" ? "text-brand-600 dark:text-brand-400" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+            onClick={() => setTab("history")}
+          >
+            {t("transfer.history")}
+          </button>
+        </div>
+        {tab === "active" && (
+          <button
+            type="button"
+            className="text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            onClick={clearCompleted}
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
 
-      {/* Transfer list */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {transfers.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-xs text-zinc-400">
-            {t("transfer.noTransfers")}
-          </div>
-        ) : (
-          transfers.map((transfer) => (
-            <TransferRow
-              key={transfer.id}
-              transfer={transfer}
-              onPause={() => pauseTransfer(transfer.id)}
-              onResume={() => resumeTransfer(transfer.id)}
-              onCancel={() => cancelTransfer(transfer.id)}
-            />
-          ))
+        {tab === "active" && (
+          <>
+            {transfers.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-xs text-zinc-400">
+                {t("transfer.noTransfers")}
+              </div>
+            ) : (
+              transfers.map((transfer) => (
+                <TransferRow
+                  key={transfer.id}
+                  transfer={transfer}
+                  onPause={() => pauseTransfer(transfer.id)}
+                  onResume={() => resumeTransfer(transfer.id)}
+                  onCancel={() => cancelTransfer(transfer.id)}
+                />
+              ))
+            )}
+          </>
+        )}
+
+        {tab === "history" && (
+          <>
+            {history.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-xs text-zinc-400">
+                {t("transfer.noHistory")}
+              </div>
+            ) : (
+              history.map((entry) => (
+                <HistoryRow key={entry.id} entry={entry} />
+              ))
+            )}
+          </>
         )}
       </div>
     </div>
@@ -176,6 +220,43 @@ function StatusBadge({ status }: { status: string }) {
     >
       {icon}
     </span>
+  );
+}
+
+function HistoryRow({ entry }: { entry: TransferHistoryEntry }) {
+  const fileName = entry.key.split("/").pop() || entry.key;
+  const isSuccess = entry.status === "completed";
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-100 dark:border-zinc-800/50">
+      {entry.transfer_type === "upload" ? (
+        <Upload size={14} className="text-zinc-400 shrink-0" />
+      ) : (
+        <Download size={14} className="text-zinc-400 shrink-0" />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between text-xs">
+          <span className="truncate font-medium text-zinc-500">{fileName}</span>
+          <span className="text-zinc-400 ml-2 shrink-0">
+            {formatBytes(entry.total_bytes)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-zinc-400">
+          <span
+            className={`flex items-center gap-0.5 ${isSuccess ? "text-green-500" : "text-red-500"}`}
+          >
+            {isSuccess ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
+            {entry.status}
+          </span>
+          {entry.completed_at && (
+            <span>{new Date(entry.completed_at).toLocaleString()}</span>
+          )}
+          {entry.error && (
+            <span className="text-red-500 truncate">{entry.error}</span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

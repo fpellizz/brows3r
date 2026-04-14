@@ -111,7 +111,7 @@ impl MultipartUploader {
         let create_output = create_req
             .send()
             .await
-            .map_err(|e| S3Error::MultipartError(e.to_string()))?;
+            .map_err(|e| S3Error::MultipartError(super::error::sdk_error_detail(&e)))?;
 
         let upload_id = create_output
             .upload_id()
@@ -195,7 +195,7 @@ impl MultipartUploader {
                     .body(body)
                     .send()
                     .await
-                    .map_err(|e| S3Error::MultipartError(e.to_string()))?;
+                    .map_err(|e| S3Error::MultipartError(super::error::sdk_error_detail(&e)))?;
 
                 let etag = upload_part_output
                     .e_tag()
@@ -284,7 +284,7 @@ impl MultipartUploader {
             .multipart_upload(completed_upload)
             .send()
             .await
-            .map_err(|e| S3Error::MultipartError(e.to_string()))?;
+            .map_err(|e| S3Error::MultipartError(super::error::sdk_error_detail(&e)))?;
 
         let etag = complete_output
             .e_tag()
@@ -472,7 +472,7 @@ where
                 .body(body)
                 .send()
                 .await
-                .map_err(|e| S3Error::MultipartError(e.to_string()))?;
+                .map_err(|e| S3Error::MultipartError(super::error::sdk_error_detail(&e)))?;
 
             let etag = upload_part_output
                 .e_tag()
@@ -547,7 +547,7 @@ where
         .multipart_upload(completed_upload)
         .send()
         .await
-        .map_err(|e| S3Error::MultipartError(e.to_string()))?;
+        .map_err(|e| S3Error::MultipartError(super::error::sdk_error_detail(&e)))?;
 
     Ok(complete_output.e_tag().unwrap_or_default().to_string())
 }

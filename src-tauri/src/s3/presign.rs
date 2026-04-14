@@ -20,7 +20,7 @@ pub async fn presign_get_object(
         .key(key)
         .presigned(presigning_config)
         .await
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     Ok(presigned.uri().to_string())
 }
@@ -40,7 +40,7 @@ pub async fn presign_put_object(
         .key(key)
         .presigned(presigning_config)
         .await
-        .map_err(|e| S3Error::SdkError(e.to_string()))?;
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     Ok(presigned.uri().to_string())
 }
