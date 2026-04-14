@@ -1,9 +1,10 @@
 use std::collections::HashMap;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use aws_sdk_s3::config::{BehaviorVersion, Region};
 use aws_sdk_s3::Client;
 use aws_config;
+use aws_config::timeout::TimeoutConfig;
 use tokio::sync::RwLock;
 
 use super::auth::build_credentials_provider;
@@ -61,11 +62,18 @@ impl S3ClientPool {
 async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
     let credentials_provider = build_credentials_provider(config);
 
+    let connect_secs = config.timeout_secs.max(5) as u64;
+    let timeout_config = TimeoutConfig::builder()
+        .connect_timeout(Duration::from_secs(connect_secs))
+        .operation_timeout(Duration::from_secs(connect_secs * 3))
+        .build();
+
     // Use aws_config to get a fully configured SDK config (with HTTP client)
     let sdk_config = aws_config::defaults(BehaviorVersion::latest())
         .region(Region::new(config.region.clone()))
         .credentials_provider(credentials_provider)
         .endpoint_url(&config.endpoint)
+        .timeout_config(timeout_config)
         .load()
         .await;
 
@@ -88,7 +96,7 @@ pub async fn list_buckets(client: &Client) -> Result<Vec<S3Bucket>, S3Error> {
         .send()
         .await
         .map_err(|e| {
-            let msg = format!("{e:#}");
+            let msg = super::error::sdk_error_detail(&e);
             tracing::error!("ListBuckets failed: {msg}");
             S3Error::SdkError(msg)
         })?;
