@@ -180,6 +180,7 @@ pub async fn start_upload(
         // Spawn the upload task
         let app_handle = app.clone();
         let client = client.clone();
+        let request_conn_id = request.connection_id.clone();
         let bucket = request.bucket.clone();
         let local = local_path.clone();
         let tid = transfer_id.clone();
@@ -222,17 +223,21 @@ pub async fn start_upload(
             )
             .await;
 
-            // Clean up the pending row. On success the upload is done, so
-            // there's nothing to recover. On failure we ALSO delete: the
-            // user can retry from the UI, and leaving stale rows around
-            // would clutter the recovery dialog with already-failed
-            // attempts. (User-initiated cancel goes through a different
-            // path that calls `abort_multipart_upload` first.)
             let db = app_handle.state::<Database>();
-            let _ = crate::store::database::delete_pending_transfer(&db, &tid);
 
             match result {
                 Ok(etag) => {
+                    // Write to transfer_history BEFORE deleting from pending.
+                    let mut done_item = TransferItem::new_upload(
+                        request_conn_id.clone(), bucket.clone(),
+                        key.clone(), local.clone(), 0,
+                    );
+                    done_item.id = tid.clone();
+                    done_item.status = TransferStatus::Completed;
+                    done_item.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                    let _ = crate::store::database::insert_transfer_history(&db, &done_item);
+                    let _ = crate::store::database::delete_pending_transfer(&db, &tid);
+
                     let _ = app_handle.emit(
                         "transfer:complete",
                         TransferCompleteEvent {
@@ -244,6 +249,17 @@ pub async fn start_upload(
                     );
                 }
                 Err(e) => {
+                    let mut fail_item = TransferItem::new_upload(
+                        request_conn_id.clone(), bucket.clone(),
+                        key.clone(), local.clone(), 0,
+                    );
+                    fail_item.id = tid.clone();
+                    fail_item.status = TransferStatus::Failed;
+                    fail_item.error = Some(e.to_string());
+                    fail_item.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                    let _ = crate::store::database::insert_transfer_history(&db, &fail_item);
+                    let _ = crate::store::database::delete_pending_transfer(&db, &tid);
+
                     let _ = app_handle.emit(
                         "transfer:complete",
                         TransferCompleteEvent {
@@ -321,21 +337,28 @@ pub async fn start_download(
         let transfer_id = item.id.clone();
         transfer_ids.push(transfer_id.clone());
 
+        // Persist pending row (same as upload path)
+        if let Err(e) = crate::store::database::insert_pending_transfer(&db, &item) {
+            tracing::warn!("Failed to persist pending download {}: {}", item.id, e);
+        }
+
         queue.enqueue(item).await;
 
         // Spawn the download task
         let app_handle = app.clone();
         let client = client.clone();
-        let bucket = request.bucket.clone();
-        let key = key.clone();
+        let dl_conn_id = request.connection_id.clone();
+        let dl_bucket = request.bucket.clone();
+        let dl_key = key.clone();
+        let dl_local = local_path_str.clone();
         let tid = transfer_id.clone();
         let dl_throttle = Arc::clone(&throttle);
 
         tokio::spawn(async move {
             let result = crate::transfer::download::download_file(
                 &client,
-                &bucket,
-                &key,
+                &dl_bucket,
+                &dl_key,
                 &local_path,
                 Some(dl_throttle),
                 |downloaded, total| {
@@ -353,8 +376,18 @@ pub async fn start_download(
             )
             .await;
 
+            let db = app_handle.state::<Database>();
             match result {
                 Ok(()) => {
+                    let mut done_item = TransferItem::new_download(
+                        dl_conn_id, dl_bucket, dl_key, dl_local, 0,
+                    );
+                    done_item.id = tid.clone();
+                    done_item.status = TransferStatus::Completed;
+                    done_item.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                    let _ = crate::store::database::insert_transfer_history(&db, &done_item);
+                    let _ = crate::store::database::delete_pending_transfer(&db, &tid);
+
                     let _ = app_handle.emit(
                         "transfer:complete",
                         TransferCompleteEvent {
@@ -366,6 +399,16 @@ pub async fn start_download(
                     );
                 }
                 Err(e) => {
+                    let mut fail_item = TransferItem::new_download(
+                        dl_conn_id, dl_bucket, dl_key, dl_local, 0,
+                    );
+                    fail_item.id = tid.clone();
+                    fail_item.status = TransferStatus::Failed;
+                    fail_item.error = Some(e.to_string());
+                    fail_item.completed_at = Some(chrono::Utc::now().to_rfc3339());
+                    let _ = crate::store::database::insert_transfer_history(&db, &fail_item);
+                    let _ = crate::store::database::delete_pending_transfer(&db, &tid);
+
                     let _ = app_handle.emit(
                         "transfer:complete",
                         TransferCompleteEvent {
@@ -413,6 +456,16 @@ pub async fn cancel_transfer(
 #[tauri::command]
 pub async fn list_transfers(queue: State<'_, TransferQueue>) -> Result<Vec<TransferItem>, String> {
     Ok(queue.list().await)
+}
+
+/// Return finished transfers from the persistent history table (newest
+/// first, limited to the most recent 200). The frontend can show these in
+/// a "History" section below the live queue.
+#[tauri::command]
+pub async fn list_transfer_history(
+    db: State<'_, Database>,
+) -> Result<Vec<crate::models::transfer::TransferHistoryEntry>, String> {
+    crate::store::database::list_transfer_history(&db, 200).map_err(|e| e.to_string())
 }
 
 /// List all multipart uploads that were interrupted on the previous run
