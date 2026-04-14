@@ -85,6 +85,7 @@ pub fn run() {
             commands::transfer::cancel_transfer,
             commands::transfer::list_transfers,
             commands::transfer::list_transfer_history,
+            commands::transfer::clear_finished_transfers,
             commands::transfer::start_cross_transfer,
             commands::transfer::list_recoverable_uploads,
             commands::transfer::resume_upload,

@@ -79,7 +79,7 @@ interface TransferState {
   pauseTransfer: (id: string) => Promise<void>;
   resumeTransfer: (id: string) => Promise<void>;
   cancelTransfer: (id: string) => Promise<void>;
-  clearCompleted: () => void;
+  clearCompleted: () => Promise<void>;
 }
 
 export const useTransferStore = create<TransferState>((set, get) => ({
@@ -213,7 +213,9 @@ export const useTransferStore = create<TransferState>((set, get) => ({
     await get().fetchTransfers();
   },
 
-  clearCompleted: () => {
+  clearCompleted: async () => {
+    // Clear from backend queue first so they don't come back on next fetch.
+    await tauriInvoke("clear_finished_transfers");
     set((state) => ({
       transfers: state.transfers.filter(
         (t) =>

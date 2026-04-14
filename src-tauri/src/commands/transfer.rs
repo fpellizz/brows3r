@@ -186,6 +186,7 @@ pub async fn start_upload(
         let local = local_path.clone();
         let tid = transfer_id.clone();
 
+        let task_size = file_size;
         let progress_tid = tid.clone();
         let progress_app = app_handle.clone();
         let persistence: Arc<dyn MultipartPersistence> = Arc::new(DbMultipartPersistence {
@@ -231,7 +232,7 @@ pub async fn start_upload(
                     // Write to transfer_history BEFORE deleting from pending.
                     let mut done_item = TransferItem::new_upload(
                         request_conn_id.clone(), bucket.clone(),
-                        key.clone(), local.clone(), 0,
+                        key.clone(), local.clone(), task_size,
                     );
                     done_item.id = tid.clone();
                     done_item.status = TransferStatus::Completed;
@@ -252,7 +253,7 @@ pub async fn start_upload(
                 Err(e) => {
                     let mut fail_item = TransferItem::new_upload(
                         request_conn_id.clone(), bucket.clone(),
-                        key.clone(), local.clone(), 0,
+                        key.clone(), local.clone(), task_size,
                     );
                     fail_item.id = tid.clone();
                     fail_item.status = TransferStatus::Failed;
@@ -348,6 +349,7 @@ pub async fn start_download(
         // Spawn the download task
         let app_handle = app.clone();
         let client = client.clone();
+        let dl_size = file_size;
         let dl_conn_id = request.connection_id.clone();
         let dl_bucket = request.bucket.clone();
         let dl_key = key.clone();
@@ -381,7 +383,7 @@ pub async fn start_download(
             match result {
                 Ok(()) => {
                     let mut done_item = TransferItem::new_download(
-                        dl_conn_id, dl_bucket, dl_key, dl_local, 0,
+                        dl_conn_id, dl_bucket, dl_key, dl_local, dl_size,
                     );
                     done_item.id = tid.clone();
                     done_item.status = TransferStatus::Completed;
@@ -401,7 +403,7 @@ pub async fn start_download(
                 }
                 Err(e) => {
                     let mut fail_item = TransferItem::new_download(
-                        dl_conn_id, dl_bucket, dl_key, dl_local, 0,
+                        dl_conn_id, dl_bucket, dl_key, dl_local, dl_size,
                     );
                     fail_item.id = tid.clone();
                     fail_item.status = TransferStatus::Failed;
@@ -457,6 +459,16 @@ pub async fn cancel_transfer(
 #[tauri::command]
 pub async fn list_transfers(queue: State<'_, TransferQueue>) -> Result<Vec<TransferItem>, String> {
     Ok(queue.list().await)
+}
+
+/// Remove completed / failed / cancelled items from the in-memory queue.
+/// The frontend calls this from the "clear" button in the transfer panel.
+/// Pending DB rows have already been deleted when the task completed, so
+/// no DB cleanup is needed here.
+#[tauri::command]
+pub async fn clear_finished_transfers(queue: State<'_, TransferQueue>) -> Result<(), String> {
+    queue.clear_finished().await;
+    Ok(())
 }
 
 /// Return finished transfers from the persistent history table (newest
