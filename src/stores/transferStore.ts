@@ -18,6 +18,20 @@ export interface TransferItem {
   completed_at: string | null;
 }
 
+export interface TransferHistoryEntry {
+  id: string;
+  transfer_type: "upload" | "download";
+  connection_id: string;
+  bucket: string;
+  key: string;
+  local_path: string;
+  total_bytes: number;
+  status: string;
+  error: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
 interface TransferProgressEvent {
   id: string;
   transferred_bytes: number;
@@ -35,10 +49,12 @@ interface TransferCompleteEvent {
 
 interface TransferState {
   transfers: TransferItem[];
+  history: TransferHistoryEntry[];
   listening: boolean;
 
   startListening: () => Promise<void>;
   fetchTransfers: () => Promise<void>;
+  fetchHistory: () => Promise<void>;
   startUpload: (
     connectionId: string,
     bucket: string,
@@ -51,6 +67,15 @@ interface TransferState {
     keys: string[],
     localDir: string,
   ) => Promise<string[]>;
+  startCrossTransfer: (
+    sourceConnectionId: string,
+    sourceBucket: string,
+    sourceKeys: string[],
+    destConnectionId: string,
+    destBucket: string,
+    destPrefix: string | null,
+    preserveMetadata: boolean,
+  ) => Promise<string[]>;
   pauseTransfer: (id: string) => Promise<void>;
   resumeTransfer: (id: string) => Promise<void>;
   cancelTransfer: (id: string) => Promise<void>;
@@ -59,6 +84,7 @@ interface TransferState {
 
 export const useTransferStore = create<TransferState>((set, get) => ({
   transfers: [],
+  history: [],
   listening: false,
 
   startListening: async () => {
@@ -116,6 +142,12 @@ export const useTransferStore = create<TransferState>((set, get) => ({
     set({ transfers });
   },
 
+  fetchHistory: async () => {
+    const history =
+      await tauriInvoke<TransferHistoryEntry[]>("list_transfer_history");
+    set({ history });
+  },
+
   startUpload: async (connectionId, bucket, prefix, localPaths) => {
     const ids = await tauriInvoke<string[]>("start_upload", {
       request: {
@@ -136,6 +168,30 @@ export const useTransferStore = create<TransferState>((set, get) => ({
         bucket,
         keys,
         local_dir: localDir,
+      },
+    });
+    await get().fetchTransfers();
+    return ids;
+  },
+
+  startCrossTransfer: async (
+    sourceConnectionId,
+    sourceBucket,
+    sourceKeys,
+    destConnectionId,
+    destBucket,
+    destPrefix,
+    preserveMetadata,
+  ) => {
+    const ids = await tauriInvoke<string[]>("start_cross_transfer", {
+      request: {
+        source_connection_id: sourceConnectionId,
+        source_bucket: sourceBucket,
+        source_keys: sourceKeys,
+        dest_connection_id: destConnectionId,
+        dest_bucket: destBucket,
+        dest_prefix: destPrefix,
+        preserve_metadata: preserveMetadata,
       },
     });
     await get().fetchTransfers();

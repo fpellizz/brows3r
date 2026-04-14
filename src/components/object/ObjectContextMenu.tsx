@@ -12,6 +12,7 @@ import {
   Pencil,
   FolderInput,
   CopyPlus,
+  ArrowRightLeft,
 } from "lucide-react";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -21,6 +22,7 @@ import { useTransferStore } from "@/stores/transferStore";
 import { useUiStore } from "@/stores/uiStore";
 import { tauriInvoke } from "@/lib/tauri";
 import { InputDialog } from "@/components/common/InputDialog";
+import { CrossTransferDialog } from "@/components/transfer/CrossTransferDialog";
 
 interface ObjectContextMenuProps {
   object: ObjectInfo;
@@ -44,6 +46,7 @@ export function ObjectContextMenu({
   const [renameOpen, setRenameOpen] = useState(false);
   const [copyToOpen, setCopyToOpen] = useState(false);
   const [moveToOpen, setMoveToOpen] = useState(false);
+  const [crossTransferOpen, setCrossTransferOpen] = useState(false);
 
   const handleDetails = () => {
     openDetails({
@@ -246,6 +249,11 @@ export function ObjectContextMenu({
                   label={t("object.moveTo")}
                   onClick={() => setMoveToOpen(true)}
                 />
+                <MenuItem
+                  icon={<ArrowRightLeft size={14} />}
+                  label={t("crossTransfer.menuLabel")}
+                  onClick={() => setCrossTransferOpen(true)}
+                />
 
                 <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
               </>
@@ -323,6 +331,17 @@ export function ObjectContextMenu({
         placeholder="prefix/filename.ext or bucket:prefix/filename.ext"
         onConfirm={handleMoveTo}
       />
+
+      {/* Cross-connection transfer dialog */}
+      {activeConnectionId && currentBucket && (
+        <CrossTransferDialog
+          open={crossTransferOpen}
+          onOpenChange={setCrossTransferOpen}
+          sourceConnectionId={activeConnectionId}
+          sourceBucket={currentBucket}
+          sourceKeys={[object.key]}
+        />
+      )}
     </>
   );
 }
