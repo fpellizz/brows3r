@@ -73,8 +73,8 @@
 - Bucket info panel (region, versioning status)
 
 ### File Preview
-- **Text** with line numbers
-- **Images** (JPEG, PNG, GIF, WebP, SVG, BMP, ICO)
+- **Text** with line numbers and **syntax highlighting** for 30+ languages (JS/TS, Python, Rust, Go, Java, C/C++, SQL, YAML, Docker, etc.)
+- **Images** (JPEG, PNG, GIF, WebP, SVG, BMP, ICO, **TIFF** via server-side PNG transcoding)
 - **Markdown** with formatted rendering (headings, lists, code blocks, links)
 - **PDF** via embedded viewer
 - **Video** (MP4, WebM) with HTML5 player
@@ -101,7 +101,8 @@
 ### Settings
 - Light / Dark / System theme with instant switching
 - Language: English / Italiano
-- Transfer tuning (concurrency, part size, multipart threshold, bandwidth)
+- Transfer tuning (concurrency, part size, multipart threshold, bandwidth schedules)
+- Upload exclude glob patterns (`.DS_Store`, `Thumbs.db`, build artifacts, ...)
 - Log level configuration
 
 ---
@@ -406,7 +407,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [ ] Integrated S3 terminal (ls, cp, mv, rm, cat)
 - [ ] Batch operations (mass metadata/storage class/ACL changes)
 - [x] Cross-connection transfers (download + re-upload with metadata)
-- [ ] Bandwidth throttling with time-based schedules
+- [x] Bandwidth throttling with time-based schedules
 - [ ] Dashboard and statistics
 - [ ] macOS build + code signing
 - [ ] Auto-updater
