@@ -99,6 +99,13 @@ pub fn run() {
             commands::sync::plan_sync,
             commands::sync::execute_sync,
         ])
-        .run(tauri::generate_context!())
+        .run({
+            let mut ctx = tauri::generate_context!();
+            ctx.set_default_window_icon(Some(
+                tauri::image::Image::from_bytes(include_bytes!("../icons/128x128.png"))
+                    .expect("failed to decode app icon"),
+            ));
+            ctx
+        })
         .expect("error while running brows3r");
 }

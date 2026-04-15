@@ -123,6 +123,11 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
     const tabId = getActiveTabId();
     const uiStore = useUiStore.getState();
 
+    // Close preview/details — they reference keys from the old bucket
+    // and would cause errors if left open.
+    uiStore.closePreview();
+    uiStore.closeDetails();
+
     // Update the tab in uiStore
     uiStore.updateTab(tabId, { bucket, prefix: "" });
 

@@ -110,12 +110,29 @@ Refresh-Path
 if (Test-Command "rustc") {
     $rustVersion = (rustc --version) -replace "rustc\s+", ""
     Write-OK "Rust trovato: $rustVersion"
+} elseif (Test-Command "rustup") {
+    # rustup exists but rustc not in PATH — update and refresh
+    Write-Step "rustup presente, aggiornamento toolchain..."
+    $ErrorActionPreference = "Continue"
+    & rustup update stable 2>&1 | Out-Null
+    $ErrorActionPreference = "Stop"
+    Refresh-Path
+    if (Test-Command "rustc") {
+        Write-OK "Rust aggiornato: $((rustc --version) -replace 'rustc\s+', '')"
+    } else {
+        Write-Err "rustc non trovato dopo update. Riavvia il terminale e riprova."
+        exit 1
+    }
 } else {
     Write-Step "Installazione Rust via rustup..."
     $rustupInit = Get-TempFile "rustup-init.exe"
     Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupInit
 
+    # Temporarily allow non-fatal stderr (rustup-init emits warnings about
+    # existing configs that PowerShell treats as terminating errors).
+    $ErrorActionPreference = "Continue"
     & $rustupInit -y --default-toolchain stable 2>&1 | Out-Null
+    $ErrorActionPreference = "Stop"
     Remove-Item $rustupInit -Force -ErrorAction SilentlyContinue
 
     Refresh-Path
@@ -203,7 +220,9 @@ if ($hasTauriCli) {
     Write-OK "Tauri CLI trovato: $tauriVersion"
 } else {
     Write-Step "Installazione Tauri CLI (puo' richiedere qualche minuto)..."
+    $ErrorActionPreference = "Continue"
     cargo install tauri-cli --locked 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    $ErrorActionPreference = "Stop"
     Write-OK "Tauri CLI installato"
 }
 
@@ -211,7 +230,9 @@ if ($hasTauriCli) {
 # 6. Installa dipendenze progetto
 # ════════════════════════════════════════════════════════════
 Write-Step "Installazione dipendenze frontend..."
-pnpm install --frozen-lockfile 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+$ErrorActionPreference = "Continue"
+pnpm install 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+$ErrorActionPreference = "Stop"
 Write-OK "Dipendenze frontend installate"
 
 # ════════════════════════════════════════════════════════════
@@ -224,7 +245,9 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
 $buildStart = Get-Date
+$ErrorActionPreference = "Continue"
 pnpm tauri build 2>&1 | ForEach-Object { Write-Host $_ }
+$ErrorActionPreference = "Stop"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Build fallita!"
