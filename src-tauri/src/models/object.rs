@@ -112,6 +112,11 @@ pub struct PresignedUrlRequest {
     pub key: String,
     pub expiry_secs: u64,
     pub method: PresignMethod,
+    /// Optional — when set, the presigned URL targets this specific
+    /// version of the object rather than the current one. Only valid
+    /// for GET.
+    #[serde(default)]
+    pub version_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
