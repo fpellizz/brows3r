@@ -13,6 +13,7 @@ import {
   FolderInput,
   CopyPlus,
   ArrowRightLeft,
+  History,
 } from "lucide-react";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -23,6 +24,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { tauriInvoke } from "@/lib/tauri";
 import { InputDialog } from "@/components/common/InputDialog";
 import { CrossTransferDialog } from "@/components/transfer/CrossTransferDialog";
+import { VersionsDialog } from "@/components/object/VersionsDialog";
 
 interface ObjectContextMenuProps {
   object: ObjectInfo;
@@ -47,6 +49,7 @@ export function ObjectContextMenu({
   const [copyToOpen, setCopyToOpen] = useState(false);
   const [moveToOpen, setMoveToOpen] = useState(false);
   const [crossTransferOpen, setCrossTransferOpen] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
 
   const handleDetails = () => {
     openDetails({
@@ -254,6 +257,11 @@ export function ObjectContextMenu({
                   label={t("crossTransfer.menuLabel")}
                   onClick={() => setCrossTransferOpen(true)}
                 />
+                <MenuItem
+                  icon={<History size={14} />}
+                  label={t("versions.menuLabel")}
+                  onClick={() => setVersionsOpen(true)}
+                />
 
                 <ContextMenu.Separator className="h-px bg-zinc-200 dark:bg-zinc-700 my-1" />
               </>
@@ -340,6 +348,20 @@ export function ObjectContextMenu({
           sourceConnectionId={activeConnectionId}
           sourceBucket={currentBucket}
           sourceKeys={[object.key]}
+        />
+      )}
+
+      {/* Versions dialog */}
+      {activeConnectionId && currentBucket && !object.is_folder && (
+        <VersionsDialog
+          open={versionsOpen}
+          onOpenChange={setVersionsOpen}
+          connectionId={activeConnectionId}
+          bucket={currentBucket}
+          objectKey={object.key}
+          onChanged={() =>
+            activeConnectionId && fetchObjects(activeConnectionId)
+          }
         />
       )}
     </>
