@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -146,6 +146,40 @@ export function ConnectionDialog({
 
   const isEditing = !!editConnection;
 
+  const blankFormValues: ConnectionFormData = {
+    name: "",
+    endpoint: "",
+    region: "us-east-1",
+    access_key_id: "",
+    secret_access_key: "",
+    session_token: "",
+    signature_version: "v4",
+    path_style: "auto",
+    proxy: "",
+    ca_bundle: "",
+    timeout_secs: 30,
+    max_retries: 3,
+    notes: "",
+    group: "",
+  };
+
+  const valuesFromConnection = (c: Connection): ConnectionFormData => ({
+    name: c.name,
+    endpoint: c.endpoint,
+    region: c.region,
+    access_key_id: c.access_key_id,
+    secret_access_key: "",
+    session_token: "",
+    signature_version: c.signature_version,
+    path_style: c.path_style,
+    proxy: c.proxy ?? "",
+    ca_bundle: c.ca_bundle ?? "",
+    timeout_secs: c.timeout_secs,
+    max_retries: c.max_retries,
+    notes: c.notes ?? "",
+    group: c.group ?? "",
+  });
+
   const {
     register,
     handleSubmit,
@@ -155,39 +189,26 @@ export function ConnectionDialog({
     formState: { errors },
   } = useForm<ConnectionFormData>({
     defaultValues: editConnection
-      ? {
-          name: editConnection.name,
-          endpoint: editConnection.endpoint,
-          region: editConnection.region,
-          access_key_id: editConnection.access_key_id,
-          secret_access_key: "",
-          session_token: "",
-          signature_version: editConnection.signature_version,
-          path_style: editConnection.path_style,
-          proxy: editConnection.proxy ?? "",
-          ca_bundle: editConnection.ca_bundle ?? "",
-          timeout_secs: editConnection.timeout_secs,
-          max_retries: editConnection.max_retries,
-          notes: editConnection.notes ?? "",
-          group: editConnection.group ?? "",
-        }
-      : {
-          name: "",
-          endpoint: "",
-          region: "us-east-1",
-          access_key_id: "",
-          secret_access_key: "",
-          session_token: "",
-          signature_version: "v4",
-          path_style: "auto",
-          proxy: "",
-          ca_bundle: "",
-          timeout_secs: 30,
-          max_retries: 3,
-          notes: "",
-          group: "",
-        },
+      ? valuesFromConnection(editConnection)
+      : blankFormValues,
   });
+
+  // The dialog stays mounted in the Sidebar across open/close cycles
+  // and switches between create/edit by changing `editConnection`.
+  // react-hook-form only reads `defaultValues` on first mount, so we
+  // must `reset(...)` whenever the user opens the dialog or picks a
+  // different connection — otherwise edit shows blanks or stale data
+  // from a previous session.
+  useEffect(() => {
+    if (!open) return;
+    reset(
+      editConnection ? valuesFromConnection(editConnection) : blankFormValues,
+    );
+    setTestResult(null);
+    setSelectedPreset("custom");
+    setShowAdvanced(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editConnection?.id]);
 
   const applyPreset = (presetKey: string) => {
     setSelectedPreset(presetKey);
@@ -208,12 +229,18 @@ export function ConnectionDialog({
         endpoint: data.endpoint,
         region: data.region,
         access_key_id: data.access_key_id,
-        secret_access_key: data.secret_access_key,
         signature_version: data.signature_version,
         path_style: data.path_style,
         timeout_secs: data.timeout_secs,
         max_retries: data.max_retries,
       };
+
+      // In editing, an empty secret means "keep the current credential" —
+      // include it only when the user actually typed something. For a
+      // new connection it is required so we always send it.
+      if (!isEditing || data.secret_access_key) {
+        payload.secret_access_key = data.secret_access_key;
+      }
 
       // Only include optional fields if non-empty
       if (data.session_token) payload.session_token = data.session_token;
