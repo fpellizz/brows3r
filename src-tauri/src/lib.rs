@@ -106,6 +106,7 @@ pub fn run() {
             commands::config::get_settings,
             commands::config::update_settings,
             commands::config::get_log_dir_info,
+            commands::config::open_path,
             // Sync commands
             commands::sync::plan_sync,
             commands::sync::execute_sync,

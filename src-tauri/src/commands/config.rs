@@ -16,6 +16,31 @@ pub struct LogDirInfo {
     pub total_size_bytes: u64,
 }
 
+/// Open a filesystem path in the user's file manager (or default
+/// handler). The default `tauri-plugin-shell` allow-open pattern only
+/// accepts http/mailto/tel URLs, not filesystem paths, so this command
+/// shells out directly to the platform-specific opener.
+#[tauri::command]
+pub fn open_path(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err(format!("Path does not exist: {path}"));
+    }
+
+    #[cfg(target_os = "linux")]
+    let program = "xdg-open";
+    #[cfg(target_os = "macos")]
+    let program = "open";
+    #[cfg(target_os = "windows")]
+    let program = "explorer";
+
+    std::process::Command::new(program)
+        .arg(&path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to open {path}: {e}"))
+}
+
 #[tauri::command]
 pub fn get_log_dir_info() -> Result<LogDirInfo, String> {
     let dir: Option<PathBuf> = crate::store::logging::current_log_dir();
