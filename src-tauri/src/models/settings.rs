@@ -16,6 +16,24 @@ pub struct GeneralSettings {
     pub check_updates: bool,
     pub log_level: String,
     pub http_log_enabled: bool,
+    /// Whether to mirror the in-memory log to a file under `log_directory`.
+    /// `#[serde(default)]` keeps existing settings.json files compatible.
+    #[serde(default = "default_file_log_enabled")]
+    pub file_log_enabled: bool,
+    /// Override directory for log files. When `None`, the default app log
+    /// directory is used (resolved via `dirs::data_local_dir()`).
+    #[serde(default)]
+    pub log_directory: Option<String>,
+    /// Number of days of rotated log files to keep. 0 disables purging.
+    #[serde(default = "default_log_retention_days")]
+    pub log_retention_days: u32,
+}
+
+fn default_file_log_enabled() -> bool {
+    true
+}
+fn default_log_retention_days() -> u32 {
+    14
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -70,6 +88,9 @@ impl Default for AppSettings {
                 check_updates: true,
                 log_level: "info".to_string(),
                 http_log_enabled: false,
+                file_log_enabled: true,
+                log_directory: None,
+                log_retention_days: 14,
             },
             transfer: TransferSettings {
                 max_concurrent_transfers: 4,

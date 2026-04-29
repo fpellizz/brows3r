@@ -191,7 +191,18 @@
     "noSchedules": "Nessuna fascia configurata. Il limite globale si applica sempre.",
     "uploadExcludePatterns": "Pattern di Esclusione Upload",
     "uploadExcludePatternsHint": "Pattern glob confrontati con il nome dei file. I file che corrispondono vengono saltati durante l'upload.",
-    "noExcludePatterns": "Nessun pattern configurato. Tutti i file selezionati verranno caricati."
+    "noExcludePatterns": "Nessun pattern configurato. Tutti i file selezionati verranno caricati.",
+    "logs": "Log",
+    "fileLogEnabled": "Scrivi log su file",
+    "fileLogEnabledDesc": "Duplica i log in un file rotante. Se disabilitato, i log vanno solo su stdout.",
+    "logDirectory": "Cartella log",
+    "logDirectoryDesc": "Lascia vuoto per usare la cartella di default. La tilde (~) viene espansa nella home.",
+    "logRetentionDays": "Retention",
+    "days": "giorni",
+    "activeLogPath": "Percorso attivo",
+    "logSizeOnDisk": "File su disco",
+    "files": "file",
+    "openLogFolder": "Apri cartella"
   },
   "import": {
     "title": "Importa Connessioni",

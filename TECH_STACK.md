@@ -539,6 +539,21 @@ pnpm lint                         # Biome
 | **WebKit** | macOS | Incluso nel sistema operativo |
 | **SQLite** | Tutte | Embedded via rusqlite (bundled, nessuna dipendenza esterna) |
 
+### 6.0 Logging
+
+Lo stack di tracing è impostato in [src-tauri/src/store/logging.rs](src-tauri/src/store/logging.rs):
+
+- **Subscriber multilayer**: stdout (con ANSI) + file appender giornaliero (`tracing-appender::rolling::daily`) con writer non-bloccante.
+- **Configurazione utente** in `settings.json` sotto `general`:
+  - `log_level`: directive `EnvFilter` (es. `info`, `debug`, `brows3r=trace,info`)
+  - `file_log_enabled`: abilita/disabilita la scrittura su file (default: `true`)
+  - `log_directory`: override della cartella log (default: `<data_local_dir>/com.brows3r.app/logs`)
+  - `log_retention_days`: giorni di conservazione dei file ruotati (default 14, `0` = disabilita la pulizia)
+- **Override via env**: `RUST_LOG`, se settata, prevale sempre sul setting utente — comodo per debug a posteriori senza toccare le impostazioni.
+- **Hot-reload del livello**: cambiare `log_level` da UI applica immediatamente il filtro via `tracing_subscriber::reload`. Path/abilitazione file richiedono restart.
+- **Retention purge**: all'avvio, i file `brows3r.log.*` più vecchi di `log_retention_days` vengono eliminati. La pulizia ignora qualsiasi altro file nella cartella per non toccare contenuti dell'utente in cartelle custom.
+- **Comando Tauri**: `get_log_dir_info()` espone path/file_count/size totale alla UI; il dialog Impostazioni → Log mostra il percorso attivo e un pulsante "Apri cartella".
+
 ### 6.1 Verifica prerequisiti runtime su Linux
 
 Per i pacchetti `.deb` e `.rpm` le dipendenze native sono dichiarate nel
