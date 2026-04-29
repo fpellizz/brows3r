@@ -539,6 +539,31 @@ pnpm lint                         # Biome
 | **WebKit** | macOS | Incluso nel sistema operativo |
 | **SQLite** | Tutte | Embedded via rusqlite (bundled, nessuna dipendenza esterna) |
 
+### 6.1 Verifica prerequisiti runtime su Linux
+
+Per i pacchetti `.deb` e `.rpm` le dipendenze native sono dichiarate nel
+bundle Tauri (`src-tauri/tauri.conf.json` → `bundle.linux.deb.depends` e
+`bundle.linux.rpm.depends`) e vengono risolte automaticamente da
+`apt`/`dnf`. L'AppImage invece non ha gestione di dipendenze esterne,
+quindi il progetto include due livelli di check:
+
+1. **Script `scripts/check-system.sh`** — verifica che le librerie native
+   richieste (`libwebkit2gtk-4.1`, `libgtk-3`, `libglib2.0`, `libsoup-3.0`,
+   `libjavascriptcoregtk-4.1`, `librsvg2`) siano effettivamente presenti
+   sul sistema:
+   - `./scripts/check-system.sh` → solo verifica, exit 1 con istruzioni
+     specifiche per Debian/Ubuntu o Fedora/RHEL/Rocky se manca qualcosa
+   - `./scripts/check-system.sh --install` → tenta l'installazione
+     automatica via `apt` o `dnf` (richiede `sudo`) e ri-verifica
+   - `./scripts/check-system.sh --json` → output machine-readable
+
+2. **Comando Tauri `check_system_prerequisites`** — espone lo stesso
+   controllo dal backend Rust al frontend (`commands::system`). Il
+   risultato viene mostrato nel dialog "Informazioni" con le librerie
+   mancanti e il comando di installazione pronto da copiare. Inoltre,
+   all'avvio dell'app, eventuali librerie mancanti vengono loggate via
+   `tracing` per diagnosticare crash early-boot.
+
 ---
 
 ## 7. Considerazioni sulle performance
