@@ -66,8 +66,9 @@ pub fn create_connection(
 }
 
 #[tauri::command]
-pub fn update_connection(
+pub async fn update_connection(
     db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
     id: String,
     request: UpdateConnectionRequest,
 ) -> Result<Connection, String> {
@@ -109,14 +110,26 @@ pub fn update_connection(
 
     crate::store::database::update_connection(&db, &updated).map_err(|e| e.to_string())?;
 
+    // Invalidate the cached S3 client so the next operation picks up
+    // the new endpoint/path-style/credentials. Without this, settings
+    // changes from the UI silently fail to take effect.
+    pool.remove(&id).await;
+
     Ok(updated)
 }
 
 #[tauri::command]
-pub fn delete_connection(db: State<'_, Database>, id: String) -> Result<(), String> {
+pub async fn delete_connection(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    id: String,
+) -> Result<(), String> {
     // Delete credentials from keychain
     let _ = credentials::delete_secret_key(&id);
     let _ = credentials::delete_session_token(&id);
+
+    // Drop any cached S3 client for this connection.
+    pool.remove(&id).await;
 
     // Delete from database
     crate::store::database::delete_connection(&db, &id).map_err(|e| e.to_string())
