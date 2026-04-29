@@ -15,6 +15,9 @@ export interface AppSettings {
     check_updates: boolean;
     log_level: string;
     http_log_enabled: boolean;
+    file_log_enabled: boolean;
+    log_directory: string | null;
+    log_retention_days: number;
   };
   transfer: {
     max_concurrent_transfers: number;

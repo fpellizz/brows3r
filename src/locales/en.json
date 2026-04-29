@@ -118,7 +118,18 @@
     "noSchedules": "No schedules configured. Global limit applies at all times.",
     "uploadExcludePatterns": "Upload Exclude Patterns",
     "uploadExcludePatternsHint": "Glob patterns matched against file names. Files matching any pattern are skipped during upload.",
-    "noExcludePatterns": "No exclude patterns configured. All selected files will be uploaded."
+    "noExcludePatterns": "No exclude patterns configured. All selected files will be uploaded.",
+    "logs": "Logs",
+    "fileLogEnabled": "Write logs to file",
+    "fileLogEnabledDesc": "Mirror logs to a rotating file. When disabled, logs only go to stdout.",
+    "logDirectory": "Log directory",
+    "logDirectoryDesc": "Leave empty to use the default location. Tilde (~) is expanded to your home.",
+    "logRetentionDays": "Retention",
+    "days": "days",
+    "activeLogPath": "Active path",
+    "logSizeOnDisk": "Files on disk",
+    "files": "files",
+    "openLogFolder": "Open folder"
   },
   "import": {
     "title": "Import Connections",

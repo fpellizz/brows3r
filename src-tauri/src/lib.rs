@@ -5,16 +5,17 @@ mod store;
 mod transfer;
 
 use tauri::Manager;
-use tracing_subscriber::EnvFilter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .init();
+    // Initialize logging (stdout + optional rotating file appender).
+    // Reads the user's settings.json directly so the chosen level /
+    // log directory / retention are honored from the very first line.
+    store::logging::init();
+
+    if let Some(dir) = store::logging::current_log_dir() {
+        tracing::info!("File logging enabled: {}", dir.display());
+    }
 
     // Surface missing native libraries early. If a hard dependency was
     // missing the dynamic loader would already have aborted the process
@@ -104,6 +105,7 @@ pub fn run() {
             // Config commands
             commands::config::get_settings,
             commands::config::update_settings,
+            commands::config::get_log_dir_info,
             // Sync commands
             commands::sync::plan_sync,
             commands::sync::execute_sync,

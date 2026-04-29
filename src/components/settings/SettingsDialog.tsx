@@ -2,11 +2,27 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Globe, Palette, ArrowUpDown, Minus, Plus, Trash2, Clock, Filter } from "lucide-react";
+import { X, Globe, Palette, ArrowUpDown, Minus, Plus, Trash2, Clock, Filter, FileText, FolderOpen } from "lucide-react";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import type { BandwidthSchedule } from "@/stores/settingsStore";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
 import { applyTheme } from "@/lib/theme";
+import { tauriInvoke } from "@/lib/tauri";
 import i18n from "@/lib/i18n";
+
+interface LogDirInfo {
+  path: string | null;
+  exists: boolean;
+  file_count: number;
+  total_size_bytes: number;
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
 
 interface SettingsDialogProps {
   open: boolean;
@@ -23,11 +39,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [local, setLocal] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [logDirInfo, setLogDirInfo] = useState<LogDirInfo | null>(null);
 
   useEffect(() => {
     if (open && settings) {
       setLocal(structuredClone(settings));
       setSaveError(null);
+      tauriInvoke<LogDirInfo>("get_log_dir_info")
+        .then(setLogDirInfo)
+        .catch(() => setLogDirInfo(null));
     }
   }, [open, settings]);
 
@@ -87,6 +107,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <TabTrigger value="general" icon={<Globe size={14} />} label={t("settings.general")} />
               <TabTrigger value="transfers" icon={<ArrowUpDown size={14} />} label={t("settings.transfers")} />
               <TabTrigger value="appearance" icon={<Palette size={14} />} label={t("settings.appearance")} />
+              <TabTrigger value="logs" icon={<FileText size={14} />} label={t("settings.logs")} />
             </Tabs.List>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -437,6 +458,89 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   }
                 />
               </Tabs.Content>
+
+              {/* Logs */}
+              <Tabs.Content value="logs" className="space-y-6">
+                <SettingToggle
+                  label={t("settings.fileLogEnabled")}
+                  description={t("settings.fileLogEnabledDesc")}
+                  checked={local.general.file_log_enabled}
+                  onChange={(v) =>
+                    setLocal({
+                      ...local,
+                      general: { ...local.general, file_log_enabled: v },
+                    })
+                  }
+                />
+
+                <SettingRow
+                  label={t("settings.logDirectory")}
+                  description={t("settings.logDirectoryDesc")}
+                >
+                  <input
+                    type="text"
+                    className="input-field w-72 font-mono text-xs"
+                    placeholder={logDirInfo?.path ?? "default"}
+                    value={local.general.log_directory ?? ""}
+                    onChange={(e) =>
+                      setLocal({
+                        ...local,
+                        general: {
+                          ...local.general,
+                          log_directory: e.target.value || null,
+                        },
+                      })
+                    }
+                  />
+                </SettingRow>
+
+                <NumberSetting
+                  label={t("settings.logRetentionDays")}
+                  value={local.general.log_retention_days}
+                  min={0}
+                  max={365}
+                  suffix={t("settings.days")}
+                  onChange={(v) =>
+                    setLocal({
+                      ...local,
+                      general: { ...local.general, log_retention_days: v },
+                    })
+                  }
+                />
+
+                {logDirInfo && logDirInfo.path && (
+                  <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-3 space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-zinc-500">{t("settings.activeLogPath")}</span>
+                      <span className="font-mono text-zinc-700 dark:text-zinc-300 truncate" title={logDirInfo.path}>
+                        {logDirInfo.path}
+                      </span>
+                    </div>
+                    {logDirInfo.exists && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-500">{t("settings.logSizeOnDisk")}</span>
+                        <span className="font-mono text-zinc-700 dark:text-zinc-300">
+                          {logDirInfo.file_count} {t("settings.files")} · {formatBytes(logDirInfo.total_size_bytes)}
+                        </span>
+                      </div>
+                    )}
+                    {logDirInfo.exists && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (logDirInfo.path) void shellOpen(logDirInfo.path);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                          <FolderOpen size={12} />
+                          {t("settings.openLogFolder")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Tabs.Content>
             </div>
           </Tabs.Root>
 
@@ -496,16 +600,23 @@ function TabTrigger({
 
 function SettingRow({
   label,
+  description,
   children,
 }: {
   label: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-zinc-700 dark:text-zinc-300 shrink-0">
-        {label}
-      </span>
+      <div className="min-w-0">
+        <p className="text-sm text-zinc-700 dark:text-zinc-300 shrink-0">
+          {label}
+        </p>
+        {description && (
+          <p className="text-xs text-zinc-400 mt-0.5">{description}</p>
+        )}
+      </div>
       {children}
     </div>
   );
