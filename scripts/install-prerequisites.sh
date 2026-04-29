@@ -208,6 +208,21 @@ print_summary() {
   fi
 }
 
+# --- Verifica finale runtime ---
+verify_runtime_prereqs() {
+  local script_dir
+  script_dir="$(dirname "$(readlink -f "$0")")"
+  if [ -x "$script_dir/check-system.sh" ]; then
+    info "Verifica prerequisiti runtime..."
+    if ! "$script_dir/check-system.sh"; then
+      warn "Alcuni prerequisiti runtime risultano ancora mancanti."
+      warn "Segui le istruzioni stampate sopra per installarli manualmente."
+      return 1
+    fi
+    ok "Prerequisiti runtime verificati"
+  fi
+}
+
 # --- Main ---
 main() {
   echo ""
@@ -223,6 +238,9 @@ main() {
   install_tauri_cli
 
   print_summary
+
+  # Sanity check: le librerie runtime sono effettivamente presenti?
+  verify_runtime_prereqs || true
 
   # --- Installa dipendenze progetto e avvia ---
   PROJECT_DIR="$(dirname "$(dirname "$(readlink -f "$0")")")"

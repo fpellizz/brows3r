@@ -14,7 +14,11 @@
     "description": "brows3r è un'applicazione desktop per esplorare e gestire object storage S3-compatibile su cloud provider (AWS, GCP, Azure, OCI, DigitalOcean, Backblaze, Wasabi, Cloudflare R2, Scaleway e altri) e soluzioni on-premise (MinIO, Ceph, Dell ECS, NetApp StorageGRID).",
     "author": "Autore",
     "copyright": "Copyright",
-    "builtWith": "Realizzato con"
+    "builtWith": "Realizzato con",
+    "system": "Sistema",
+    "prereqOk": "Tutte le dipendenze native sono presenti.",
+    "prereqMissing_one": "Manca 1 dipendenza nativa.",
+    "prereqMissing_other": "Mancano {{count}} dipendenze native."
   },
   "crossTransfer": {
     "title": "Copia su Altra Connessione",
@@ -208,6 +212,8 @@
     "success": "Successo",
     "confirm": "Conferma",
     "yes": "Si'",
-    "no": "No"
+    "no": "No",
+    "copy": "Copia",
+    "copied": "Copiato"
   }
 }

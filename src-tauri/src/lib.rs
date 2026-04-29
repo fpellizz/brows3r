@@ -16,6 +16,11 @@ pub fn run() {
         )
         .init();
 
+    // Surface missing native libraries early. If a hard dependency was
+    // missing the dynamic loader would already have aborted the process
+    // before we reach this point — but optional ones still get logged.
+    commands::system::log_startup_check();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -98,6 +103,8 @@ pub fn run() {
             // Sync commands
             commands::sync::plan_sync,
             commands::sync::execute_sync,
+            // System commands
+            commands::system::check_system_prerequisites,
         ])
         .run({
             let mut ctx = tauri::generate_context!();

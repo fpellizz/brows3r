@@ -1,24 +1,55 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, X } from "lucide-react";
 import { getVersion, getTauriVersion } from "@tauri-apps/api/app";
+import { tauriInvoke } from "@/lib/tauri";
 
 interface AboutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+interface MissingLibrary {
+  soname: string;
+  description: string;
+  deb_package: string;
+  rpm_package: string;
+}
+
+interface SystemPrerequisitesReport {
+  os: string;
+  distro_id: string | null;
+  distro_name: string | null;
+  distro_family: string | null;
+  all_present: boolean;
+  missing: MissingLibrary[];
+  install_command: string | null;
+}
+
 export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
   const { t } = useTranslation();
   const [appVersion, setAppVersion] = useState("");
   const [tauriVersion, setTauriVersion] = useState("");
+  const [prereq, setPrereq] = useState<SystemPrerequisitesReport | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     getVersion().then(setAppVersion);
     getTauriVersion().then(setTauriVersion);
+    tauriInvoke<SystemPrerequisitesReport>("check_system_prerequisites")
+      .then(setPrereq)
+      .catch(() => setPrereq(null));
   }, [open]);
+
+  const copyInstallCommand = () => {
+    if (!prereq?.install_command) return;
+    void navigator.clipboard.writeText(prereq.install_command).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -64,7 +95,76 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
               <InfoRow label="Tauri" value={tauriVersion} />
               <InfoRow label="React" value="19" />
               <InfoRow label="Rust" value="2021 edition" />
+              {prereq?.distro_name && (
+                <InfoRow label={t("about.system")} value={prereq.distro_name} />
+              )}
             </div>
+
+            {/* System prerequisites */}
+            {prereq && (
+              <div
+                className={
+                  "rounded-md px-4 py-3 text-xs flex gap-2 " +
+                  (prereq.all_present
+                    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300"
+                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200")
+                }
+              >
+                {prereq.all_present ? (
+                  <CheckCircle2
+                    size={14}
+                    className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                  />
+                ) : (
+                  <AlertTriangle
+                    size={14}
+                    className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium">
+                    {prereq.all_present
+                      ? t("about.prereqOk")
+                      : t("about.prereqMissing", { count: prereq.missing.length })}
+                  </p>
+                  {!prereq.all_present && (
+                    <>
+                      <ul className="mt-1 list-disc list-inside space-y-0.5">
+                        {prereq.missing.map((m) => (
+                          <li key={m.soname} className="font-mono text-[11px]">
+                            {m.soname}{" "}
+                            <span className="text-amber-700/80 dark:text-amber-300/70 font-sans">
+                              ({m.description})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      {prereq.install_command && (
+                        <div className="mt-2 flex items-start gap-1.5">
+                          <pre className="flex-1 bg-amber-100/60 dark:bg-amber-900/40 rounded px-2 py-1 text-[11px] font-mono whitespace-pre-wrap break-all">
+                            {prereq.install_command}
+                          </pre>
+                          <button
+                            type="button"
+                            onClick={copyInstallCommand}
+                            className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 shrink-0"
+                            title={t("common.copy")}
+                            aria-label={t("common.copy")}
+                          >
+                            <Copy size={12} />
+                          </button>
+                        </div>
+                      )}
+                      {copied && (
+                        <p className="mt-1 text-[10px] text-emerald-700 dark:text-emerald-400">
+                          {t("common.copied")}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Description */}
             <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
