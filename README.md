@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.5.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-brightgreen" alt="Platforms">
   <img src="https://img.shields.io/badge/license-proprietary-red" alt="License">
   <img src="https://img.shields.io/badge/rust-1.77%2B-orange" alt="Rust">
@@ -48,6 +48,13 @@
 - Connection testing with latency measurement
 - Import connections from **AWS CLI**, **rclone**, **s3cmd**, **MinIO Client**
 - Secure credential storage (OS keychain + SQLite fallback with encryption)
+
+### Object Versioning
+- List all versions and delete markers for any object (right-click → Versions...)
+- **Download** a specific previous version via presigned URL
+- **Restore** a previous version as the current one (`CopyObject` with `versionId`)
+- **Permanently delete** a specific version (two-click confirmation)
+- Status banner shows bucket versioning state (Enabled / Suspended / Unversioned)
 
 ### Object Browsing
 - Hierarchical folder-like navigation with breadcrumb
@@ -401,7 +408,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] Settings (theme, language, transfer tuning)
 - [x] Import connections (AWS CLI, rclone, s3cmd, MinIO Client)
 - [x] CI/CD pipeline (Linux) + Windows build scripts
-- [ ] Object versioning (list versions, restore, delete markers)
+- [x] Object versioning (list versions, download/restore/delete, delete markers)
 - [ ] Bucket properties (versioning, encryption, policy, CORS, lifecycle)
 - [x] Sync (unidirectional, 3 modes: new / updated / mirror, with dry-run)
 - [ ] Integrated S3 terminal (ls, cp, mv, rm, cat)

@@ -7,6 +7,23 @@
     "addConnection": "Aggiungi Connessione",
     "noConnections": "Nessuna connessione configurata"
   },
+  "versions": {
+    "title": "Versioni Oggetto",
+    "menuLabel": "Versioni...",
+    "bucketStatus": "Versioning bucket",
+    "unversionedHint": "è elencata solo la versione corrente",
+    "noVersions": "Nessuna cronologia di versioni per questo oggetto.",
+    "versionId": "Version ID",
+    "size": "Dimensione",
+    "lastModified": "Ultima modifica",
+    "latest": "CORRENTE",
+    "deleteMarker": "DELETE MARKER",
+    "download": "Scarica questa versione",
+    "restore": "Ripristina come versione corrente",
+    "permanentlyDelete": "Elimina definitivamente questa versione",
+    "confirm": "Conferma",
+    "copyVersionId": "Copia Version ID"
+  },
   "about": {
     "title": "Informazioni",
     "tagline": "Browser multipiattaforma per object storage S3-compatibile",
@@ -208,6 +225,7 @@
     "delete": "Elimina",
     "close": "Chiudi",
     "loading": "Caricamento...",
+    "refresh": "Aggiorna",
     "error": "Errore",
     "success": "Successo",
     "confirm": "Conferma",

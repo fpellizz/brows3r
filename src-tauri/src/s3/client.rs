@@ -291,6 +291,168 @@ pub async fn delete_bucket(client: &Client, bucket: &str) -> Result<(), S3Error>
     Ok(())
 }
 
+// --- Versioning operations --------------------------------------------
+
+/// List versions (and delete markers) for objects under `prefix`. Paginated
+/// via `(key_marker, version_id_marker)` per S3 semantics.
+pub async fn list_object_versions(
+    client: &Client,
+    bucket: &str,
+    prefix: Option<&str>,
+    key_marker: Option<&str>,
+    version_id_marker: Option<&str>,
+    max_keys: Option<i32>,
+) -> Result<
+    (
+        Vec<crate::models::object::ObjectVersion>,
+        Option<String>,
+        Option<String>,
+        bool,
+    ),
+    S3Error,
+> {
+    let mut req = client.list_object_versions().bucket(bucket);
+    if let Some(p) = prefix {
+        req = req.prefix(p);
+    }
+    if let Some(m) = key_marker {
+        req = req.key_marker(m);
+    }
+    if let Some(m) = version_id_marker {
+        req = req.version_id_marker(m);
+    }
+    if let Some(n) = max_keys {
+        req = req.max_keys(n);
+    }
+
+    let out = req
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+    let mut versions: Vec<crate::models::object::ObjectVersion> = Vec::new();
+    for v in out.versions() {
+        versions.push(crate::models::object::ObjectVersion {
+            key: v.key().unwrap_or_default().to_string(),
+            version_id: v.version_id().unwrap_or_default().to_string(),
+            is_latest: v.is_latest().unwrap_or(false),
+            is_delete_marker: false,
+            size: v.size().unwrap_or(0),
+            last_modified: v.last_modified().map(|d| d.to_string()),
+            etag: v.e_tag().map(|s| s.to_string()),
+            storage_class: v.storage_class().map(|s| s.as_str().to_string()),
+        });
+    }
+    for dm in out.delete_markers() {
+        versions.push(crate::models::object::ObjectVersion {
+            key: dm.key().unwrap_or_default().to_string(),
+            version_id: dm.version_id().unwrap_or_default().to_string(),
+            is_latest: dm.is_latest().unwrap_or(false),
+            is_delete_marker: true,
+            size: 0,
+            last_modified: dm.last_modified().map(|d| d.to_string()),
+            etag: None,
+            storage_class: None,
+        });
+    }
+
+    // Interleave versions + delete markers by last_modified descending so
+    // the UI shows one unified chronological timeline per key.
+    versions.sort_by(|a, b| {
+        let ak = a.key.cmp(&b.key);
+        if ak != std::cmp::Ordering::Equal {
+            return ak;
+        }
+        // Newest first within same key
+        b.last_modified
+            .as_deref()
+            .unwrap_or("")
+            .cmp(a.last_modified.as_deref().unwrap_or(""))
+    });
+
+    Ok((
+        versions,
+        out.next_key_marker().map(|s| s.to_string()),
+        out.next_version_id_marker().map(|s| s.to_string()),
+        out.is_truncated().unwrap_or(false),
+    ))
+}
+
+/// Read the versioning configuration of a bucket (Enabled / Suspended /
+/// Unversioned). `Unversioned` means versioning was never enabled — the
+/// S3 API returns an empty/missing status.
+pub async fn get_bucket_versioning(
+    client: &Client,
+    bucket: &str,
+) -> Result<crate::models::object::BucketVersioningStatus, S3Error> {
+    let out = client
+        .get_bucket_versioning()
+        .bucket(bucket)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+    let status = out
+        .status()
+        .map(|s| s.as_str().to_string())
+        .unwrap_or_else(|| "Unversioned".to_string());
+    let mfa_delete = out
+        .mfa_delete()
+        .map(|s| s.as_str() == "Enabled")
+        .unwrap_or(false);
+
+    Ok(crate::models::object::BucketVersioningStatus { status, mfa_delete })
+}
+
+/// Permanently delete a specific version of an object. Bypasses the
+/// "soft delete" (delete marker) behavior — the version is gone.
+pub async fn delete_object_version(
+    client: &Client,
+    bucket: &str,
+    key: &str,
+    version_id: &str,
+) -> Result<(), S3Error> {
+    client
+        .delete_object()
+        .bucket(bucket)
+        .key(key)
+        .version_id(version_id)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
+/// Restore a previous version as the current one by copying it onto
+/// itself via `x-amz-copy-source: bucket/key?versionId=...`. S3 creates
+/// a new version (the latest) with the restored content.
+pub async fn restore_object_version(
+    client: &Client,
+    bucket: &str,
+    key: &str,
+    version_id: &str,
+) -> Result<String, S3Error> {
+    // URL-encode the key for the copy source (S3 requires path-style
+    // encoding). `uri_encode` is what the SDK uses internally; we just
+    // replace the worst offenders manually for readability.
+    let encoded_key = key.replace(' ', "%20").replace('+', "%2B");
+    let copy_source = format!("{bucket}/{encoded_key}?versionId={version_id}");
+    let out = client
+        .copy_object()
+        .bucket(bucket)
+        .key(key)
+        .copy_source(copy_source)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+    Ok(out
+        .copy_object_result()
+        .and_then(|r| r.e_tag())
+        .unwrap_or_default()
+        .to_string())
+}
+
 pub async fn test_connection(
     client: &Client,
 ) -> Result<crate::models::connection::ConnectionTestResult, S3Error> {

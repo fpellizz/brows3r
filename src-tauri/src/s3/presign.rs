@@ -11,13 +11,27 @@ pub async fn presign_get_object(
     key: &str,
     expiry_secs: u64,
 ) -> Result<String, S3Error> {
+    presign_get_object_v(client, bucket, key, None, expiry_secs).await
+}
+
+/// Presign a GET for a specific version (or current, if `version_id` is
+/// None). Used by the versioning UI to let the user download a previous
+/// version without adding a whole new download-with-version_id pipeline.
+pub async fn presign_get_object_v(
+    client: &Client,
+    bucket: &str,
+    key: &str,
+    version_id: Option<&str>,
+    expiry_secs: u64,
+) -> Result<String, S3Error> {
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(expiry_secs))
         .map_err(|e| S3Error::ConfigError(e.to_string()))?;
 
-    let presigned = client
-        .get_object()
-        .bucket(bucket)
-        .key(key)
+    let mut req = client.get_object().bucket(bucket).key(key);
+    if let Some(v) = version_id {
+        req = req.version_id(v);
+    }
+    let presigned = req
         .presigned(presigning_config)
         .await
         .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
