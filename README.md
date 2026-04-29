@@ -265,8 +265,21 @@ cargo test                    # Unit + integration tests
 
 ### Build for Linux
 
+Modo rapido (consigliato): usa lo script che verifica prerequisiti runtime, installa le dipendenze Node se mancanti e stampa il riepilogo dei file prodotti:
+
 ```bash
-pnpm tauri build
+./scripts/build-linux.sh                 # solo .deb
+./scripts/build-linux.sh -b all          # deb + rpm + appimage
+./scripts/build-linux.sh -b deb,rpm
+./scripts/build-linux.sh --clean         # ricostruisce da zero
+./scripts/build-linux.sh --help
+```
+
+Modo manuale equivalente:
+
+```bash
+pnpm tauri build --bundles deb
+# oppure: pnpm tauri build  (genera deb + rpm + appimage)
 ```
 
 Output in `src-tauri/target/release/bundle/`:
