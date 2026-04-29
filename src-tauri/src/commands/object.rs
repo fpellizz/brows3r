@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::models::object::{
-    CopyObjectRequest, DeleteObjectsRequest, ListObjectsRequest, ListObjectsResponse,
-    ObjectDetails, ObjectInfo, PresignMethod, PresignedUrlRequest,
+    BucketVersioningStatus, CopyObjectRequest, DeleteObjectsRequest,
+    ListObjectVersionsRequest, ListObjectVersionsResponse, ListObjectsRequest,
+    ListObjectsResponse, ObjectDetails, ObjectInfo, PresignMethod, PresignedUrlRequest,
 };
 use crate::s3::client::S3ClientPool;
 use crate::store::credentials;
@@ -271,10 +272,11 @@ pub async fn get_presigned_url(
 
     match request.method {
         PresignMethod::Get => {
-            crate::s3::presign::presign_get_object(
+            crate::s3::presign::presign_get_object_v(
                 &client,
                 &request.bucket,
                 &request.key,
+                request.version_id.as_deref(),
                 request.expiry_secs,
             )
             .await
@@ -581,4 +583,80 @@ fn classify_content_type(content_type: &str, key: &str) -> String {
 
         _ => "unsupported".to_string(),
     }
+}
+
+// --- Versioning commands ------------------------------------------------
+
+#[tauri::command]
+pub async fn list_object_versions(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    request: ListObjectVersionsRequest,
+) -> Result<ListObjectVersionsResponse, String> {
+    let client = get_client(&db, &pool, &request.connection_id).await?;
+
+    let (versions, next_key_marker, next_version_id_marker, is_truncated) =
+        crate::s3::client::list_object_versions(
+            &client,
+            &request.bucket,
+            request.prefix.as_deref(),
+            request.key_marker.as_deref(),
+            request.version_id_marker.as_deref(),
+            request.max_keys,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(ListObjectVersionsResponse {
+        versions,
+        next_key_marker,
+        next_version_id_marker,
+        is_truncated,
+    })
+}
+
+#[tauri::command]
+pub async fn get_bucket_versioning(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<BucketVersioningStatus, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::get_bucket_versioning(&client, &bucket)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Permanently delete a specific version of an object. No delete marker
+/// is created — the version is irrecoverable.
+#[tauri::command]
+pub async fn delete_object_version(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    key: String,
+    version_id: String,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::delete_object_version(&client, &bucket, &key, &version_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Copy a previous version as the current version (creates a new latest).
+#[tauri::command]
+pub async fn restore_object_version(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    key: String,
+    version_id: String,
+) -> Result<String, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::restore_object_version(&client, &bucket, &key, &version_id)
+        .await
+        .map_err(|e| e.to_string())
 }

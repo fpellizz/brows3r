@@ -77,6 +77,10 @@ pub fn run() {
             commands::object::update_object_metadata,
             commands::object::get_presigned_url,
             commands::object::get_object_preview,
+            commands::object::list_object_versions,
+            commands::object::get_bucket_versioning,
+            commands::object::delete_object_version,
+            commands::object::restore_object_version,
             // Transfer commands
             commands::transfer::start_upload,
             commands::transfer::start_download,
