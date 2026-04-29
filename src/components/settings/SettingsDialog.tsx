@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import { X, Globe, Palette, ArrowUpDown, Minus, Plus, Trash2, Clock, Filter, FileText, FolderOpen } from "lucide-react";
-import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import type { BandwidthSchedule } from "@/stores/settingsStore";
 import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
 import { applyTheme } from "@/lib/theme";
@@ -529,7 +528,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                         <button
                           type="button"
                           onClick={() => {
-                            if (logDirInfo.path) void shellOpen(logDirInfo.path);
+                            if (!logDirInfo.path) return;
+                            tauriInvoke("open_path", { path: logDirInfo.path }).catch((e) =>
+                              console.error("open_path failed:", e),
+                            );
                           }}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                         >
