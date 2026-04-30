@@ -128,25 +128,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   </select>
                 </SettingRow>
 
-                <SettingRow label="Log Level">
-                  <select
-                    className="select-field w-52"
-                    value={local.general.log_level}
-                    onChange={(e) =>
-                      setLocal({
-                        ...local,
-                        general: { ...local.general, log_level: e.target.value },
-                      })
-                    }
-                  >
-                    <option value="error">Error</option>
-                    <option value="warn">Warn</option>
-                    <option value="info">Info</option>
-                    <option value="debug">Debug</option>
-                    <option value="trace">Trace</option>
-                  </select>
-                </SettingRow>
-
                 <SettingToggle
                   label="Check for updates"
                   checked={local.general.check_updates}
@@ -460,6 +441,25 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
               {/* Logs */}
               <Tabs.Content value="logs" className="space-y-6">
+                <SettingRow label={t("settings.logLevel")}>
+                  <select
+                    className="select-field w-52"
+                    value={local.general.log_level}
+                    onChange={(e) =>
+                      setLocal({
+                        ...local,
+                        general: { ...local.general, log_level: e.target.value },
+                      })
+                    }
+                  >
+                    <option value="error">Error</option>
+                    <option value="warn">Warn</option>
+                    <option value="info">Info</option>
+                    <option value="debug">Debug</option>
+                    <option value="trace">Trace</option>
+                  </select>
+                </SettingRow>
+
                 <SettingToggle
                   label={t("settings.fileLogEnabled")}
                   description={t("settings.fileLogEnabledDesc")}
