@@ -129,7 +129,8 @@
     "activeLogPath": "Active path",
     "logSizeOnDisk": "Files on disk",
     "files": "files",
-    "openLogFolder": "Open folder"
+    "openLogFolder": "Open folder",
+    "logLevel": "Log Level"
   },
   "import": {
     "title": "Import Connections",

@@ -113,6 +113,18 @@ if [ ! -d node_modules ]; then
   pnpm install
 fi
 
+# --- Workaround AppImage / FUSE -------------------------------------------
+# Tauri scarica `linuxdeploy-x86_64.AppImage` e lo lancia per impacchettare
+# l'AppImage. Su Ubuntu 24+ il pacchetto libfuse2 non è installato di
+# default (la distro è passata a libfuse3), quindi il mount FUSE
+# dell'AppImage di linuxdeploy fallisce con un criptico
+# "failed to run linuxdeploy". Settiamo APPIMAGE_EXTRACT_AND_RUN=1 così
+# il runtime AppImage si auto-estrae in /tmp invece di montarsi via FUSE
+# — funziona ovunque senza dover installare libfuse2.
+if [[ ",$BUNDLES," == *,appimage,* ]]; then
+  export APPIMAGE_EXTRACT_AND_RUN=1
+fi
+
 # --- Build -----------------------------------------------------------------
 APP_VERSION="$(node -p "require('./package.json').version" 2>/dev/null || echo "?")"
 step "Build pacchetti: ${BUNDLES}  ${DIM}(versione ${APP_VERSION})${NC}"

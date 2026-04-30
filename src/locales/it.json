@@ -202,7 +202,8 @@
     "activeLogPath": "Percorso attivo",
     "logSizeOnDisk": "File su disco",
     "files": "file",
-    "openLogFolder": "Apri cartella"
+    "openLogFolder": "Apri cartella",
+    "logLevel": "Livello log"
   },
   "import": {
     "title": "Importa Connessioni",
