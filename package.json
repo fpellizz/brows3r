@@ -1,7 +1,7 @@
 {
   "name": "brows3r",
   "private": true,
-  "version": "1.6.8-daniela",
+  "version": "1.6.9-daniela",
   "type": "module",
   "scripts": {
     "dev": "vite",
