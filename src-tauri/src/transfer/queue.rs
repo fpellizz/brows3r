@@ -1,22 +1,18 @@
 use std::collections::VecDeque;
 
-use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::Mutex;
 
 use crate::models::transfer::{TransferItem, TransferStatus};
 
 /// Central transfer queue managing upload and download tasks.
 pub struct TransferQueue {
     items: Mutex<VecDeque<TransferItem>>,
-    concurrency: Semaphore,
-    max_concurrent: u32,
 }
 
 impl TransferQueue {
-    pub fn new(max_concurrent: u32) -> Self {
+    pub fn new(_max_concurrent: u32) -> Self {
         Self {
             items: Mutex::new(VecDeque::new()),
-            concurrency: Semaphore::new(max_concurrent as usize),
-            max_concurrent,
         }
     }
 
@@ -37,22 +33,6 @@ impl TransferQueue {
         let mut items = self.items.lock().await;
         if let Some(item) = items.iter_mut().find(|i| i.id == id) {
             item.status = status;
-        }
-    }
-
-    /// Update transfer progress.
-    pub async fn update_progress(
-        &self,
-        id: &str,
-        transferred_bytes: i64,
-        speed_bps: i64,
-        eta_secs: i64,
-    ) {
-        let mut items = self.items.lock().await;
-        if let Some(item) = items.iter_mut().find(|i| i.id == id) {
-            item.transferred_bytes = transferred_bytes;
-            item.speed_bps = Some(speed_bps);
-            item.eta_secs = Some(eta_secs);
         }
     }
 
@@ -86,11 +66,4 @@ impl TransferQueue {
         });
     }
 
-    /// Acquire a concurrency permit. Returns when a slot is available.
-    pub async fn acquire_permit(&self) -> tokio::sync::SemaphorePermit<'_> {
-        self.concurrency
-            .acquire()
-            .await
-            .expect("Semaphore closed unexpectedly")
-    }
 }

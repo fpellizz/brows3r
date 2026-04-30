@@ -9,9 +9,14 @@ pub struct S3ClientConfig {
     pub secret_access_key: String,
     pub session_token: Option<String>,
     pub force_path_style: Option<bool>,
+    // Populated from the connection profile but not yet wired through
+    // to the AWS SDK / reqwest client. TODO: apply on `create_s3_client`.
+    #[allow(dead_code)]
     pub proxy: Option<String>,
+    #[allow(dead_code)]
     pub ca_bundle: Option<String>,
     pub timeout_secs: u64,
+    #[allow(dead_code)]
     pub max_retries: u32,
 }
 

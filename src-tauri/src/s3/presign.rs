@@ -5,15 +5,6 @@ use aws_sdk_s3::presigning::PresigningConfig;
 
 use super::error::S3Error;
 
-pub async fn presign_get_object(
-    client: &Client,
-    bucket: &str,
-    key: &str,
-    expiry_secs: u64,
-) -> Result<String, S3Error> {
-    presign_get_object_v(client, bucket, key, None, expiry_secs).await
-}
-
 /// Presign a GET for a specific version (or current, if `version_id` is
 /// None). Used by the versioning UI to let the user download a previous
 /// version without adding a whole new download-with-version_id pipeline.
