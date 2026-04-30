@@ -1,5 +1,10 @@
 use thiserror::Error;
 
+// Several variants are produced by mapping helpers we have not wired up
+// yet (e.g. classifying SDK errors into AccessDenied / BucketNotFound /
+// RateLimited). Keep them in the public surface so callers can match
+// exhaustively as we wire more error paths through.
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum S3Error {
     #[error("Authentication failed: {0}")]

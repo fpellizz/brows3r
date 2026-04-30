@@ -51,12 +51,6 @@ impl S3ClientPool {
         let mut clients = self.clients.write().await;
         clients.remove(connection_id);
     }
-
-    /// Remove all cached clients.
-    pub async fn clear(&self) {
-        let mut clients = self.clients.write().await;
-        clients.clear();
-    }
 }
 
 async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {

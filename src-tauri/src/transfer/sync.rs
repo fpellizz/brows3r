@@ -38,6 +38,9 @@ const MTIME_GRACE_SECS: i64 = 2;
 
 #[derive(Debug, Clone)]
 pub struct FileInfo {
+    /// Kept for debug/log clarity; the rel_path is also the HashMap key
+    /// so reading it from the value would be redundant.
+    #[allow(dead_code)]
     pub rel_path: String,
     pub size: i64,
     /// Filesystem mtime for local files, S3 LastModified for remote.
@@ -410,25 +413,6 @@ pub fn mtime_metadata(mtime: DateTime<Utc>) -> HashMap<String, String> {
     let mut m = HashMap::new();
     m.insert(MTIME_METADATA_KEY.to_string(), mtime.to_rfc3339());
     m
-}
-
-/// Context needed to execute a single sync action. Small struct so the
-/// executor in `commands/sync.rs` can keep one of these per running sync.
-pub struct SyncExecCtx<'a> {
-    pub client: &'a Client,
-    pub bucket: &'a str,
-    pub prefix: &'a str,
-    pub local_dir: &'a Path,
-}
-
-impl SyncExecCtx<'_> {
-    pub fn remote_key(&self, rel: &str) -> String {
-        compose_remote_key(self.prefix, rel)
-    }
-
-    pub fn local_path(&self, rel: &str) -> PathBuf {
-        self.local_dir.join(rel)
-    }
 }
 
 /// Validate that the rel_paths in an execute request are sane (no

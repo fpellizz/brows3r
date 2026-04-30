@@ -8,8 +8,12 @@ pub struct Connection {
     pub endpoint: String,
     pub region: String,
     pub access_key_id: String,
-    /// Never serialized to frontend — stored in keychain
+    /// Never serialized to frontend — stored in keychain. Read paths
+    /// pull the secret from the keychain directly, so this field is
+    /// only here for completeness of the Connection model used by
+    /// serde / DB roundtrips.
     #[serde(skip_serializing)]
+    #[allow(dead_code)]
     pub secret_access_key: Option<String>,
     pub session_token: Option<String>,
     pub signature_version: SignatureVersion,
