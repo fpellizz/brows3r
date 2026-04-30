@@ -91,6 +91,23 @@ if [[ ",$BUNDLES," == *,rpm,* ]] && ! have rpmbuild; then
   exit 1
 fi
 
+# `linuxdeploy-plugin-gstreamer` richiama `patchelf` per riscrivere gli
+# rpath dei binari nell'AppDir. Se manca, il plugin esce con codice 2 e
+# Tauri stampa il criptico "failed to run linuxdeploy" senza dare
+# dettagli — fallisco subito con il fix.
+if [[ ",$BUNDLES," == *,appimage,* ]] && ! have patchelf; then
+  err "patchelf non trovato ma serve per impacchettare l'AppImage."
+  if [ -r /etc/os-release ] && grep -qE '^ID(_LIKE)?=.*(debian|ubuntu)' /etc/os-release; then
+    err "Installa con:  sudo apt install -y patchelf"
+  elif [ -r /etc/os-release ] && grep -qE '^ID(_LIKE)?=.*(fedora|rhel|centos)' /etc/os-release; then
+    err "Installa con:  sudo dnf install -y patchelf"
+  else
+    err "Installa il pacchetto 'patchelf' tramite il package manager della tua distro."
+  fi
+  err "Oppure lancia:  ./scripts/build-linux.sh -b deb,rpm"
+  exit 1
+fi
+
 # --- Verifica prerequisiti runtime di sistema -------------------------------
 if [ "$SKIP_CHECKS" -eq 0 ] && [ -x "$SCRIPT_DIR/check-system.sh" ]; then
   step "Verifica librerie runtime di sistema"
@@ -113,16 +130,27 @@ if [ ! -d node_modules ]; then
   pnpm install
 fi
 
-# --- Workaround AppImage / FUSE -------------------------------------------
+# --- Workaround AppImage / FUSE / Snap ------------------------------------
 # Tauri scarica `linuxdeploy-x86_64.AppImage` e lo lancia per impacchettare
-# l'AppImage. Su Ubuntu 24+ il pacchetto libfuse2 non è installato di
-# default (la distro è passata a libfuse3), quindi il mount FUSE
-# dell'AppImage di linuxdeploy fallisce con un criptico
-# "failed to run linuxdeploy". Settiamo APPIMAGE_EXTRACT_AND_RUN=1 così
-# il runtime AppImage si auto-estrae in /tmp invece di montarsi via FUSE
-# — funziona ovunque senza dover installare libfuse2.
+# l'AppImage. Due problemi comuni gestiti qui:
+#
+# 1. Su Ubuntu 24+ il pacchetto libfuse2 non è installato di default
+#    (la distro è passata a libfuse3), quindi il mount FUSE
+#    dell'AppImage di linuxdeploy fallisce con un criptico
+#    "failed to run linuxdeploy". `APPIMAGE_EXTRACT_AND_RUN=1` fa
+#    auto-estrarre il runtime in /tmp invece di montarsi via FUSE.
+#
+# 2. Se l'utente sta lanciando lo script da un terminale dentro VS Code
+#    installato come Snap, l'env contiene `GTK_PATH=/snap/code/.../gtk-3.0`
+#    e altre var che fanno cercare a `linuxdeploy-plugin-gtk` i moduli
+#    GTK in `/snap/code/...`. Quei moduli sono compilati per la GTK di
+#    Snap (libc privata) e generano una pioggia di
+#    `g_module_open() failed`. Cosmetico ma rumoroso. Unsettiamo le
+#    var GTK Snap-related per uno script log più pulito.
 if [[ ",$BUNDLES," == *,appimage,* ]]; then
   export APPIMAGE_EXTRACT_AND_RUN=1
+  unset GTK_PATH GTK_EXE_PREFIX GTK_DATA_PREFIX
+  unset GDK_PIXBUF_MODULE_FILE GIO_MODULE_DIR
 fi
 
 # --- Build -----------------------------------------------------------------
