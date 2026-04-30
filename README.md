@@ -271,11 +271,14 @@ Modo rapido (consigliato): usa lo script che verifica prerequisiti runtime, inst
 ./scripts/build-linux.sh                 # default: deb + rpm + appimage
 ./scripts/build-linux.sh -b deb          # solo .deb
 ./scripts/build-linux.sh -b deb,rpm      # subset arbitrario
+./scripts/build-linux.sh --docker        # build dentro Ubuntu 22.04 (AppImage portabile)
 ./scripts/build-linux.sh --clean         # ricostruisce da zero
 ./scripts/build-linux.sh --help
 ```
 
 > Nota: il default include `.rpm`. Su Debian/Ubuntu serve `sudo apt install rpm` per avere `rpmbuild`. Lo script lo verifica e fallisce subito con un messaggio chiaro se manca.
+
+> **AppImage portabile** — gli AppImage buildati sulla workstation legano `libwebkit2gtk` al `glibc` locale. Su Ubuntu 25 (glibc 2.42) questo produce AppImage che non partono su sistemi target più vecchi (`version GLIBC_2.42 not found`). Il flag `--docker` builda dentro Ubuntu 22.04 (glibc 2.35) usando [`scripts/Dockerfile.build-linux`](scripts/Dockerfile.build-linux), così l'AppImage gira praticamente ovunque. Richiede Docker installato; la prima esecuzione costruisce l'immagine (~5 min), le successive riusano la cache.
 
 Modo manuale equivalente:
 

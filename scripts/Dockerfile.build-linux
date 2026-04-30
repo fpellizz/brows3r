@@ -1,0 +1,57 @@
+# Build environment per AppImage portabili.
+#
+# Builds dentro Ubuntu 22.04 (glibc 2.35) così l'AppImage prodotto è
+# compatibile con qualsiasi distro Linux ragionevolmente recente.
+# Buildare sulla workstation Ubuntu 25.10 (glibc 2.42) produrrebbe
+# AppImage che non partono su sistemi target più vecchi:
+#   `version GLIBC_2.42 not found`
+#
+# Costruita on-demand da scripts/build-linux.sh quando si passa
+# `--docker`. Cargo + pnpm tools sono pre-installati globalmente in
+# /opt/{cargo,rust} così sono leggibili da qualsiasi UID, e i cache
+# scrivibili (cargo registry, pnpm store) vengono mappati al volume
+# del workspace in run-time per evitare il refetch ad ogni build.
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# --- Sistema + dipendenze native richieste da Tauri v2 / WebKit2GTK ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        curl \
+        desktop-file-utils \
+        file \
+        git \
+        libayatana-appindicator3-dev \
+        libgtk-3-dev \
+        libglib2.0-dev \
+        libjavascriptcoregtk-4.1-dev \
+        librsvg2-dev \
+        libsoup-3.0-dev \
+        libssl-dev \
+        libwebkit2gtk-4.1-dev \
+        patchelf \
+        pkg-config \
+        rpm \
+        wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Rust toolchain (rustup, cargo, tauri-cli) come root, world-readable ---
+ENV RUSTUP_HOME=/opt/rust \
+    CARGO_HOME=/opt/cargo \
+    PATH=/opt/cargo/bin:/usr/local/bin:/usr/bin:/bin
+# `stable`, not the project's MSRV (1.77): some transitive deps now
+# require edition 2024, which only stabilized in Rust 1.85.
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --default-toolchain stable --profile minimal \
+    && cargo install tauri-cli --locked --version "^2" \
+    && chmod -R a+rX /opt/rust /opt/cargo
+
+# --- Node.js 22 + pnpm ----------------------------------------------------
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g pnpm \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work

@@ -29,6 +29,7 @@ pnpm tauri dev
 # Build Linux packages (default: deb + rpm + appimage)
 ./scripts/build-linux.sh
 ./scripts/build-linux.sh -b deb      # solo .deb
+./scripts/build-linux.sh --docker    # AppImage portabile (build su Ubuntu 22.04)
 
 # Equivalente manuale
 pnpm tauri build

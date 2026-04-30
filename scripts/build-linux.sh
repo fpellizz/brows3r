@@ -10,6 +10,7 @@
 #   ./scripts/build-linux.sh                 # default: deb + rpm + appimage
 #   ./scripts/build-linux.sh -b deb          # solo .deb
 #   ./scripts/build-linux.sh -b deb,rpm      # subset arbitrario
+#   ./scripts/build-linux.sh --docker        # build dentro Ubuntu 22.04 (AppImage portabile)
 #   ./scripts/build-linux.sh --clean         # rimuove dist/ + target/release/bundle prima
 #   ./scripts/build-linux.sh --skip-checks   # salta il check prerequisiti runtime
 
@@ -18,14 +19,16 @@ set -euo pipefail
 BUNDLES="deb,rpm,appimage"
 CLEAN=0
 SKIP_CHECKS=0
+USE_DOCKER=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -b|--bundles) BUNDLES="$2"; shift 2 ;;
     --clean)      CLEAN=1; shift ;;
     --skip-checks) SKIP_CHECKS=1; shift ;;
+    --docker)     USE_DOCKER=1; shift ;;
     -h|--help)
-      sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) echo "Argomento sconosciuto: $1" >&2; exit 2 ;;
   esac
@@ -53,6 +56,47 @@ ok()    { echo -e "${GREEN}[OK]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err()   { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 have()  { command -v "$1" >/dev/null 2>&1; }
+
+# --- Modo Docker (build su Ubuntu 22.04 per AppImage portabili) -----------
+# Builda su una distro più vecchia per ottenere AppImage compatibili con
+# qualsiasi Linux ragionevolmente recente. Senza questo, l'AppImage
+# generato sulla workstation lega `libwebkit2gtk-4.1.so.0` al glibc
+# locale (es. 2.42 su Ubuntu 25) e non parte sulle macchine target con
+# libc più vecchia.
+if [ "$USE_DOCKER" -eq 1 ]; then
+  step "Modo Docker: build dentro Ubuntu 22.04 per AppImage portabile"
+  if ! have docker; then
+    err "docker non trovato. Installa Docker Engine o Podman e riprova."
+    exit 1
+  fi
+
+  IMAGE_TAG="brows3r-build:ubuntu22.04"
+  if ! docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+    step "Build immagine Docker $IMAGE_TAG (richiesto solo la prima volta)"
+    docker build -f "$SCRIPT_DIR/Dockerfile.build-linux" -t "$IMAGE_TAG" "$SCRIPT_DIR"
+  else
+    ok "Immagine Docker $IMAGE_TAG già presente"
+  fi
+
+  # Cache di pnpm/cargo dentro al workspace, in una dir gitignored, così
+  # i run successivi non riscaricano tutto. UID host così i file prodotti
+  # in `src-tauri/target/` sono leggibili dall'utente fuori dal container.
+  CACHE_DIR="$PROJECT_DIR/.dockercache"
+  mkdir -p "$CACHE_DIR"/{home,cargo,pnpm}
+
+  step "Esecuzione build dentro container (senza --docker per evitare ricorsione)"
+  docker run --rm --init \
+    -u "$(id -u):$(id -g)" \
+    -e HOME=/work/.dockercache/home \
+    -e CARGO_HOME=/work/.dockercache/cargo \
+    -e RUSTUP_HOME=/opt/rust \
+    -e PNPM_HOME=/work/.dockercache/pnpm \
+    -v "$PROJECT_DIR:/work" \
+    -w /work \
+    "$IMAGE_TAG" \
+    bash scripts/build-linux.sh -b "$BUNDLES" --skip-checks
+  exit 0
+fi
 
 # --- Sanity check toolchain -------------------------------------------------
 require_tool() {
