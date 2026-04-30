@@ -7,15 +7,15 @@
 # prodotti con dimensione.
 #
 # Uso:
-#   ./scripts/build-linux.sh                 # default: solo .deb
-#   ./scripts/build-linux.sh -b all          # tutti: deb + rpm + appimage
-#   ./scripts/build-linux.sh -b deb,rpm
+#   ./scripts/build-linux.sh                 # default: deb + rpm + appimage
+#   ./scripts/build-linux.sh -b deb          # solo .deb
+#   ./scripts/build-linux.sh -b deb,rpm      # subset arbitrario
 #   ./scripts/build-linux.sh --clean         # rimuove dist/ + target/release/bundle prima
 #   ./scripts/build-linux.sh --skip-checks   # salta il check prerequisiti runtime
 
 set -euo pipefail
 
-BUNDLES="deb"
+BUNDLES="deb,rpm,appimage"
 CLEAN=0
 SKIP_CHECKS=0
 
@@ -75,6 +75,22 @@ ok "pnpm  $(pnpm --version)"
 ok "rustc $(rustc --version | awk '{print $2}')"
 ok "tauri $(cargo tauri --version 2>/dev/null | awk '{print $2}')"
 
+# Per generare il .rpm da una macchina Debian/Ubuntu serve `rpmbuild`
+# (pacchetto `rpm`). Su Fedora/RHEL è già nel groupinstall "Development
+# Tools". Se manca quando rpm è fra i bundle richiesti, fallisco subito
+# con un messaggio chiaro invece di buttare via 2+ minuti di cargo build
+# e ricevere un errore criptico al momento del bundling.
+if [[ ",$BUNDLES," == *,rpm,* ]] && ! have rpmbuild; then
+  err "rpmbuild non trovato ma è fra i bundle richiesti."
+  if [ -r /etc/os-release ] && grep -qE '^ID(_LIKE)?=.*(debian|ubuntu)' /etc/os-release; then
+    err "Su Debian/Ubuntu installa con:  sudo apt install -y rpm"
+  else
+    err "Installa il pacchetto 'rpm' (su Fedora/RHEL è in 'Development Tools')."
+  fi
+  err "Oppure lancia:  ./scripts/build-linux.sh -b deb,appimage"
+  exit 1
+fi
+
 # --- Verifica prerequisiti runtime di sistema -------------------------------
 if [ "$SKIP_CHECKS" -eq 0 ] && [ -x "$SCRIPT_DIR/check-system.sh" ]; then
   step "Verifica librerie runtime di sistema"
@@ -95,6 +111,18 @@ fi
 if [ ! -d node_modules ]; then
   step "Installazione dipendenze Node"
   pnpm install
+fi
+
+# --- Workaround AppImage / FUSE -------------------------------------------
+# Tauri scarica `linuxdeploy-x86_64.AppImage` e lo lancia per impacchettare
+# l'AppImage. Su Ubuntu 24+ il pacchetto libfuse2 non è installato di
+# default (la distro è passata a libfuse3), quindi il mount FUSE
+# dell'AppImage di linuxdeploy fallisce con un criptico
+# "failed to run linuxdeploy". Settiamo APPIMAGE_EXTRACT_AND_RUN=1 così
+# il runtime AppImage si auto-estrae in /tmp invece di montarsi via FUSE
+# — funziona ovunque senza dover installare libfuse2.
+if [[ ",$BUNDLES," == *,appimage,* ]]; then
+  export APPIMAGE_EXTRACT_AND_RUN=1
 fi
 
 # --- Build -----------------------------------------------------------------
