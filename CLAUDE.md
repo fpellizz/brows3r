@@ -26,12 +26,12 @@ pnpm tauri dev
 ## Build & Distribution
 
 ```bash
-# Build Linux packages (default: solo .deb)
+# Build Linux packages (default: deb + rpm + appimage)
 ./scripts/build-linux.sh
-./scripts/build-linux.sh -b all      # deb + rpm + appimage
+./scripts/build-linux.sh -b deb      # solo .deb
 
 # Equivalente manuale
-pnpm tauri build --bundles deb
+pnpm tauri build
 
 # Build Windows (from Windows machine)
 scripts\build-windows.bat

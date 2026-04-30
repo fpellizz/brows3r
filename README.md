@@ -268,18 +268,20 @@ cargo test                    # Unit + integration tests
 Modo rapido (consigliato): usa lo script che verifica prerequisiti runtime, installa le dipendenze Node se mancanti e stampa il riepilogo dei file prodotti:
 
 ```bash
-./scripts/build-linux.sh                 # solo .deb
-./scripts/build-linux.sh -b all          # deb + rpm + appimage
-./scripts/build-linux.sh -b deb,rpm
+./scripts/build-linux.sh                 # default: deb + rpm + appimage
+./scripts/build-linux.sh -b deb          # solo .deb
+./scripts/build-linux.sh -b deb,rpm      # subset arbitrario
 ./scripts/build-linux.sh --clean         # ricostruisce da zero
 ./scripts/build-linux.sh --help
 ```
 
+> Nota: il default include `.rpm`. Su Debian/Ubuntu serve `sudo apt install rpm` per avere `rpmbuild`. Lo script lo verifica e fallisce subito con un messaggio chiaro se manca.
+
 Modo manuale equivalente:
 
 ```bash
-pnpm tauri build --bundles deb
-# oppure: pnpm tauri build  (genera deb + rpm + appimage)
+pnpm tauri build                         # genera deb + rpm + appimage
+pnpm tauri build --bundles deb           # solo .deb
 ```
 
 Output in `src-tauri/target/release/bundle/`:
