@@ -49,7 +49,8 @@
     "deleteConfirm": "Are you sure you want to delete bucket \"{{name}}\"?",
     "name": "Bucket Name",
     "region": "Region",
-    "empty": "No buckets found"
+    "empty": "No buckets found",
+    "properties": "Bucket properties"
   },
   "object": {
     "name": "Name",
@@ -245,5 +246,25 @@
     "discarding": "Discarding...",
     "later": "Later",
     "connectionRemoved": "Connection no longer exists — only Discard is available."
+  },
+  "bucketProperties": {
+    "title": "Bucket properties",
+    "tabs": {
+      "versioning": "Versioning",
+      "encryption": "Encryption",
+      "policy": "Policy",
+      "lifecycle": "Lifecycle"
+    },
+    "comingSoon": "{{feature}} support coming soon.",
+    "versioning": {
+      "loading": "Loading versioning status...",
+      "statusEnabled": "Versioning is enabled.",
+      "statusSuspended": "Versioning is suspended. Existing versions are kept, new writes are not versioned.",
+      "statusUnversioned": "Versioning has never been enabled on this bucket.",
+      "mfaDeleteOn": "MFA Delete is enabled.",
+      "description": "When enabled, S3 keeps a copy of every object version, including deleted ones. Suspending keeps the existing history but stops creating new versions. S3 does not allow going back to \"never versioned\" once enabled.",
+      "enable": "Enable",
+      "suspend": "Suspend"
+    }
   }
 }

@@ -10,6 +10,7 @@ import {
   Trash2,
   RefreshCw,
   Download,
+  Sliders,
 } from "lucide-react";
 import { useConnectionStore, type Connection } from "@/stores/connectionStore";
 import { useObjectStore } from "@/stores/objectStore";
@@ -19,6 +20,7 @@ import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InputDialog } from "@/components/common/InputDialog";
 import { ImportDialog } from "@/components/connection/ImportDialog";
+import { BucketPropertiesDialog } from "@/components/bucket/BucketPropertiesDialog";
 
 interface BucketInfo {
   name: string;
@@ -56,6 +58,7 @@ export function Sidebar() {
   const [createBucketConnId, setCreateBucketConnId] = useState<string | null>(null);
   const [deleteBucketOpen, setDeleteBucketOpen] = useState(false);
   const [deletingBucket, setDeletingBucket] = useState<{ connId: string; name: string } | null>(null);
+  const [propertiesBucket, setPropertiesBucket] = useState<{ connId: string; name: string } | null>(null);
 
   const openNewDialog = () => {
     setEditingConnection(null);
@@ -313,6 +316,16 @@ export function Sidebar() {
                           />
                           <span className="truncate flex-1">{bucket.name}</span>
                           <button
+                            className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 shrink-0"
+                            title={t("bucket.properties")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPropertiesBucket({ connId: conn.id, name: bucket.name });
+                            }}
+                          >
+                            <Sliders size={11} className="text-zinc-400 hover:text-brand-500" />
+                          </button>
+                          <button
                             className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 shrink-0"
                             title={t("bucket.delete")}
                             onClick={(e) => confirmDeleteBucket(conn.id, bucket.name, e)}
@@ -375,6 +388,18 @@ export function Sidebar() {
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
       />
+
+      {/* Bucket properties dialog */}
+      {propertiesBucket && (
+        <BucketPropertiesDialog
+          open={!!propertiesBucket}
+          onOpenChange={(o) => {
+            if (!o) setPropertiesBucket(null);
+          }}
+          connectionId={propertiesBucket.connId}
+          bucket={propertiesBucket.name}
+        />
+      )}
     </>
   );
 }

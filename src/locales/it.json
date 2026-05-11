@@ -122,7 +122,8 @@
     "deleteConfirm": "Sei sicuro di voler eliminare il bucket \"{{name}}\"?",
     "name": "Nome Bucket",
     "region": "Regione",
-    "empty": "Nessun bucket trovato"
+    "empty": "Nessun bucket trovato",
+    "properties": "Proprietà bucket"
   },
   "object": {
     "name": "Nome",
@@ -245,5 +246,25 @@
     "no": "No",
     "copy": "Copia",
     "copied": "Copiato"
+  },
+  "bucketProperties": {
+    "title": "Proprietà bucket",
+    "tabs": {
+      "versioning": "Versioning",
+      "encryption": "Crittografia",
+      "policy": "Policy",
+      "lifecycle": "Ciclo di vita"
+    },
+    "comingSoon": "Supporto {{feature}} in arrivo.",
+    "versioning": {
+      "loading": "Caricamento stato versioning...",
+      "statusEnabled": "Il versioning è abilitato.",
+      "statusSuspended": "Il versioning è sospeso. Le versioni esistenti vengono mantenute, le nuove scritture non sono versionate.",
+      "statusUnversioned": "Il versioning non è mai stato abilitato su questo bucket.",
+      "mfaDeleteOn": "MFA Delete è abilitato.",
+      "description": "Quando abilitato, S3 conserva una copia di ogni versione degli oggetti, comprese quelle cancellate. Sospendere mantiene la cronologia esistente ma smette di creare nuove versioni. S3 non permette di tornare a \"mai versionato\" una volta abilitato.",
+      "enable": "Abilita",
+      "suspend": "Sospendi"
+    }
   }
 }

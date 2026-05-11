@@ -72,6 +72,7 @@ pub fn run() {
             commands::bucket::create_bucket,
             commands::bucket::delete_bucket,
             commands::bucket::get_bucket_info,
+            commands::bucket::set_bucket_versioning,
             // Object commands
             commands::object::list_objects,
             commands::object::head_object,

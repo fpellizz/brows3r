@@ -480,6 +480,34 @@ pub async fn get_bucket_versioning(
     Ok(crate::models::object::BucketVersioningStatus { status, mfa_delete })
 }
 
+/// Enable or suspend versioning on a bucket. S3 does not let you go
+/// back from Enabled to "never versioned" — Suspended keeps the
+/// existing version history but stops creating new versions.
+pub async fn set_bucket_versioning(
+    client: &Client,
+    bucket: &str,
+    enabled: bool,
+) -> Result<(), S3Error> {
+    use aws_sdk_s3::types::{BucketVersioningStatus, VersioningConfiguration};
+
+    let status = if enabled {
+        BucketVersioningStatus::Enabled
+    } else {
+        BucketVersioningStatus::Suspended
+    };
+    let cfg = VersioningConfiguration::builder().status(status).build();
+
+    client
+        .put_bucket_versioning()
+        .bucket(bucket)
+        .versioning_configuration(cfg)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+    Ok(())
+}
+
 /// Permanently delete a specific version of an object. Bypasses the
 /// "soft delete" (delete marker) behavior — the version is gone.
 pub async fn delete_object_version(
