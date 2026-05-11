@@ -183,7 +183,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
                 <span className="font-medium text-zinc-700 dark:text-zinc-300">
                   {t("about.copyright")}:
                 </span>{" "}
-                &copy; {new Date().getFullYear()} Decisyon
+                &copy; {new Date().getFullYear()} Fabio Pellizzaro
               </p>
             </div>
 
