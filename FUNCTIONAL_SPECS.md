@@ -60,10 +60,10 @@
 
 Il software deve basarsi sulle API S3 standard e non dipendere da estensioni proprietarie. La compatibilita' con un nuovo provider si ottiene configurando:
 
-- **Endpoint URL** (con supporto path-style e virtual-hosted-style)
+- **Endpoint URL** (con supporto path-style e virtual-hosted-style, con auto-detection dall'host)
 - **Regione** (o valore fittizio per provider che non la richiedono)
 - **Credenziali** (Access Key / Secret Key)
-- **Signature Version** (V2 o V4, default V4)
+- **Signature Version**: solo V4 (lo stack AWS SDK Rust non supporta V2; era cosmetica nella vecchia UI ed è stata rimossa)
 
 ---
 
@@ -97,13 +97,13 @@ Il software deve basarsi sulle API S3 standard e non dipendere da estensioni pro
 
 Il layer di astrazione deve:
 
-- Implementare la firma delle richieste con AWS Signature V4 (e V2 per retrocompatibilita')
-- Supportare sia **path-style** (`endpoint/bucket/key`) che **virtual-hosted-style** (`bucket.endpoint/key`)
-- Gestire retry automatico con backoff esponenziale
+- Implementare la firma delle richieste con AWS Signature V4 (V2 non supportato — l'AWS SDK Rust è SigV4-only)
+- Supportare sia **path-style** (`endpoint/bucket/key`) che **virtual-hosted-style** (`bucket.endpoint/key`), con auto-detection dall'host
+- Gestire retry automatico con backoff esponenziale (numero retry configurabile per connessione)
 - Implementare throttling adattivo in caso di rate limiting (HTTP 429 / 503 SlowDown)
 - Supportare connessioni HTTP e HTTPS
-- Permettere la configurazione di proxy HTTP/HTTPS e SOCKS5
-- Supportare certificati TLS custom (self-signed) per ambienti on-premise
+- Permettere la configurazione di proxy HTTP/HTTPS per connessione
+- Supportare certificati TLS custom (self-signed) per ambienti on-premise via CA bundle PEM
 
 ---
 
@@ -121,12 +121,11 @@ Ogni profilo di connessione (denominato "Connessione" o "Connection") contiene:
 | Access Key ID | Si | Chiave di accesso |
 | Secret Access Key | Si | Chiave segreta |
 | Session Token | No | Token di sessione per credenziali temporanee (STS) |
-| Signature Version | No | `v2` o `v4` (default: `v4`) |
-| Path Style | No | Forza path-style access (default: `auto`) |
-| Proxy | No | URL proxy (HTTP/HTTPS/SOCKS5) |
-| CA Bundle | No | Percorso a certificato CA custom |
+| Path Style | No | `auto`, `path` o `virtual` (default: `auto` — la UI non mostra Signature V perché lo stack è SigV4-only) |
+| Proxy | No | URL proxy HTTP/HTTPS (es. `http://corp-proxy:8080`); SOCKS5 non ancora supportato |
+| CA Bundle | No | Percorso a file PEM con certificati CA custom (aggiunti ai root di sistema) |
 | Timeout connessione | No | Timeout in secondi (default: 30) |
-| Max tentativi retry | No | Numero massimo retry (default: 3) |
+| Max tentativi retry | No | Numero di retry oltre il primo tentativo (default: 3) |
 | Note | No | Campo testo libero per annotazioni utente |
 
 ### 5.2 Metodi di autenticazione

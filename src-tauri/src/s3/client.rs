@@ -76,35 +76,74 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
         .timeout_config(timeout_config)
         .retry_config(retry_config);
 
-    // If the connection profile carries a proxy URL, build a custom
-    // HTTPS-capable HTTP client with that proxy and feed it to the SDK.
-    // The default client built by `aws_config::defaults()` knows nothing
-    // about proxy settings, so without this step the UI field is
-    // silently ignored.
-    if let Some(proxy_url) = config.proxy.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+    // Plug a custom HTTP client when the connection profile carries
+    // a proxy URL or a CA bundle path — the default client built by
+    // `aws_config::defaults()` knows nothing about either setting,
+    // so without this step those UI fields are silently ignored.
+    let proxy_url = config.proxy.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let ca_bundle_path = config
+        .ca_bundle
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if proxy_url.is_some() || ca_bundle_path.is_some() {
         use aws_smithy_http_client::{proxy, tls, Builder as HttpClientBuilder, Connector};
-        let proxy_cfg = proxy::ProxyConfig::all(proxy_url).map_err(|e| {
-            S3Error::ConfigError(format!("invalid proxy URL '{proxy_url}': {e}"))
-        })?;
-        // proxy_config is exposed on ConnectorBuilder, not on the top
-        // Builder, so route through `build_with_connector_fn` to plug
-        // a Connector that knows about the proxy.
-        let proxy_cfg = std::sync::Arc::new(proxy_cfg);
+
+        let proxy_cfg = if let Some(url) = proxy_url {
+            let cfg = proxy::ProxyConfig::all(url).map_err(|e| {
+                S3Error::ConfigError(format!("invalid proxy URL '{url}': {e}"))
+            })?;
+            tracing::info!("S3 client using HTTP proxy: {}", url);
+            Some(cfg)
+        } else {
+            None
+        };
+
+        let tls_context = if let Some(path) = ca_bundle_path {
+            let pem = std::fs::read(path).map_err(|e| {
+                S3Error::ConfigError(format!("cannot read CA bundle '{path}': {e}"))
+            })?;
+            // Trust the user-provided cert *in addition to* the system
+            // roots — the on-prem-with-self-signed-cert scenario, but
+            // the same connection might still need to reach AWS too.
+            let store = tls::TrustStore::default().with_pem_certificate(pem);
+            let ctx = tls::TlsContext::builder()
+                .with_trust_store(store)
+                .build()
+                .map_err(|e| {
+                    S3Error::ConfigError(format!("invalid CA bundle '{path}': {e}"))
+                })?;
+            tracing::info!("S3 client using custom CA bundle: {}", path);
+            Some(ctx)
+        } else {
+            None
+        };
+
+        // proxy_config / tls_context live on ConnectorBuilder, not on
+        // the top-level Builder, so we route through
+        // `build_with_connector_fn` to plug a Connector that knows
+        // about both.
+        let proxy_cfg = proxy_cfg.map(std::sync::Arc::new);
+        let tls_context = tls_context.map(std::sync::Arc::new);
         let http_client = HttpClientBuilder::new().build_with_connector_fn(
             move |settings, _runtime_components| {
                 let mut b = Connector::builder();
                 if let Some(s) = settings {
                     b = b.connector_settings(s.clone());
                 }
-                b.proxy_config((*proxy_cfg).clone())
-                    .tls_provider(tls::Provider::Rustls(
-                        tls::rustls_provider::CryptoMode::Ring,
-                    ))
-                    .build()
+                if let Some(p) = proxy_cfg.as_ref() {
+                    b = b.proxy_config((**p).clone());
+                }
+                let mut b = b.tls_provider(tls::Provider::Rustls(
+                    tls::rustls_provider::CryptoMode::Ring,
+                ));
+                if let Some(ctx) = tls_context.as_ref() {
+                    b = b.tls_context((**ctx).clone());
+                }
+                b.build()
             },
         );
         loader = loader.http_client(http_client);
-        tracing::info!("S3 client using HTTP proxy: {}", proxy_url);
     }
 
     let sdk_config = loader.load().await;
