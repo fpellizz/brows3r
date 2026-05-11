@@ -30,3 +30,6 @@ coverage/
 
 # Generated types
 src/types/generated.ts
+
+# Docker build cache (cargo registry / pnpm store / fake $HOME)
+.dockercache/
