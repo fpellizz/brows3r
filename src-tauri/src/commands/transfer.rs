@@ -193,6 +193,7 @@ pub async fn start_upload(
             app: app_handle.clone(),
             transfer_id: tid.clone(),
         });
+        let speed_tracker = Arc::new(crate::transfer::speed::SpeedTracker::new());
         tokio::spawn(async move {
             let result = crate::transfer::upload::upload_file(
                 &client,
@@ -202,21 +203,15 @@ pub async fn start_upload(
                 None,
                 None,
                 move |uploaded, total| {
-                    let speed = 0i64; // TODO: calculate actual speed
-                    let eta = if speed > 0 {
-                        ((total - uploaded) as i64) / speed
-                    } else {
-                        0
-                    };
-
+                    let (speed_bps, eta_secs) = speed_tracker.update(uploaded, total);
                     let _ = progress_app.emit(
                         "transfer:progress",
                         TransferProgressEvent {
                             id: progress_tid.clone(),
                             transferred_bytes: uploaded as i64,
                             total_bytes: total as i64,
-                            speed_bps: speed,
-                            eta_secs: eta,
+                            speed_bps,
+                            eta_secs,
                         },
                     );
                 },
@@ -359,6 +354,7 @@ pub async fn start_download(
         let tid = transfer_id.clone();
         let dl_throttle = Arc::clone(&throttle);
 
+        let speed_tracker = Arc::new(crate::transfer::speed::SpeedTracker::new());
         tokio::spawn(async move {
             let result = crate::transfer::download::download_file(
                 &client,
@@ -367,14 +363,15 @@ pub async fn start_download(
                 &local_path,
                 Some(dl_throttle),
                 |downloaded, total| {
+                    let (speed_bps, eta_secs) = speed_tracker.update(downloaded, total);
                     let _ = app_handle.emit(
                         "transfer:progress",
                         TransferProgressEvent {
                             id: tid.clone(),
                             transferred_bytes: downloaded as i64,
                             total_bytes: total as i64,
-                            speed_bps: 0,
-                            eta_secs: 0,
+                            speed_bps,
+                            eta_secs,
                         },
                     );
                 },
@@ -658,9 +655,15 @@ async fn cross_copy_one(
         .map_err(|e| format!("create temp dir: {e}"))?;
     let tmp_path = tmp_dir.join(format!("{}.tmp", uuid::Uuid::new_v4()));
 
+    // Share one tracker across both phases so the speed/ETA the UI
+    // sees stays smooth at the download→upload handover instead of
+    // restarting from zero.
+    let tracker = Arc::new(crate::transfer::speed::SpeedTracker::new());
+
     // Download phase
     let dl_app = app.clone();
     let dl_tid = tid.clone();
+    let dl_tracker = Arc::clone(&tracker);
     crate::transfer::download::download_file(
         src,
         src_bucket,
@@ -668,14 +671,16 @@ async fn cross_copy_one(
         &tmp_path,
         Some(throttle),
         move |dl, _t| {
+            let combined = (dl / 2) as u64;
+            let (speed_bps, eta_secs) = dl_tracker.update(combined, total);
             let _ = dl_app.emit(
                 "transfer:progress",
                 TransferProgressEvent {
                     id: dl_tid.clone(),
-                    transferred_bytes: (dl / 2) as i64,
+                    transferred_bytes: combined as i64,
                     total_bytes: total as i64,
-                    speed_bps: 0,
-                    eta_secs: 0,
+                    speed_bps,
+                    eta_secs,
                 },
             );
         },
@@ -686,6 +691,7 @@ async fn cross_copy_one(
     // Upload phase
     let ul_app = app.clone();
     let ul_tid = tid.clone();
+    let ul_tracker = Arc::clone(&tracker);
     crate::transfer::upload::upload_file(
         dst,
         dst_bucket,
@@ -694,14 +700,16 @@ async fn cross_copy_one(
         None,
         None,
         move |ul, _t| {
+            let combined = (total / 2 + ul / 2) as u64;
+            let (speed_bps, eta_secs) = ul_tracker.update(combined, total);
             let _ = ul_app.emit(
                 "transfer:progress",
                 TransferProgressEvent {
                     id: ul_tid.clone(),
-                    transferred_bytes: (total / 2 + ul / 2) as i64,
+                    transferred_bytes: combined as i64,
                     total_bytes: total as i64,
-                    speed_bps: 0,
-                    eta_secs: 0,
+                    speed_bps,
+                    eta_secs,
                 },
             );
         },
@@ -830,6 +838,7 @@ pub async fn resume_upload(
         pending.total_bytes,
     );
 
+    let speed_tracker = Arc::new(crate::transfer::speed::SpeedTracker::new());
     tokio::spawn(async move {
         tracing::info!("resume_upload[{}]: calling list_parts on S3...", tid);
         let result = crate::s3::multipart::resume_upload(
@@ -841,14 +850,15 @@ pub async fn resume_upload(
             part_size,
             None,
             move |uploaded, total| {
+                let (speed_bps, eta_secs) = speed_tracker.update(uploaded, total);
                 let _ = progress_app.emit(
                     "transfer:progress",
                     TransferProgressEvent {
                         id: progress_tid.clone(),
                         transferred_bytes: uploaded as i64,
                         total_bytes: total as i64,
-                        speed_bps: 0,
-                        eta_secs: 0,
+                        speed_bps,
+                        eta_secs,
                     },
                 );
             },
