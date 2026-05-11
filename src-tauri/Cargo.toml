@@ -1,6 +1,6 @@
 [package]
 name = "brows3r"
-version = "1.7.3"
+version = "1.8.0"
 description = "Cross-platform S3-compatible object storage browser"
 authors = ["brows3r contributors"]
 edition = "2021"
@@ -31,6 +31,9 @@ aws-config = { version = "1", features = ["behavior-version-latest"] }
 aws-credential-types = "1"
 aws-sigv4 = "1"
 aws-smithy-runtime-api = "1"
+# `rustls-ring` lets us build a custom HTTPS HTTP client when the user
+# configures a proxy on the connection profile.
+aws-smithy-http-client = { version = "1.1", features = ["rustls-ring"] }
 aws-types = "1"
 
 # HTTP

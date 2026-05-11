@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "brows3r"
-version = "1.7.3"
+version = "1.8.0"
 dependencies = [
  "age",
  "anyhow",
@@ -904,6 +904,7 @@ dependencies = [
  "aws-sdk-s3",
  "aws-sdk-sts",
  "aws-sigv4",
+ "aws-smithy-http-client",
  "aws-smithy-runtime-api",
  "aws-types",
  "base64 0.22.1",
