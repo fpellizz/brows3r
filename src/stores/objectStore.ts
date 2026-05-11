@@ -63,6 +63,12 @@ interface ObjectState {
   loading: boolean;
   error: string | null;
 
+  // Client-side filter applied to the currently-listed objects. Lives
+  // at the top level (not per-tab) so the toolbar input stays simple;
+  // ObjectTable consumes it to derive the filtered list it renders.
+  filterText: string;
+  setFilterText: (text: string) => void;
+
   // Internal: sync derived fields from active tab
   _syncActiveTab: () => void;
 
@@ -102,6 +108,10 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
   isTruncated: false,
   loading: false,
   error: null,
+
+  // Client-side filter (shared across tabs).
+  filterText: "",
+  setFilterText: (text) => set({ filterText: text }),
 
   _syncActiveTab: () => {
     const tabId = getActiveTabId();

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { tauriInvoke, tauriListen, type UnlistenFn } from "@/lib/tauri";
+import { tauriInvoke, tauriListen } from "@/lib/tauri";
 
 export interface TransferItem {
   id: string;

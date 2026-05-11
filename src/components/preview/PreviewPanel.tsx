@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { X, FileText, Image, Eye, Loader2 } from "lucide-react";
+import { X, FileText, Eye, Loader2 } from "lucide-react";
 import { tauriInvoke } from "@/lib/tauri";
 import { formatBytes } from "@/lib/format";
 import { ImagePreview } from "./ImagePreview";
@@ -33,7 +32,6 @@ export function PreviewPanel({
   displayName,
   onClose,
 }: PreviewPanelProps) {
-  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
