@@ -13,12 +13,11 @@ pub struct S3ClientConfig {
     /// `create_s3_client` via `aws_smithy_http_client`. Optional —
     /// when `None`/empty the SDK uses its default direct connector.
     pub proxy: Option<String>,
-    // ca_bundle and max_retries are populated from the connection
-    // profile but not yet wired through to the SDK. TODO.
+    // Populated from the connection profile but not yet applied to
+    // the SDK. TODO: install a rustls root store containing this PEM.
     #[allow(dead_code)]
     pub ca_bundle: Option<String>,
     pub timeout_secs: u64,
-    #[allow(dead_code)]
     pub max_retries: u32,
 }
 

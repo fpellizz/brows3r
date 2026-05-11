@@ -62,11 +62,19 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
         .operation_timeout(Duration::from_secs(connect_secs * 3))
         .build();
 
+    // `max_retries` in the UI is the number of retries *after* the
+    // initial attempt; the AWS SDK's `max_attempts` is the total
+    // attempts including the first one. Map between them and force
+    // a floor of 1 so we never end up with zero attempts.
+    let max_attempts = config.max_retries.saturating_add(1).max(1);
+    let retry_config = aws_config::retry::RetryConfig::standard().with_max_attempts(max_attempts);
+
     let mut loader = aws_config::defaults(BehaviorVersion::latest())
         .region(Region::new(config.region.clone()))
         .credentials_provider(credentials_provider)
         .endpoint_url(&config.endpoint)
-        .timeout_config(timeout_config);
+        .timeout_config(timeout_config)
+        .retry_config(retry_config);
 
     // If the connection profile carries a proxy URL, build a custom
     // HTTPS-capable HTTP client with that proxy and feed it to the SDK.
