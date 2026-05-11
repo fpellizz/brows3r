@@ -156,3 +156,17 @@ pub async fn get_bucket_info(
         total_size: None,
     })
 }
+
+#[tauri::command]
+pub async fn set_bucket_versioning(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::set_bucket_versioning(&client, &bucket, enabled)
+        .await
+        .map_err(|e| e.to_string())
+}
