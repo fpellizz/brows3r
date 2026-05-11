@@ -9,10 +9,12 @@ pub struct S3ClientConfig {
     pub secret_access_key: String,
     pub session_token: Option<String>,
     pub force_path_style: Option<bool>,
-    // Populated from the connection profile but not yet wired through
-    // to the AWS SDK / reqwest client. TODO: apply on `create_s3_client`.
-    #[allow(dead_code)]
+    /// HTTP(S) proxy URL for outbound S3 traffic, applied in
+    /// `create_s3_client` via `aws_smithy_http_client`. Optional —
+    /// when `None`/empty the SDK uses its default direct connector.
     pub proxy: Option<String>,
+    // ca_bundle and max_retries are populated from the connection
+    // profile but not yet wired through to the SDK. TODO.
     #[allow(dead_code)]
     pub ca_bundle: Option<String>,
     pub timeout_secs: u64,

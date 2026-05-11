@@ -62,14 +62,44 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
         .operation_timeout(Duration::from_secs(connect_secs * 3))
         .build();
 
-    // Use aws_config to get a fully configured SDK config (with HTTP client)
-    let sdk_config = aws_config::defaults(BehaviorVersion::latest())
+    let mut loader = aws_config::defaults(BehaviorVersion::latest())
         .region(Region::new(config.region.clone()))
         .credentials_provider(credentials_provider)
         .endpoint_url(&config.endpoint)
-        .timeout_config(timeout_config)
-        .load()
-        .await;
+        .timeout_config(timeout_config);
+
+    // If the connection profile carries a proxy URL, build a custom
+    // HTTPS-capable HTTP client with that proxy and feed it to the SDK.
+    // The default client built by `aws_config::defaults()` knows nothing
+    // about proxy settings, so without this step the UI field is
+    // silently ignored.
+    if let Some(proxy_url) = config.proxy.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        use aws_smithy_http_client::{proxy, tls, Builder as HttpClientBuilder, Connector};
+        let proxy_cfg = proxy::ProxyConfig::all(proxy_url).map_err(|e| {
+            S3Error::ConfigError(format!("invalid proxy URL '{proxy_url}': {e}"))
+        })?;
+        // proxy_config is exposed on ConnectorBuilder, not on the top
+        // Builder, so route through `build_with_connector_fn` to plug
+        // a Connector that knows about the proxy.
+        let proxy_cfg = std::sync::Arc::new(proxy_cfg);
+        let http_client = HttpClientBuilder::new().build_with_connector_fn(
+            move |settings, _runtime_components| {
+                let mut b = Connector::builder();
+                if let Some(s) = settings {
+                    b = b.connector_settings(s.clone());
+                }
+                b.proxy_config((*proxy_cfg).clone())
+                    .tls_provider(tls::Provider::Rustls(
+                        tls::rustls_provider::CryptoMode::Ring,
+                    ))
+                    .build()
+            },
+        );
+        loader = loader.http_client(http_client);
+        tracing::info!("S3 client using HTTP proxy: {}", proxy_url);
+    }
+
+    let sdk_config = loader.load().await;
 
     let mut s3_config_builder =
         aws_sdk_s3::config::Builder::from(&sdk_config);
