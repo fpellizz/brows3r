@@ -44,7 +44,10 @@
 ### Connection Management
 - Multiple simultaneous connections with named profiles
 - Provider presets (AWS, MinIO, Backblaze, R2, Wasabi, GCS, OCI, ...)
-- Signature V2/V4, path-style/virtual-hosted auto-detection
+- **Path-style / virtual-hosted auto-detection** from the endpoint host (AWS / Backblaze / Wasabi / DO Spaces / Scaleway / OVH / Linode → virtual-hosted; everything else → path-style)
+- **HTTP/HTTPS proxy** support per connection
+- **Custom CA bundle** (PEM file) for on-prem endpoints with self-signed certificates
+- Configurable retry count (independent of the AWS SDK default)
 - Connection testing with latency measurement
 - Import connections from **AWS CLI**, **rclone**, **s3cmd**, **MinIO Client**
 - Secure credential storage (OS keychain + SQLite fallback with encryption)

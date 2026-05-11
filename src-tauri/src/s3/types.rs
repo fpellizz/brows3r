@@ -50,9 +50,10 @@ pub struct S3ClientConfig {
     /// `create_s3_client` via `aws_smithy_http_client`. Optional —
     /// when `None`/empty the SDK uses its default direct connector.
     pub proxy: Option<String>,
-    // Populated from the connection profile but not yet applied to
-    // the SDK. TODO: install a rustls root store containing this PEM.
-    #[allow(dead_code)]
+    /// Path to a PEM file containing extra CA certificates to trust
+    /// in addition to the system roots. Used by `create_s3_client`
+    /// to build a custom rustls trust store — empty/`None` means
+    /// "use only the system roots".
     pub ca_bundle: Option<String>,
     pub timeout_secs: u64,
     pub max_retries: u32,
