@@ -30,7 +30,7 @@ export function useDropZone(onDrop?: (paths: string[]) => void) {
           setState((prev) =>
             prev.isDragging ? prev : { ...prev, isDragging: true },
           );
-        } else if (type === "leave" || type === "cancelled") {
+        } else if (type === "leave") {
           setState({ isDragging: false, droppedPaths: null });
         } else if (type === "drop") {
           const paths = event.payload.paths;
