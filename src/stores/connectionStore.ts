@@ -7,7 +7,6 @@ export interface Connection {
   endpoint: string;
   region: string;
   access_key_id: string;
-  signature_version: "v2" | "v4";
   path_style: "auto" | "path" | "virtual";
   proxy: string | null;
   ca_bundle: string | null;

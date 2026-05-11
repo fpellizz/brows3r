@@ -123,7 +123,6 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
           region: conn.region || "us-east-1",
           access_key_id: conn.access_key_id || "",
           secret_access_key: conn.secret_access_key || "",
-          signature_version: "v4",
         };
 
         if (conn.session_token) {

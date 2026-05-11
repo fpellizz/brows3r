@@ -172,17 +172,12 @@ pub async fn test_connection(
 
 /// Test a connection without saving it (for new connection dialog).
 #[tauri::command]
-// `signature_version` is part of the Tauri IPC contract sent by the
-// connection dialog. The AWS SDK only supports SigV4 in this codebase
-// so we don't act on it, but removing it would break the JSON shape.
-#[allow(unused_variables)]
 pub async fn test_connection_inline(
     endpoint: String,
     region: String,
     access_key_id: String,
     secret_access_key: String,
     session_token: Option<String>,
-    signature_version: Option<String>,
     path_style: Option<String>,
 ) -> Result<ConnectionTestResult, String> {
     let force_path_style = match path_style.as_deref() {

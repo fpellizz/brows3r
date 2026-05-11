@@ -20,7 +20,6 @@ interface ConnectionFormData {
   access_key_id: string;
   secret_access_key: string;
   session_token: string;
-  signature_version: "v2" | "v4";
   path_style: "auto" | "path" | "virtual";
   proxy: string;
   ca_bundle: string;
@@ -45,67 +44,56 @@ const PROVIDER_PRESETS: Record<
   aws: {
     endpoint: "https://s3.eu-west-1.amazonaws.com",
     region: "eu-west-1",
-    signature_version: "v4",
     path_style: "virtual",
   },
   minio: {
     endpoint: "http://localhost:9000",
     region: "us-east-1",
-    signature_version: "v4",
     path_style: "path",
   },
   backblaze: {
     endpoint: "https://s3.us-west-004.backblazeb2.com",
     region: "us-west-004",
-    signature_version: "v4",
     path_style: "virtual",
   },
   wasabi: {
     endpoint: "https://s3.eu-central-1.wasabisys.com",
     region: "eu-central-1",
-    signature_version: "v4",
     path_style: "virtual",
   },
   cloudflare_r2: {
     endpoint: "https://<account-id>.r2.cloudflarestorage.com",
     region: "auto",
-    signature_version: "v4",
     path_style: "path",
   },
   digitalocean: {
     endpoint: "https://ams3.digitaloceanspaces.com",
     region: "ams3",
-    signature_version: "v4",
     path_style: "virtual",
   },
   gcs: {
     endpoint: "https://storage.googleapis.com",
     region: "auto",
-    signature_version: "v4",
     path_style: "path",
   },
   oracle: {
     endpoint: "https://<namespace>.compat.objectstorage.eu-milan-1.oraclecloud.com",
     region: "eu-milan-1",
-    signature_version: "v4",
     path_style: "path",
   },
   scaleway: {
     endpoint: "https://s3.fr-par.scw.cloud",
     region: "fr-par",
-    signature_version: "v4",
     path_style: "virtual",
   },
   ovh: {
     endpoint: "https://s3.gra.io.cloud.ovh.net",
     region: "gra",
-    signature_version: "v4",
     path_style: "virtual",
   },
   linode: {
     endpoint: "https://eu-central-1.linodeobjects.com",
     region: "eu-central-1",
-    signature_version: "v4",
     path_style: "virtual",
   },
 };
@@ -153,7 +141,6 @@ export function ConnectionDialog({
     access_key_id: "",
     secret_access_key: "",
     session_token: "",
-    signature_version: "v4",
     path_style: "auto",
     proxy: "",
     ca_bundle: "",
@@ -170,7 +157,6 @@ export function ConnectionDialog({
     access_key_id: c.access_key_id,
     secret_access_key: "",
     session_token: "",
-    signature_version: c.signature_version,
     path_style: c.path_style,
     proxy: c.proxy ?? "",
     ca_bundle: c.ca_bundle ?? "",
@@ -216,8 +202,6 @@ export function ConnectionDialog({
     if (!preset) return;
     if (preset.endpoint) setValue("endpoint", preset.endpoint);
     if (preset.region) setValue("region", preset.region);
-    if (preset.signature_version)
-      setValue("signature_version", preset.signature_version);
     if (preset.path_style) setValue("path_style", preset.path_style);
   };
 
@@ -229,7 +213,6 @@ export function ConnectionDialog({
         endpoint: data.endpoint,
         region: data.region,
         access_key_id: data.access_key_id,
-        signature_version: data.signature_version,
         path_style: data.path_style,
         timeout_secs: data.timeout_secs,
         max_retries: data.max_retries,
@@ -296,7 +279,6 @@ export function ConnectionDialog({
             accessKeyId: data.access_key_id,
             secretAccessKey: data.secret_access_key,
             sessionToken: data.session_token || null,
-            signatureVersion: data.signature_version,
             pathStyle: data.path_style,
           },
         );
@@ -435,25 +417,14 @@ export function ConnectionDialog({
               />
             </Field>
 
-            {/* Signature Version + Path Style (inline) */}
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={t("connection.signatureVersion")}>
-                <select
-                  {...register("signature_version")}
-                  className="select-field w-full"
-                >
-                  <option value="v4">Signature V4</option>
-                  <option value="v2">Signature V2</option>
-                </select>
-              </Field>
-              <Field label={t("connection.pathStyle")}>
-                <select {...register("path_style")} className="select-field w-full">
-                  <option value="auto">Auto</option>
-                  <option value="path">Path Style</option>
-                  <option value="virtual">Virtual Hosted</option>
-                </select>
-              </Field>
-            </div>
+            {/* Path Style */}
+            <Field label={t("connection.pathStyle")}>
+              <select {...register("path_style")} className="select-field w-full">
+                <option value="auto">Auto</option>
+                <option value="path">Path Style</option>
+                <option value="virtual">Virtual Hosted</option>
+              </select>
+            </Field>
 
             {/* Advanced toggle */}
             <button
