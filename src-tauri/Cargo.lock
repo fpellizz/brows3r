@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "brows3r"
-version = "1.5.0"
+version = "1.7.1"
 dependencies = [
  "age",
  "anyhow",

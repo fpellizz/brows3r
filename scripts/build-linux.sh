@@ -197,8 +197,22 @@ if [[ ",$BUNDLES," == *,appimage,* ]]; then
   unset GDK_PIXBUF_MODULE_FILE GIO_MODULE_DIR
 fi
 
-# --- Build -----------------------------------------------------------------
+# --- Versioni: allinea i tre campi `version` -------------------------------
+# Tauri legge la versione del bundle da `tauri.conf.json`, Vite legge da
+# `package.json`, cargo legge da `Cargo.toml`. Se uno dei tre è indietro
+# i log mostrano una versione mista (es. "Compiling brows3r v1.5.0" mentre
+# il bundle finale è 1.7.1). Cosmetico, ma confonde — segnalo qui.
 APP_VERSION="$(node -p "require('./package.json').version" 2>/dev/null || echo "?")"
+CARGO_VERSION="$(awk -F'"' '/^version *= *"/ {print $2; exit}' src-tauri/Cargo.toml)"
+TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version" 2>/dev/null || echo "?")"
+if [ "$APP_VERSION" != "$CARGO_VERSION" ] || [ "$APP_VERSION" != "$TAURI_VERSION" ]; then
+  warn "Versioni disallineate (i bundle usano quella di tauri.conf.json):"
+  warn "  package.json    : $APP_VERSION"
+  warn "  Cargo.toml      : $CARGO_VERSION"
+  warn "  tauri.conf.json : $TAURI_VERSION"
+fi
+
+# --- Build -----------------------------------------------------------------
 step "Build pacchetti: ${BUNDLES}  ${DIM}(versione ${APP_VERSION})${NC}"
 pnpm tauri build --bundles "$BUNDLES"
 
