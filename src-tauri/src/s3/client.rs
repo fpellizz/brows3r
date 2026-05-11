@@ -114,6 +114,11 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
 
     if let Some(force_path_style) = config.force_path_style {
         s3_config_builder = s3_config_builder.force_path_style(force_path_style);
+        tracing::info!(
+            "S3 client addressing: {} (endpoint={})",
+            if force_path_style { "path-style" } else { "virtual-hosted" },
+            config.endpoint
+        );
     }
 
     let s3_config = s3_config_builder.build();

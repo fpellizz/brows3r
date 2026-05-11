@@ -188,7 +188,7 @@ pub async fn test_connection_inline(
     let force_path_style = match path_style.as_deref() {
         Some("path") => Some(true),
         Some("virtual") => Some(false),
-        _ => None,
+        _ => Some(crate::s3::types::infer_force_path_style(&endpoint)),
     };
 
     let config = S3ClientConfig {
@@ -228,7 +228,7 @@ pub fn build_s3_config(
     session_token: Option<&str>,
 ) -> S3ClientConfig {
     let force_path_style = match conn.path_style {
-        PathStyle::Auto => None,
+        PathStyle::Auto => Some(crate::s3::types::infer_force_path_style(&conn.endpoint)),
         PathStyle::Path => Some(true),
         PathStyle::Virtual => Some(false),
     };
