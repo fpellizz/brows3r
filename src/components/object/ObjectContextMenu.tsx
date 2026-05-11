@@ -81,9 +81,8 @@ export function ObjectContextMenu({
     });
 
     if (!destDir) return;
-    const dir = typeof destDir === "string" ? destDir : destDir.path;
 
-    await startDownload(activeConnectionId, currentBucket, [object.key], dir);
+    await startDownload(activeConnectionId, currentBucket, [object.key], destDir);
   };
 
   const handleDelete = async () => {

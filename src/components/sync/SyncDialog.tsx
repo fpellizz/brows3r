@@ -126,7 +126,7 @@ export function SyncDialog({
   const pickLocalDir = async () => {
     const picked = await openFileDialog({ directory: true });
     if (!picked) return;
-    setLocalDir(typeof picked === "string" ? picked : picked.path);
+    setLocalDir(picked);
   };
 
   const handlePlan = async () => {

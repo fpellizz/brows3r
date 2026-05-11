@@ -66,9 +66,10 @@ export function Toolbar() {
 
     if (!selected) return;
 
-    const paths = Array.isArray(selected)
-      ? selected.map((f) => f.path)
-      : [selected.path];
+    // @tauri-apps/plugin-dialog v2 returns the path(s) directly as
+    // strings, not as `{path: string}` objects. Earlier code expected
+    // the old shape which made the upload button silently no-op.
+    const paths = Array.isArray(selected) ? selected : [selected];
 
     if (paths.length === 0) return;
 
@@ -95,13 +96,11 @@ export function Toolbar() {
     });
 
     if (!destDir) return;
-
-    const dir = typeof destDir === "string" ? destDir : destDir.path;
     // Filter out folder keys — only download files
     const keys = Array.from(selectedKeys).filter((k) => !k.endsWith("/"));
     if (keys.length === 0) return;
 
-    await startDownload(activeConnectionId, currentBucket, keys, dir);
+    await startDownload(activeConnectionId, currentBucket, keys, destDir);
   };
 
   const handleDelete = async () => {
