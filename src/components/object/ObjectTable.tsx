@@ -174,6 +174,11 @@ export function ObjectTable() {
                     type="checkbox"
                     checked={selectedKeys.has(obj.key)}
                     onChange={() => toggleSelection(obj.key)}
+                    // The row also toggles selection on click; without
+                    // stopPropagation a click on the checkbox would
+                    // fire both onChange and the row onClick, toggling
+                    // twice and looking like a no-op.
+                    onClick={(e) => e.stopPropagation()}
                     className="rounded"
                   />
                 </td>
