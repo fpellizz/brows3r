@@ -389,6 +389,13 @@
     "bucketObjects": "Oggetti",
     "computeStats": "Calcola",
     "computing": "Scansione...",
-    "truncatedHint": "Scansionati 50k oggetti; le cifre sono un limite inferiore."
+    "truncatedHint": "Scansionati 50k oggetti; le cifre sono un limite inferiore.",
+    "lastScanned": "Ultima scansione {{when}}",
+    "scanAll": "Scansiona tutto",
+    "scanAllTitle": "Calcola le statistiche di ogni bucket di questa connessione",
+    "scanProgress": "Scansione {{done}}/{{total}}…",
+    "scanCancel": "Clicca per fermare la scansione",
+    "clearCache": "Svuota cache",
+    "clearCacheTitle": "Scarta le statistiche bucket in cache per questa connessione"
   }
 }
