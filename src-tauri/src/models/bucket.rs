@@ -53,3 +53,42 @@ pub struct CorsRule {
     pub expose_headers: Vec<String>,
     pub max_age_seconds: Option<i32>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LifecycleSnapshot {
+    pub rules: Vec<LifecycleRule>,
+    /// True when one or more lifecycle rules on the server use features
+    /// the simplified editor doesn't represent (tag/And filters,
+    /// date-based transitions). The UI switches to read-only mode in
+    /// that case so the user can't accidentally overwrite them.
+    pub has_unsupported: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LifecycleRule {
+    pub id: Option<String>,
+    /// `Enabled` or `Disabled`.
+    pub status: String,
+    /// Object key prefix the rule applies to. Empty/None = all objects.
+    pub prefix: Option<String>,
+    #[serde(default)]
+    pub transitions: Vec<LifecycleTransition>,
+    pub expiration_days: Option<i32>,
+    pub expired_object_delete_marker: Option<bool>,
+    #[serde(default)]
+    pub noncurrent_version_transitions: Vec<LifecycleNoncurrentTransition>,
+    pub noncurrent_version_expiration_days: Option<i32>,
+    pub abort_incomplete_multipart_upload_days: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LifecycleTransition {
+    pub days: i32,
+    pub storage_class: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LifecycleNoncurrentTransition {
+    pub noncurrent_days: i32,
+    pub storage_class: String,
+}
