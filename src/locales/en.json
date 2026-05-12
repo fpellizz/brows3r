@@ -350,5 +350,8 @@
     "summary_one": "Done: {{succeeded}} succeeded, {{failed}} failed (1 total).",
     "summary_other": "Done: {{succeeded}} succeeded, {{failed}} failed.",
     "errorContentTypeEmpty": "Content type cannot be empty."
+  },
+  "terminal": {
+    "title": "S3 Terminal"
   }
 }
