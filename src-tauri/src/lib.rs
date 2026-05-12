@@ -120,6 +120,8 @@ pub fn run() {
             // Sync commands
             commands::sync::plan_sync,
             commands::sync::execute_sync,
+            // Batch operations
+            commands::batch::start_batch_operation,
             // System commands
             commands::system::check_system_prerequisites,
         ])

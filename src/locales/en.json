@@ -15,7 +15,8 @@
     "delete": "Delete",
     "search": "Search",
     "sync": "Sync",
-    "settings": "Settings"
+    "settings": "Settings",
+    "batch": "Batch"
   },
   "connection": {
     "title": "Connection",
@@ -306,5 +307,23 @@
       "errorNoMethods": "Each rule must allow at least one HTTP method.",
       "errorNoOrigins": "Each rule must allow at least one origin."
     }
+  },
+  "batch": {
+    "title": "Batch operations",
+    "targetCount_one": "1 object selected",
+    "targetCount_other": "{{count}} objects selected",
+    "operation": "Operation",
+    "opStorageClass": "Set storage class",
+    "opContentType": "Set content type",
+    "opAcl": "Set ACL",
+    "storageClass": "Storage class",
+    "storageClassHint": "Each object is rewritten in place via CopyObject. Existing metadata is preserved.",
+    "contentType": "Content type",
+    "acl": "Canned ACL",
+    "aclHint": "Applies the canned ACL to every selected object via PutObjectAcl.",
+    "apply": "Apply",
+    "summary_one": "Done: {{succeeded}} succeeded, {{failed}} failed (1 total).",
+    "summary_other": "Done: {{succeeded}} succeeded, {{failed}} failed.",
+    "errorContentTypeEmpty": "Content type cannot be empty."
   }
 }

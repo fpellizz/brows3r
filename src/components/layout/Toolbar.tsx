@@ -12,6 +12,7 @@ import {
   PanelBottom,
   RefreshCcwDot,
   Info,
+  Wand2,
   X,
 } from "lucide-react";
 import { useObjectStore } from "@/stores/objectStore";
@@ -24,6 +25,7 @@ import { InputDialog } from "@/components/common/InputDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { SyncDialog } from "@/components/sync/SyncDialog";
 import { AboutDialog } from "@/components/common/AboutDialog";
+import { BatchOperationsDialog } from "@/components/object/BatchOperationsDialog";
 
 export function Toolbar() {
   const { t } = useTranslation();
@@ -46,6 +48,7 @@ export function Toolbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   const hasSelection = selectedKeys.size > 0;
   const hasBucket = !!currentBucket;
@@ -155,6 +158,12 @@ export function Toolbar() {
           label={t("toolbar.newFolder")}
           disabled={!hasBucket}
           onClick={() => setNewFolderOpen(true)}
+        />
+        <ToolbarButton
+          icon={<Wand2 size={16} />}
+          label={t("toolbar.batch")}
+          disabled={!hasSelection}
+          onClick={() => setBatchOpen(true)}
         />
         <ToolbarButton
           icon={<Trash2 size={16} />}
@@ -281,6 +290,20 @@ export function Toolbar() {
         bucket={currentBucket}
         prefix={currentPrefix || ""}
       />
+
+      {/* Batch operations dialog */}
+      {activeConnectionId && currentBucket && batchOpen && (
+        <BatchOperationsDialog
+          open={batchOpen}
+          onOpenChange={setBatchOpen}
+          connectionId={activeConnectionId}
+          bucket={currentBucket}
+          keys={Array.from(selectedKeys).filter((k) => !k.endsWith("/"))}
+          onCompleted={() => {
+            if (activeConnectionId) fetchObjects(activeConnectionId);
+          }}
+        />
+      )}
     </>
   );
 }
