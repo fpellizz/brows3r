@@ -508,6 +508,110 @@ pub async fn set_bucket_versioning(
     Ok(())
 }
 
+/// Read the default server-side encryption configuration of a bucket.
+/// Returns `None` when encryption has not been set up. Algorithm is one
+/// of `AES256` (SSE-S3), `aws:kms` (SSE-KMS) or `aws:kms:dsse`.
+pub async fn get_bucket_encryption(
+    client: &Client,
+    bucket: &str,
+) -> Result<Option<crate::models::bucket::BucketEncryption>, S3Error> {
+    match client.get_bucket_encryption().bucket(bucket).send().await {
+        Ok(out) => {
+            let cfg = out.server_side_encryption_configuration();
+            let rule = cfg.and_then(|c| c.rules().first());
+            let Some(rule) = rule else {
+                return Ok(None);
+            };
+            let Some(default) = rule.apply_server_side_encryption_by_default() else {
+                return Ok(None);
+            };
+            Ok(Some(crate::models::bucket::BucketEncryption {
+                algorithm: default.sse_algorithm().as_str().to_string(),
+                kms_master_key_id: default
+                    .kms_master_key_id()
+                    .map(|s| s.to_string()),
+                bucket_key_enabled: rule.bucket_key_enabled(),
+            }))
+        }
+        // S3 returns ServerSideEncryptionConfigurationNotFoundError when
+        // encryption was never configured — surface it as `None` instead
+        // of a hard error. Detect via the chained-error message because
+        // matching on the deprecated `GetBucketEncryptionError::Unhandled`
+        // variant is no longer forward-compatible.
+        Err(e) => {
+            let detail = super::error::sdk_error_detail(&e);
+            if detail.contains("ServerSideEncryptionConfigurationNotFoundError") {
+                Ok(None)
+            } else {
+                Err(S3Error::SdkError(detail))
+            }
+        }
+    }
+}
+
+/// Apply a default server-side encryption configuration to a bucket.
+/// `algorithm` must be `AES256` or `aws:kms`. `kms_master_key_id` is
+/// required when the algorithm is `aws:kms`, ignored otherwise.
+pub async fn set_bucket_encryption(
+    client: &Client,
+    bucket: &str,
+    algorithm: &str,
+    kms_master_key_id: Option<&str>,
+    bucket_key_enabled: Option<bool>,
+) -> Result<(), S3Error> {
+    use aws_sdk_s3::types::{
+        ServerSideEncryption, ServerSideEncryptionByDefault, ServerSideEncryptionConfiguration,
+        ServerSideEncryptionRule,
+    };
+
+    let sse_alg = ServerSideEncryption::from(algorithm);
+
+    let mut default_builder = ServerSideEncryptionByDefault::builder().sse_algorithm(sse_alg);
+    if let Some(key) = kms_master_key_id {
+        default_builder = default_builder.kms_master_key_id(key);
+    }
+    let default = default_builder.build().map_err(|e| {
+        S3Error::ConfigError(format!("invalid encryption config: {e}"))
+    })?;
+
+    let mut rule_builder = ServerSideEncryptionRule::builder()
+        .apply_server_side_encryption_by_default(default);
+    if let Some(b) = bucket_key_enabled {
+        rule_builder = rule_builder.bucket_key_enabled(b);
+    }
+    let rule = rule_builder.build();
+
+    let cfg = ServerSideEncryptionConfiguration::builder()
+        .rules(rule)
+        .build()
+        .map_err(|e| S3Error::ConfigError(format!("invalid encryption config: {e}")))?;
+
+    client
+        .put_bucket_encryption()
+        .bucket(bucket)
+        .server_side_encryption_configuration(cfg)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
+/// Remove the default server-side encryption configuration from a
+/// bucket. New writes will no longer be auto-encrypted (the per-object
+/// encryption metadata of existing objects is untouched).
+pub async fn delete_bucket_encryption(
+    client: &Client,
+    bucket: &str,
+) -> Result<(), S3Error> {
+    client
+        .delete_bucket_encryption()
+        .bucket(bucket)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
 /// Permanently delete a specific version of an object. Bypasses the
 /// "soft delete" (delete marker) behavior — the version is gone.
 pub async fn delete_object_version(

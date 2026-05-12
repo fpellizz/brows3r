@@ -73,6 +73,9 @@ pub fn run() {
             commands::bucket::delete_bucket,
             commands::bucket::get_bucket_info,
             commands::bucket::set_bucket_versioning,
+            commands::bucket::get_bucket_encryption,
+            commands::bucket::set_bucket_encryption,
+            commands::bucket::delete_bucket_encryption,
             // Object commands
             commands::object::list_objects,
             commands::object::head_object,

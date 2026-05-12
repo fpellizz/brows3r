@@ -32,3 +32,12 @@ pub struct CreateBucketRequest {
     pub name: String,
     pub region: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BucketEncryption {
+    /// SSE algorithm. AWS-side values: `AES256`, `aws:kms`, `aws:kms:dsse`.
+    pub algorithm: String,
+    /// Required when `algorithm` is `aws:kms` (or `aws:kms:dsse`).
+    pub kms_master_key_id: Option<String>,
+    pub bucket_key_enabled: Option<bool>,
+}
