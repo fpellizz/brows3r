@@ -389,6 +389,13 @@
     "bucketObjects": "Objects",
     "computeStats": "Compute",
     "computing": "Scanning...",
-    "truncatedHint": "Scanned 50k objects; figures are a lower bound."
+    "truncatedHint": "Scanned 50k objects; figures are a lower bound.",
+    "lastScanned": "Last scanned {{when}}",
+    "scanAll": "Scan all",
+    "scanAllTitle": "Compute stats for every bucket in this connection",
+    "scanProgress": "Scanning {{done}}/{{total}}…",
+    "scanCancel": "Click to stop the scan",
+    "clearCache": "Clear cache",
+    "clearCacheTitle": "Discard cached bucket stats for this connection"
   }
 }

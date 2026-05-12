@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/lib/i18n";
+
+const i18nLang = () => i18n.language || "en";
 import {
   ArrowUpRight,
   Boxes,
@@ -12,6 +15,7 @@ import {
   Sparkles,
   TrendingUp,
   Upload,
+  Wand2,
   X,
 } from "lucide-react";
 import { tauriInvoke } from "@/lib/tauri";
@@ -45,6 +49,48 @@ interface TransferHistoryEntry {
   error: string | null;
   created_at: string;
   completed_at: string | null;
+}
+
+// --- Persistence -------------------------------------------------------
+// Dashboard state is segregated per connection so switching from
+// "AWS prod" to "MinIO local" doesn't smear stats across, and is
+// persisted to localStorage so the user finds it as they left it
+// after closing/reopening the app.
+
+interface ConnectionDashboardState {
+  bucketStats: Record<string, BucketStats>;
+  lastScannedAt?: number;
+}
+type DashboardPersistedShape = Record<string, ConnectionDashboardState>;
+
+const DASHBOARD_STORAGE_KEY = "brows3r:dashboard:v1";
+
+function loadDashboardState(): DashboardPersistedShape {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as DashboardPersistedShape) : {};
+  } catch {
+    return {};
+  }
+}
+function saveDashboardState(state: DashboardPersistedShape) {
+  try {
+    localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Quota exceeded etc — silently drop the persistence. The UI
+    // still works for the current session.
+  }
+}
+function formatRelative(ts: number, locale: string): string {
+  const diff = Date.now() - ts;
+  const sec = Math.round(diff / 1000);
+  if (sec < 60) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-sec, "second");
+  const min = Math.round(sec / 60);
+  if (min < 60) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-min, "minute");
+  const hr = Math.round(min / 60);
+  if (hr < 24) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-hr, "hour");
+  const day = Math.round(hr / 24);
+  return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-day, "day");
 }
 
 const STORAGE_CLASS_COLORS: Record<string, string> = {
@@ -90,9 +136,49 @@ export function Dashboard() {
   const [buckets, setBuckets] = useState<BucketInfo[]>([]);
   const [bucketsLoading, setBucketsLoading] = useState(false);
   const [bucketsError, setBucketsError] = useState<string | null>(null);
-  const [stats, setStats] = useState<Record<string, BucketStats>>({});
-  const [computing, setComputing] = useState<Set<string>>(new Set());
   const [history, setHistory] = useState<TransferHistoryEntry[]>([]);
+  const [computing, setComputing] = useState<Set<string>>(new Set());
+  const [scanAllProgress, setScanAllProgress] = useState<
+    { done: number; total: number } | null
+  >(null);
+  const scanCancelled = useRef(false);
+
+  // Per-connection state — hydrated from localStorage on mount.
+  const [persisted, setPersisted] = useState<DashboardPersistedShape>(() =>
+    loadDashboardState(),
+  );
+  useEffect(() => {
+    saveDashboardState(persisted);
+  }, [persisted]);
+
+  // Convenience slice for the active connection.
+  const connectionState: ConnectionDashboardState =
+    (activeConnectionId && persisted[activeConnectionId]) || { bucketStats: {} };
+  const stats = connectionState.bucketStats;
+  const lastScannedAt = connectionState.lastScannedAt;
+
+  const setBucketStats = (bucket: string, result: BucketStats) => {
+    if (!activeConnectionId) return;
+    setPersisted((prev) => {
+      const prevConn = prev[activeConnectionId] ?? { bucketStats: {} };
+      return {
+        ...prev,
+        [activeConnectionId]: {
+          bucketStats: { ...prevConn.bucketStats, [bucket]: result },
+          lastScannedAt: Date.now(),
+        },
+      };
+    });
+  };
+
+  const clearConnectionStats = () => {
+    if (!activeConnectionId) return;
+    setPersisted((prev) => {
+      const next = { ...prev };
+      delete next[activeConnectionId];
+      return next;
+    });
+  };
 
   const refreshAll = async () => {
     setBucketsError(null);
@@ -128,7 +214,7 @@ export function Dashboard() {
         connectionId: activeConnectionId,
         bucket,
       });
-      setStats((prev) => ({ ...prev, [bucket]: result }));
+      setBucketStats(bucket, result);
     } catch (e) {
       console.error("compute_bucket_stats failed:", e);
     } finally {
@@ -138,6 +224,32 @@ export function Dashboard() {
         return next;
       });
     }
+  };
+
+  const scanAllBuckets = async () => {
+    if (!activeConnectionId || scanAllProgress) return;
+    if (buckets.length === 0) return;
+    scanCancelled.current = false;
+    setScanAllProgress({ done: 0, total: buckets.length });
+    for (let i = 0; i < buckets.length; i++) {
+      if (scanCancelled.current) break;
+      const bucket = buckets[i].name;
+      try {
+        const result = await tauriInvoke<BucketStats>("compute_bucket_stats", {
+          connectionId: activeConnectionId,
+          bucket,
+        });
+        setBucketStats(bucket, result);
+      } catch (e) {
+        console.error(`scan ${bucket} failed:`, e);
+      }
+      setScanAllProgress({ done: i + 1, total: buckets.length });
+    }
+    setScanAllProgress(null);
+  };
+
+  const cancelScanAll = () => {
+    scanCancelled.current = true;
   };
 
   // Aggregate KPIs
@@ -206,17 +318,49 @@ export function Dashboard() {
     <div className="h-full overflow-y-auto bg-gradient-to-br from-zinc-50 via-zinc-50 to-zinc-100 dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900">
       {/* Header */}
       <div className="sticky top-0 z-10 backdrop-blur-md bg-white/80 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs text-zinc-500 mb-0.5">
               <Sparkles size={12} />
               {t("dashboard.eyebrow")}
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 truncate">
               {activeConnection?.name ?? t("dashboard.noConnection")}
             </h1>
+            {lastScannedAt && (
+              <div className="text-[11px] text-zinc-500 mt-0.5">
+                {t("dashboard.lastScanned", { when: formatRelative(lastScannedAt, i18nLang()) })}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Scan-all: prominent action when there are buckets to scan */}
+            {activeConnectionId && buckets.length > 0 && (
+              scanAllProgress ? (
+                <button
+                  type="button"
+                  onClick={cancelScanAll}
+                  className="px-3 py-1.5 text-xs rounded-md bg-amber-500 text-white hover:bg-amber-600 flex items-center gap-1.5 shadow-sm"
+                  title={t("dashboard.scanCancel")}
+                >
+                  <Loader2 size={12} className="animate-spin" />
+                  {t("dashboard.scanProgress", {
+                    done: scanAllProgress.done,
+                    total: scanAllProgress.total,
+                  })}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={scanAllBuckets}
+                  className="px-3 py-1.5 text-xs rounded-md bg-gradient-to-r from-brand-500 to-violet-500 text-white hover:brightness-110 active:brightness-95 flex items-center gap-1.5 shadow-sm"
+                  title={t("dashboard.scanAllTitle")}
+                >
+                  <Wand2 size={12} />
+                  {t("dashboard.scanAll")}
+                </button>
+              )
+            )}
             <button
               type="button"
               onClick={refreshAll}
@@ -226,6 +370,17 @@ export function Dashboard() {
             >
               <RefreshCw size={16} className={bucketsLoading ? "animate-spin" : ""} />
             </button>
+            {/* Clear cached stats for this connection */}
+            {Object.keys(stats).length > 0 && (
+              <button
+                type="button"
+                onClick={clearConnectionStats}
+                className="px-2 py-1 text-xs rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                title={t("dashboard.clearCacheTitle")}
+              >
+                {t("dashboard.clearCache")}
+              </button>
+            )}
             <button
               type="button"
               onClick={toggle}
