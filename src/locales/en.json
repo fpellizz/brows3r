@@ -286,6 +286,25 @@
       "invalidJson": "Invalid JSON",
       "format": "Format",
       "deletePolicy": "Delete policy"
+    },
+    "cors": {
+      "loading": "Loading CORS configuration...",
+      "statusNone": "No CORS configuration attached.",
+      "statusAttached_one": "1 CORS rule attached.",
+      "statusAttached_other": "{{count}} CORS rules attached.",
+      "description": "CORS rules let browsers running JavaScript from other origins make requests to this bucket. Each rule lists which origins, methods and headers are allowed. The server accepts up to 100 rules.",
+      "empty": "No rules. Add one to start.",
+      "addRule": "Add rule",
+      "removeRule": "Remove rule",
+      "ruleIdPlaceholder": "Rule ID (optional)",
+      "methods": "Allowed methods",
+      "origins": "Allowed origins (one per line, * matches all)",
+      "headers": "Allowed request headers (one per line)",
+      "exposeHeaders": "Exposed response headers (one per line)",
+      "maxAge": "Max age (seconds)",
+      "deleteAll": "Delete CORS",
+      "errorNoMethods": "Each rule must allow at least one HTTP method.",
+      "errorNoOrigins": "Each rule must allow at least one origin."
     }
   }
 }

@@ -79,6 +79,9 @@ pub fn run() {
             commands::bucket::get_bucket_policy,
             commands::bucket::set_bucket_policy,
             commands::bucket::delete_bucket_policy,
+            commands::bucket::get_bucket_cors,
+            commands::bucket::set_bucket_cors,
+            commands::bucket::delete_bucket_cors,
             // Object commands
             commands::object::list_objects,
             commands::object::head_object,

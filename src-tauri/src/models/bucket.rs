@@ -41,3 +41,15 @@ pub struct BucketEncryption {
     pub kms_master_key_id: Option<String>,
     pub bucket_key_enabled: Option<bool>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct CorsRule {
+    pub id: Option<String>,
+    pub allowed_methods: Vec<String>,
+    pub allowed_origins: Vec<String>,
+    #[serde(default)]
+    pub allowed_headers: Vec<String>,
+    #[serde(default)]
+    pub expose_headers: Vec<String>,
+    pub max_age_seconds: Option<i32>,
+}

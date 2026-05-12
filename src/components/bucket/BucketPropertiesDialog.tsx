@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, History, Lock, FileText, Globe, Clock, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { X, History, Lock, FileText, Globe, Clock, Loader2, AlertCircle, CheckCircle2, Trash2, Plus } from "lucide-react";
 import { tauriInvoke } from "@/lib/tauri";
 
 interface BucketPropertiesDialogProps {
@@ -86,7 +86,11 @@ export function BucketPropertiesDialog({
                 />
               </Tabs.Content>
               <Tabs.Content value="cors">
-                <ComingSoon name="CORS" />
+                <CorsTab
+                  connectionId={connectionId}
+                  bucket={bucket}
+                  active={open}
+                />
               </Tabs.Content>
               <Tabs.Content value="lifecycle">
                 <ComingSoon name="Lifecycle" />
@@ -645,4 +649,357 @@ function prettify(s: string): string {
   } catch {
     return s;
   }
+}
+
+// --- CORS tab -----------------------------------------------------------
+
+interface CorsRule {
+  id: string | null;
+  allowed_methods: string[];
+  allowed_origins: string[];
+  allowed_headers: string[];
+  expose_headers: string[];
+  max_age_seconds: number | null;
+}
+
+const HTTP_METHODS = ["GET", "PUT", "POST", "DELETE", "HEAD"] as const;
+
+function emptyRule(): CorsRule {
+  return {
+    id: null,
+    allowed_methods: ["GET"],
+    allowed_origins: ["*"],
+    allowed_headers: [],
+    expose_headers: [],
+    max_age_seconds: null,
+  };
+}
+
+function CorsTab({
+  connectionId,
+  bucket,
+  active,
+}: {
+  connectionId: string;
+  bucket: string;
+  active: boolean;
+}) {
+  const { t } = useTranslation();
+  const [original, setOriginal] = useState<CorsRule[] | null>(null);
+  const [rules, setRules] = useState<CorsRule[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const refresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await tauriInvoke<CorsRule[] | null>("get_bucket_cors", {
+        connectionId,
+        bucket,
+      });
+      setOriginal(result);
+      setRules(result ? structuredClone(result) : []);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (active) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, connectionId, bucket]);
+
+  const save = async () => {
+    setError(null);
+    // Server-side will reject empty methods/origins but a quick check
+    // makes the error clearer.
+    for (const r of rules) {
+      if (r.allowed_methods.length === 0) {
+        setError(t("bucketProperties.cors.errorNoMethods"));
+        return;
+      }
+      if (r.allowed_origins.length === 0) {
+        setError(t("bucketProperties.cors.errorNoOrigins"));
+        return;
+      }
+    }
+    setSubmitting(true);
+    try {
+      await tauriInvoke("set_bucket_cors", { connectionId, bucket, rules });
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const removeAll = async () => {
+    if (!original) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await tauriInvoke("delete_bucket_cors", { connectionId, bucket });
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const updateRule = (idx: number, patch: Partial<CorsRule>) => {
+    setRules((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  };
+  const removeRule = (idx: number) => {
+    setRules((prev) => prev.filter((_, i) => i !== idx));
+  };
+  const addRule = () => {
+    setRules((prev) => [...prev, emptyRule()]);
+  };
+
+  const hasCors = original !== null;
+  const dirty = JSON.stringify(rules) !== JSON.stringify(original ?? []);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md px-4 py-3 text-sm bg-zinc-50 dark:bg-zinc-800/50 flex items-start gap-2">
+        {loading ? (
+          <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
+        ) : hasCors ? (
+          <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        ) : (
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-zinc-400" />
+        )}
+        <p className="font-medium flex-1">
+          {loading
+            ? t("bucketProperties.cors.loading")
+            : hasCors
+              ? t("bucketProperties.cors.statusAttached", { count: original.length })
+              : t("bucketProperties.cors.statusNone")}
+        </p>
+      </div>
+
+      <p className="text-xs text-zinc-500 leading-relaxed">
+        {t("bucketProperties.cors.description")}
+      </p>
+
+      <div className="space-y-3">
+        {rules.map((rule, idx) => (
+          <CorsRuleCard
+            key={idx}
+            rule={rule}
+            onChange={(patch) => updateRule(idx, patch)}
+            onRemove={() => removeRule(idx)}
+            disabled={loading || submitting}
+          />
+        ))}
+        {rules.length === 0 && !loading && (
+          <div className="text-xs text-zinc-500 py-4 text-center border border-dashed border-zinc-200 dark:border-zinc-700 rounded-md">
+            {t("bucketProperties.cors.empty")}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={addRule}
+          disabled={loading || submitting}
+          className="w-full px-3 py-2 text-xs border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-600 rounded-md disabled:opacity-40 flex items-center justify-center gap-1.5"
+        >
+          <Plus size={12} />
+          {t("bucketProperties.cors.addRule")}
+        </button>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <button
+          type="button"
+          onClick={save}
+          disabled={loading || submitting || !dirty || rules.length === 0}
+          className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {submitting ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+          {t("common.save")}
+        </button>
+        <button
+          type="button"
+          onClick={removeAll}
+          disabled={loading || submitting || !hasCors}
+          className="px-3 py-2 text-sm border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-40"
+        >
+          {t("bucketProperties.cors.deleteAll")}
+        </button>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={loading || submitting}
+          className="ml-auto px-3 py-2 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-40"
+        >
+          {t("common.refresh")}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-md px-3 py-2 text-xs bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 break-all">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CorsRuleCard({
+  rule,
+  onChange,
+  onRemove,
+  disabled,
+}: {
+  rule: CorsRule;
+  onChange: (patch: Partial<CorsRule>) => void;
+  onRemove: () => void;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation();
+
+  const toggleMethod = (m: string) => {
+    const has = rule.allowed_methods.includes(m);
+    onChange({
+      allowed_methods: has
+        ? rule.allowed_methods.filter((x) => x !== m)
+        : [...rule.allowed_methods, m],
+    });
+  };
+
+  const setLines = (key: keyof CorsRule, raw: string) => {
+    const lines = raw
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    onChange({ [key]: lines } as Partial<CorsRule>);
+  };
+
+  return (
+    <div className="border border-zinc-200 dark:border-zinc-700 rounded-md p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          className="input-field text-xs flex-1"
+          placeholder={t("bucketProperties.cors.ruleIdPlaceholder")}
+          value={rule.id ?? ""}
+          onChange={(e) => onChange({ id: e.target.value || null })}
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={disabled}
+          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-400 hover:text-red-500 disabled:opacity-40"
+          title={t("bucketProperties.cors.removeRule")}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      <div>
+        <label className="block text-[11px] font-medium text-zinc-500 mb-1.5">
+          {t("bucketProperties.cors.methods")}
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {HTTP_METHODS.map((m) => {
+            const active = rule.allowed_methods.includes(m);
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => toggleMethod(m)}
+                disabled={disabled}
+                className={`px-2 py-1 text-[11px] rounded border font-mono ${
+                  active
+                    ? "bg-brand-600 text-white border-brand-600"
+                    : "border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                }`}
+              >
+                {m}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <CorsList
+        label={t("bucketProperties.cors.origins")}
+        placeholder="*"
+        values={rule.allowed_origins}
+        onChange={(v) => setLines("allowed_origins", v)}
+        disabled={disabled}
+      />
+      <CorsList
+        label={t("bucketProperties.cors.headers")}
+        placeholder="Content-Type"
+        values={rule.allowed_headers}
+        onChange={(v) => setLines("allowed_headers", v)}
+        disabled={disabled}
+      />
+      <CorsList
+        label={t("bucketProperties.cors.exposeHeaders")}
+        placeholder="ETag"
+        values={rule.expose_headers}
+        onChange={(v) => setLines("expose_headers", v)}
+        disabled={disabled}
+      />
+
+      <div>
+        <label className="block text-[11px] font-medium text-zinc-500 mb-1">
+          {t("bucketProperties.cors.maxAge")}
+        </label>
+        <input
+          type="number"
+          min={0}
+          className="input-field text-xs w-40"
+          placeholder="3600"
+          value={rule.max_age_seconds ?? ""}
+          onChange={(e) =>
+            onChange({
+              max_age_seconds: e.target.value === "" ? null : Number(e.target.value),
+            })
+          }
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CorsList({
+  label,
+  placeholder,
+  values,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  placeholder: string;
+  values: string[];
+  onChange: (raw: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-zinc-500 mb-1">
+        {label}
+      </label>
+      <textarea
+        className="input-field text-xs font-mono w-full"
+        rows={Math.max(2, values.length + 1)}
+        spellCheck={false}
+        placeholder={placeholder}
+        defaultValue={values.join("\n")}
+        onBlur={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      />
+    </div>
+  );
 }

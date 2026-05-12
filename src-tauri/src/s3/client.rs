@@ -663,6 +663,97 @@ pub async fn delete_bucket_policy(
     Ok(())
 }
 
+/// Read the CORS configuration of a bucket. Returns `None` when no
+/// CORS configuration is attached (S3 returns
+/// `NoSuchCORSConfiguration`).
+pub async fn get_bucket_cors(
+    client: &Client,
+    bucket: &str,
+) -> Result<Option<Vec<crate::models::bucket::CorsRule>>, S3Error> {
+    match client.get_bucket_cors().bucket(bucket).send().await {
+        Ok(out) => {
+            let rules: Vec<_> = out
+                .cors_rules()
+                .iter()
+                .map(|r| crate::models::bucket::CorsRule {
+                    id: r.id().map(|s| s.to_string()),
+                    allowed_methods: r.allowed_methods().to_vec(),
+                    allowed_origins: r.allowed_origins().to_vec(),
+                    allowed_headers: r.allowed_headers().to_vec(),
+                    expose_headers: r.expose_headers().to_vec(),
+                    max_age_seconds: r.max_age_seconds(),
+                })
+                .collect();
+            Ok(Some(rules))
+        }
+        Err(e) => {
+            let detail = super::error::sdk_error_detail(&e);
+            if detail.contains("NoSuchCORSConfiguration") {
+                Ok(None)
+            } else {
+                Err(S3Error::SdkError(detail))
+            }
+        }
+    }
+}
+
+/// Replace the CORS configuration with the given list of rules.
+pub async fn set_bucket_cors(
+    client: &Client,
+    bucket: &str,
+    rules: &[crate::models::bucket::CorsRule],
+) -> Result<(), S3Error> {
+    use aws_sdk_s3::types::{CorsConfiguration, CorsRule as SdkCorsRule};
+
+    let sdk_rules: Vec<SdkCorsRule> = rules
+        .iter()
+        .map(|r| {
+            let mut b = SdkCorsRule::builder()
+                .set_allowed_methods(Some(r.allowed_methods.clone()))
+                .set_allowed_origins(Some(r.allowed_origins.clone()));
+            if let Some(id) = &r.id {
+                b = b.id(id);
+            }
+            if !r.allowed_headers.is_empty() {
+                b = b.set_allowed_headers(Some(r.allowed_headers.clone()));
+            }
+            if !r.expose_headers.is_empty() {
+                b = b.set_expose_headers(Some(r.expose_headers.clone()));
+            }
+            if let Some(age) = r.max_age_seconds {
+                b = b.max_age_seconds(age);
+            }
+            b.build()
+                .map_err(|e| S3Error::ConfigError(format!("invalid CORS rule: {e}")))
+        })
+        .collect::<Result<_, _>>()?;
+
+    let cfg = CorsConfiguration::builder()
+        .set_cors_rules(Some(sdk_rules))
+        .build()
+        .map_err(|e| S3Error::ConfigError(format!("invalid CORS config: {e}")))?;
+
+    client
+        .put_bucket_cors()
+        .bucket(bucket)
+        .cors_configuration(cfg)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
+/// Remove the CORS configuration from a bucket entirely.
+pub async fn delete_bucket_cors(client: &Client, bucket: &str) -> Result<(), S3Error> {
+    client
+        .delete_bucket_cors()
+        .bucket(bucket)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
 /// Permanently delete a specific version of an object. Bypasses the
 /// "soft delete" (delete marker) behavior — the version is gone.
 pub async fn delete_object_version(
