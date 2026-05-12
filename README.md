@@ -52,7 +52,7 @@
 
 ### Connection Management
 - Multiple simultaneous connections with named profiles
-- Provider presets (AWS, MinIO, Backblaze, R2, Wasabi, GCS, OCI, ...)
+- Provider presets (AWS, MinIO, Backblaze, R2, Wasabi, GCS, OCI, Garage, ...)
 - **Path-style / virtual-hosted auto-detection** from the endpoint host (AWS / Backblaze / Wasabi / DO Spaces / Scaleway / OVH / Linode → virtual-hosted; everything else → path-style)
 - **HTTP/HTTPS proxy** support per connection
 - **Custom CA bundle** (PEM file) for on-prem endpoints with self-signed certificates
