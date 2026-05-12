@@ -132,6 +132,13 @@
 - Upload exclude glob patterns (`.DS_Store`, `Thumbs.db`, build artifacts, ...)
 - Log level configuration
 
+### Auto-updates
+- Silent check at startup against `https://github.com/fpellizz/brows3r/releases/latest/download/latest.json` (Ed25519-signed)
+- Manual recheck button in **About** dialog
+- **AppImage / Windows NSIS / macOS** — install in place via [`tauri-plugin-updater`](https://v2.tauri.app/plugin/updater/); progress shown in a banner above the toolbar
+- **`.deb` / `.rpm`** — the package manager owns the binary; the banner only links to the GitHub releases page so the user can `apt install ./pkg.deb` / `dnf install ./pkg.rpm` cleanly
+- "Later" remembers the dismissed version in `localStorage` to avoid nagging on every restart
+
 ---
 
 ## Screenshots
@@ -457,7 +464,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] Bandwidth throttling with time-based schedules
 - [x] Dashboard and statistics (KPI cards, storage-class donut, top-buckets bar, 30-day transfer sparkline, recent activity feed, on-demand bucket size scan)
 - [ ] macOS build + code signing
-- [ ] Auto-updater
+- [x] Auto-updater (in-place for AppImage / NSIS / macOS; notification + link for `.deb` / `.rpm`)
 
 ---
 

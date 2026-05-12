@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as Dialog from "@radix-ui/react-dialog";
-import { AlertTriangle, CheckCircle2, Copy, X } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Copy,
+  Loader2,
+  RefreshCw,
+  X,
+} from "lucide-react";
 import { getVersion, getTauriVersion } from "@tauri-apps/api/app";
 import { tauriInvoke } from "@/lib/tauri";
+import { useUpdaterStore } from "@/stores/updaterStore";
 
 interface AboutDialogProps {
   open: boolean;
@@ -33,6 +41,11 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
   const [tauriVersion, setTauriVersion] = useState("");
   const [prereq, setPrereq] = useState<SystemPrerequisitesReport | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const updaterStatus = useUpdaterStore((s) => s.status);
+  const updaterAvailable = useUpdaterStore((s) => s.available);
+  const updaterError = useUpdaterStore((s) => s.errorMessage);
+  const checkForUpdates = useUpdaterStore((s) => s.checkForUpdates);
 
   useEffect(() => {
     if (!open) return;
@@ -98,6 +111,41 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
               {prereq?.distro_name && (
                 <InfoRow label={t("about.system")} value={prereq.distro_name} />
               )}
+            </div>
+
+            {/* Check for updates */}
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => void checkForUpdates(false)}
+                disabled={updaterStatus === "checking"}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {updaterStatus === "checking" ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={12} />
+                )}
+                {t("updater.checkForUpdates")}
+              </button>
+              <span className="text-zinc-500">
+                {updaterStatus === "uptodate" && t("updater.upToDate")}
+                {updaterStatus === "available" && updaterAvailable && (
+                  <span className="text-brand-600 dark:text-brand-400">
+                    {t("updater.newVersionAvailable", {
+                      version: updaterAvailable.version,
+                    })}
+                  </span>
+                )}
+                {updaterStatus === "error" && (
+                  <span
+                    className="text-red-500 truncate max-w-[180px] inline-block align-middle"
+                    title={updaterError ?? ""}
+                  >
+                    {t("updater.checkFailed")}
+                  </span>
+                )}
+              </span>
             </div>
 
             {/* System prerequisites */}

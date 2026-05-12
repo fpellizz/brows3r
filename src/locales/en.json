@@ -195,6 +195,19 @@
     "prereqMissing_one": "1 native dependency is missing.",
     "prereqMissing_other": "{{count}} native dependencies are missing."
   },
+  "updater": {
+    "checkForUpdates": "Check for updates",
+    "upToDate": "You are up to date.",
+    "newVersionAvailable": "v{{version}} is available",
+    "updateAvailable": "Update available",
+    "installNow": "Install now",
+    "downloadPage": "Open download page",
+    "downloading": "Downloading…",
+    "installedRestart": "Update installed.",
+    "restartHint": "Restart to apply",
+    "later": "Later",
+    "checkFailed": "Check failed"
+  },
   "crossTransfer": {
     "title": "Copy to Other Connection",
     "menuLabel": "Copy to connection...",
