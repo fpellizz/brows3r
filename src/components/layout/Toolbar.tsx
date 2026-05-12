@@ -39,8 +39,7 @@ export function Toolbar() {
   const deleteSelected = useObjectStore((s) => s.deleteSelected);
   const toggleTransferPanel = useUiStore((s) => s.toggleTransferPanel);
   const toggleTerminalPanel = useUiStore((s) => s.toggleTerminalPanel);
-  const toggleDashboard = useUiStore((s) => s.toggleDashboard);
-  const showDashboard = useUiStore((s) => s.showDashboard);
+  const addTab = useUiStore((s) => s.addTab);
   const startUpload = useTransferStore((s) => s.startUpload);
   const startDownload = useTransferStore((s) => s.startDownload);
 
@@ -220,9 +219,11 @@ export function Toolbar() {
           onClick={toggleTerminalPanel}
         />
         <ToolbarButton
-          icon={<LayoutDashboard size={16} className={showDashboard ? "text-brand-500" : ""} />}
+          icon={<LayoutDashboard size={16} />}
           label={t("dashboard.title")}
-          onClick={toggleDashboard}
+          onClick={() =>
+            addTab({ kind: "dashboard", label: t("dashboard.title") })
+          }
         />
         <ToolbarButton
           icon={<Settings size={16} />}

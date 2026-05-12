@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Plus, X } from "lucide-react";
+import { LayoutDashboard, Plus, X } from "lucide-react";
 import { useUiStore, type Tab } from "@/stores/uiStore";
 import { useObjectStore } from "@/stores/objectStore";
 
@@ -90,6 +90,9 @@ function TabItem({
       onClick={onClick}
       onMouseDown={onMouseDown}
     >
+      {tab.kind === "dashboard" && (
+        <LayoutDashboard size={12} className="shrink-0 text-brand-500" />
+      )}
       <span className="truncate flex-1">{tab.label}</span>
       <button
         className={`shrink-0 rounded p-0.5 ${

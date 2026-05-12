@@ -1,8 +1,11 @@
 import { create } from "zustand";
 
+export type TabKind = "objects" | "dashboard";
+
 export interface Tab {
   id: string;
   label: string;
+  kind: TabKind;
   connectionId: string | null;
   bucket: string | null;
   prefix: string;
@@ -12,6 +15,7 @@ function createTab(overrides?: Partial<Tab>): Tab {
   return {
     id: crypto.randomUUID(),
     label: "New Tab",
+    kind: "objects",
     connectionId: null,
     bucket: null,
     prefix: "",
@@ -37,7 +41,6 @@ interface UiState {
   showTransferPanel: boolean;
   showTerminalPanel: boolean;
   showDetailsPanel: boolean;
-  showDashboard: boolean;
   previewObject: PreviewTarget | null;
   detailsObject: DetailsTarget | null;
 
@@ -48,7 +51,6 @@ interface UiState {
   toggleTransferPanel: () => void;
   toggleTerminalPanel: () => void;
   toggleDetailsPanel: () => void;
-  toggleDashboard: () => void;
   openPreview: (target: PreviewTarget) => void;
   closePreview: () => void;
   openDetails: (target: DetailsTarget) => void;
@@ -66,7 +68,6 @@ export const useUiStore = create<UiState>((set, get) => ({
   showTransferPanel: true,
   showTerminalPanel: false,
   showDetailsPanel: false,
-  showDashboard: false,
   previewObject: null,
   detailsObject: null,
 
@@ -80,8 +81,6 @@ export const useUiStore = create<UiState>((set, get) => ({
     set((s) => ({ showTerminalPanel: !s.showTerminalPanel })),
   toggleDetailsPanel: () =>
     set((s) => ({ showDetailsPanel: !s.showDetailsPanel })),
-  toggleDashboard: () =>
-    set((s) => ({ showDashboard: !s.showDashboard })),
   openPreview: (target) => set({ previewObject: target, detailsObject: null }),
   closePreview: () => set({ previewObject: null }),
   openDetails: (target) => set({ detailsObject: target, previewObject: null }),
@@ -124,8 +123,9 @@ export const useUiStore = create<UiState>((set, get) => ({
       tabs: s.tabs.map((t) => {
         if (t.id !== id) return t;
         const updated = { ...t, ...updates };
-        // Auto-update label based on bucket
-        if ("bucket" in updates) {
+        // Auto-update label based on bucket (only for object tabs;
+        // dashboard tabs keep their own label).
+        if (t.kind === "objects" && "bucket" in updates) {
           updated.label = updates.bucket || "New Tab";
         }
         return updated;
