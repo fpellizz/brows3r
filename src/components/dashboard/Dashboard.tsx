@@ -124,7 +124,8 @@ function formatNumber(n: number): string {
 
 export function Dashboard() {
   const { t } = useTranslation();
-  const toggle = useUiStore((s) => s.toggleDashboard);
+  const closeTab = useUiStore((s) => s.closeTab);
+  const activeTabId = useUiStore((s) => s.activeTabId);
   const connections = useConnectionStore((s) => s.connections);
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
 
@@ -383,7 +384,7 @@ export function Dashboard() {
             )}
             <button
               type="button"
-              onClick={toggle}
+              onClick={() => closeTab(activeTabId)}
               className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
               title={t("common.close")}
             >

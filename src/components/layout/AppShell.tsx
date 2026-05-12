@@ -19,13 +19,17 @@ import { useConnectionStore } from "@/stores/connectionStore";
 export function AppShell() {
   const showTransferPanel = useUiStore((s) => s.showTransferPanel);
   const showTerminalPanel = useUiStore((s) => s.showTerminalPanel);
-  const showDashboard = useUiStore((s) => s.showDashboard);
+  const activeTab = useUiStore((s) =>
+    s.tabs.find((t) => t.id === s.activeTabId),
+  );
   const previewObject = useUiStore((s) => s.previewObject);
   const detailsObject = useUiStore((s) => s.detailsObject);
   const closePreview = useUiStore((s) => s.closePreview);
   const closeDetails = useUiStore((s) => s.closeDetails);
   const currentBucket = useObjectStore((s) => s.currentBucket);
   const activeConnectionId = useConnectionStore((s) => s.activeConnectionId);
+
+  const isDashboard = activeTab?.kind === "dashboard";
 
   return (
     <div className="flex flex-col h-screen">
@@ -48,21 +52,25 @@ export function AppShell() {
                 <Allotment>
                   {/* Object table or Dashboard */}
                   <Allotment.Pane>
-                    {showDashboard ? (
-                      <Dashboard />
-                    ) : (
-                      <div className="flex flex-col h-full">
-                        <TabBar />
-                        <Breadcrumb />
+                    <div className="flex flex-col h-full">
+                      <TabBar />
+                      {isDashboard ? (
                         <div className="flex-1 min-h-0">
-                          <ObjectTable />
+                          <Dashboard />
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <>
+                          <Breadcrumb />
+                          <div className="flex-1 min-h-0">
+                            <ObjectTable />
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </Allotment.Pane>
 
                   {/* Preview panel */}
-                  {previewObject && activeConnectionId && currentBucket && (
+                  {!isDashboard && previewObject && activeConnectionId && currentBucket && (
                     <Allotment.Pane preferredSize={380} minSize={250} maxSize={600}>
                       <PreviewPanel
                         connectionId={activeConnectionId}
@@ -75,7 +83,7 @@ export function AppShell() {
                   )}
 
                   {/* Details panel */}
-                  {detailsObject && activeConnectionId && currentBucket && (
+                  {!isDashboard && detailsObject && activeConnectionId && currentBucket && (
                     <Allotment.Pane preferredSize={320} minSize={220} maxSize={500}>
                       <ObjectDetails
                         connectionId={activeConnectionId}

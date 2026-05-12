@@ -42,12 +42,13 @@
 ## Features
 
 ### Dashboard
-- Bird's-eye view toggled from the toolbar (Layout Dashboard icon)
+- Bird's-eye view, always opened in a new tab from the toolbar (Layout Dashboard icon) — close it like any other tab
+- Per-connection state, persisted across sessions (`localStorage`)
 - 4 KPI cards: connections / buckets / transfers all-time / success rate
 - Storage-class breakdown as a donut chart (aggregated across all computed buckets)
 - Top buckets by size as a horizontal bar list
 - 30-day transfer activity sparkline + recent activity feed (upload/download per object, success/fail)
-- On-demand per-bucket scan (`Compute`) — gracefully truncates at 50k objects on huge buckets
+- On-demand per-bucket scan (`Compute`) and one-click **Scan all** for the active connection — gracefully truncates at 50k objects on huge buckets
 
 ### Connection Management
 - Multiple simultaneous connections with named profiles
