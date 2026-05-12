@@ -1,6 +1,6 @@
 [package]
 name = "brows3r"
-version = "1.12.0"
+version = "1.13.0"
 description = "Cross-platform S3-compatible object storage browser"
 authors = ["brows3r contributors"]
 edition = "2021"
