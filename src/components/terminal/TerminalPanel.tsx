@@ -203,8 +203,20 @@ function formatPrompt(cwd: Cwd): string {
 
 // --- Command dispatch ---------------------------------------------------
 
+interface ListedObject {
+  key: string;
+  display_name: string;
+  is_folder: boolean;
+  size: number | null;
+  last_modified: string | null;
+  etag: string | null;
+  storage_class: string | null;
+}
 interface ListObjectsResponse {
-  objects: { key: string; size: number | null; last_modified: string | null; etag: string | null; storage_class: string | null }[];
+  // The backend folds common-prefixes (sub-folders) into `objects`
+  // with `is_folder: true` and leaves `common_prefixes` empty. The
+  // terminal needs to split them back out for display.
+  objects: ListedObject[];
   common_prefixes: string[];
   continuation_token: string | null;
   is_truncated: boolean;
@@ -258,12 +270,12 @@ async function dispatch(
           continuation_token: null,
         },
       });
-      const folders = result.common_prefixes
-        .map((p) => stripPrefix(p, target.prefix))
-        .filter((s) => s.length > 0)
-        .map((s) => `${s}`);
+      const folders = result.objects
+        .filter((o) => o.is_folder)
+        .map((o) => stripPrefix(o.key, target.prefix))
+        .filter((s) => s.length > 0);
       const files = result.objects
-        .filter((o) => !o.key.endsWith("/"))
+        .filter((o) => !o.is_folder && !o.key.endsWith("/"))
         .map((o) => {
           const name = stripPrefix(o.key, target.prefix);
           const size = o.size != null ? formatBytes(o.size) : "—";
