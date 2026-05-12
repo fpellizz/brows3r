@@ -11,6 +11,7 @@ import { ObjectDetails } from "@/components/object/ObjectDetails";
 import { TransferPanel } from "@/components/transfer/TransferPanel";
 import { TerminalPanel } from "@/components/terminal/TerminalPanel";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
+import { Dashboard } from "@/components/dashboard/Dashboard";
 import { useUiStore } from "@/stores/uiStore";
 import { useObjectStore } from "@/stores/objectStore";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -18,6 +19,7 @@ import { useConnectionStore } from "@/stores/connectionStore";
 export function AppShell() {
   const showTransferPanel = useUiStore((s) => s.showTransferPanel);
   const showTerminalPanel = useUiStore((s) => s.showTerminalPanel);
+  const showDashboard = useUiStore((s) => s.showDashboard);
   const previewObject = useUiStore((s) => s.previewObject);
   const detailsObject = useUiStore((s) => s.detailsObject);
   const closePreview = useUiStore((s) => s.closePreview);
@@ -44,15 +46,19 @@ export function AppShell() {
               {/* Object browser + right panel */}
               <Allotment.Pane>
                 <Allotment>
-                  {/* Object table */}
+                  {/* Object table or Dashboard */}
                   <Allotment.Pane>
-                    <div className="flex flex-col h-full">
-                      <TabBar />
-                      <Breadcrumb />
-                      <div className="flex-1 min-h-0">
-                        <ObjectTable />
+                    {showDashboard ? (
+                      <Dashboard />
+                    ) : (
+                      <div className="flex flex-col h-full">
+                        <TabBar />
+                        <Breadcrumb />
+                        <div className="flex-1 min-h-0">
+                          <ObjectTable />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </Allotment.Pane>
 
                   {/* Preview panel */}

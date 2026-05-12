@@ -353,5 +353,42 @@
   },
   "terminal": {
     "title": "Terminale S3"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "eyebrow": "PANORAMICA",
+    "noConnection": "Nessuna connessione attiva",
+    "kpi": {
+      "connections": "Connessioni",
+      "buckets": "Bucket",
+      "transfers": "Trasferimenti",
+      "successRate": "Tasso di successo",
+      "ok": "ok",
+      "fail": "falliti",
+      "noData": "Ancora nessun dato"
+    },
+    "storageBreakdown": "Storage class breakdown",
+    "storageBreakdownEmpty": "Ancora nessun dato",
+    "storageBreakdownHint": "Calcola le statistiche di un bucket qui sotto per popolare questo grafico.",
+    "aggregatedAcross_one": "Su 1 bucket",
+    "aggregatedAcross_other": "Su {{count}} bucket",
+    "topBuckets": "Top bucket per dimensione",
+    "topBucketsEmpty": "Ancora nessun dato",
+    "topBucketsHint": "Calcola le statistiche di un bucket per iniziare la classifica.",
+    "objects": "oggetti",
+    "transferActivity": "Attività trasferimenti",
+    "last30Days": "Ultimi 30 giorni",
+    "recentTransfers": "Trasferimenti recenti",
+    "noActivity": "Nessuna attività recente.",
+    "bucketsTitle": "Bucket",
+    "bucketsSubtitle": "{{name}} — clicca Calcola per scansionare dimensione e ripartizione",
+    "bucketsLoading": "Caricamento bucket...",
+    "bucketsEmpty": "Nessun bucket in questa connessione.",
+    "bucketsNoConnection": "Seleziona una connessione nella sidebar per vedere i suoi bucket.",
+    "bucketSize": "Dimensione",
+    "bucketObjects": "Oggetti",
+    "computeStats": "Calcola",
+    "computing": "Scansione...",
+    "truncatedHint": "Scansionati 50k oggetti; le cifre sono un limite inferiore."
   }
 }

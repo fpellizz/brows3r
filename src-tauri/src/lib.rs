@@ -85,6 +85,7 @@ pub fn run() {
             commands::bucket::get_bucket_lifecycle,
             commands::bucket::set_bucket_lifecycle,
             commands::bucket::delete_bucket_lifecycle,
+            commands::bucket::compute_bucket_stats,
             // Object commands
             commands::object::list_objects,
             commands::object::head_object,
