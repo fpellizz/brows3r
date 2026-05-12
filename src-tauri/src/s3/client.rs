@@ -612,6 +612,57 @@ pub async fn delete_bucket_encryption(
     Ok(())
 }
 
+/// Read the bucket policy as a JSON string. Returns `None` if no
+/// policy is attached (`NoSuchBucketPolicy` from S3).
+pub async fn get_bucket_policy(
+    client: &Client,
+    bucket: &str,
+) -> Result<Option<String>, S3Error> {
+    match client.get_bucket_policy().bucket(bucket).send().await {
+        Ok(out) => Ok(out.policy().map(|p| p.to_string())),
+        Err(e) => {
+            let detail = super::error::sdk_error_detail(&e);
+            if detail.contains("NoSuchBucketPolicy") {
+                Ok(None)
+            } else {
+                Err(S3Error::SdkError(detail))
+            }
+        }
+    }
+}
+
+/// Replace the bucket policy with the given JSON document. The S3
+/// service does the syntactic + permissions validation; we surface
+/// its error verbatim.
+pub async fn set_bucket_policy(
+    client: &Client,
+    bucket: &str,
+    policy: &str,
+) -> Result<(), S3Error> {
+    client
+        .put_bucket_policy()
+        .bucket(bucket)
+        .policy(policy)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
+/// Remove the bucket policy entirely.
+pub async fn delete_bucket_policy(
+    client: &Client,
+    bucket: &str,
+) -> Result<(), S3Error> {
+    client
+        .delete_bucket_policy()
+        .bucket(bucket)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
 /// Permanently delete a specific version of an object. Bypasses the
 /// "soft delete" (delete marker) behavior — the version is gone.
 pub async fn delete_object_version(

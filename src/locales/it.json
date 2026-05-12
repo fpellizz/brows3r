@@ -277,6 +277,15 @@
       "kmsKey": "ID chiave KMS (opzionale)",
       "bucketKey": "Usa S3 bucket key (riduce il costo delle richieste KMS)",
       "bucketKeyHint": "Raccomandato per crittografia KMS — nessun effetto con SSE-S3."
+    },
+    "policy": {
+      "loading": "Caricamento policy bucket...",
+      "statusAttached": "Una policy è collegata a questo bucket.",
+      "statusNone": "Nessuna policy collegata.",
+      "description": "Le bucket policy concedono o negano l'accesso tramite un documento JSON in stile IAM. Si applicano a ogni richiesta che riguarda il bucket. Salvando una policy non valida, l'errore S3 viene mostrato inline.",
+      "invalidJson": "JSON non valido",
+      "format": "Formatta",
+      "deletePolicy": "Elimina policy"
     }
   }
 }

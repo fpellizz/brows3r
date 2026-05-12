@@ -277,6 +277,15 @@
       "kmsKey": "KMS Key ID (optional)",
       "bucketKey": "Use S3 bucket key (reduces KMS request cost)",
       "bucketKeyHint": "Recommended for KMS encryption — has no effect with SSE-S3."
+    },
+    "policy": {
+      "loading": "Loading bucket policy...",
+      "statusAttached": "A policy is attached to this bucket.",
+      "statusNone": "No policy attached.",
+      "description": "Bucket policies grant or deny access via an IAM-like JSON document. They apply to every request that targets this bucket. Saving an invalid policy returns the S3 error inline.",
+      "invalidJson": "Invalid JSON",
+      "format": "Format",
+      "deletePolicy": "Delete policy"
     }
   }
 }

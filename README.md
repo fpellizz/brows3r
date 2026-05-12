@@ -84,7 +84,8 @@
 - **Bucket Properties** dialog (right-click → properties icon on hover):
   - **Versioning** — enable / suspend, status banner, MFA-Delete indicator
   - **Encryption** — default SSE-S3 / SSE-KMS (with optional KMS key + bucket-key opt-in), or none
-  - Policy, CORS, Lifecycle — *coming soon*
+  - **Policy** — JSON editor with format + save + delete, client-side JSON validation
+  - CORS, Lifecycle — *coming soon*
 
 ### File Preview
 - **Text** with line numbers and **syntax highlighting** for 30+ languages (JS/TS, Python, Rust, Go, Java, C/C++, SQL, YAML, Docker, etc.)
@@ -434,7 +435,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] Import connections (AWS CLI, rclone, s3cmd, MinIO Client)
 - [x] CI/CD pipeline (Linux) + Windows build scripts
 - [x] Object versioning (list versions, download/restore/delete, delete markers)
-- [ ] Bucket properties (versioning ✓ — encryption ✓ — policy / CORS / lifecycle planned)
+- [ ] Bucket properties (versioning ✓ — encryption ✓ — policy ✓ — CORS / lifecycle planned)
 - [x] Sync (unidirectional, 3 modes: new / updated / mirror, with dry-run)
 - [ ] Integrated S3 terminal (ls, cp, mv, rm, cat)
 - [ ] Batch operations (mass metadata/storage class/ACL changes)
