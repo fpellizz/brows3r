@@ -41,6 +41,14 @@
 
 ## Features
 
+### Dashboard
+- Bird's-eye view toggled from the toolbar (Layout Dashboard icon)
+- 4 KPI cards: connections / buckets / transfers all-time / success rate
+- Storage-class breakdown as a donut chart (aggregated across all computed buckets)
+- Top buckets by size as a horizontal bar list
+- 30-day transfer activity sparkline + recent activity feed (upload/download per object, success/fail)
+- On-demand per-bucket scan (`Compute`) — gracefully truncates at 50k objects on huge buckets
+
 ### Connection Management
 - Multiple simultaneous connections with named profiles
 - Provider presets (AWS, MinIO, Backblaze, R2, Wasabi, GCS, OCI, ...)
@@ -444,7 +452,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] Batch operations (storage class / content-type / ACL changes, with live per-object progress)
 - [x] Cross-connection transfers (download + re-upload with metadata)
 - [x] Bandwidth throttling with time-based schedules
-- [ ] Dashboard and statistics
+- [x] Dashboard and statistics (KPI cards, storage-class donut, top-buckets bar, 30-day transfer sparkline, recent activity feed, on-demand bucket size scan)
 - [ ] macOS build + code signing
 - [ ] Auto-updater
 

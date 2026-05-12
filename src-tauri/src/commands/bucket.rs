@@ -1,8 +1,10 @@
+use std::collections::HashMap;
+
 use tauri::State;
 
 use crate::models::bucket::{
-    BucketDetails, BucketEncryption, BucketInfo, CorsRule, CreateBucketRequest, LifecycleRule,
-    LifecycleSnapshot,
+    BucketDetails, BucketEncryption, BucketInfo, BucketStats, CorsRule, CreateBucketRequest,
+    LifecycleRule, LifecycleSnapshot, StorageClassBreakdown,
 };
 use crate::s3::client::S3ClientPool;
 use crate::store::credentials;
@@ -340,4 +342,79 @@ pub async fn delete_bucket_lifecycle(
     crate::s3::client::delete_bucket_lifecycle(&client, &bucket)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Aggregate object count + total size + per-storage-class breakdown
+/// for a bucket. Hits `list_objects_v2` paginated under the hood and
+/// stops at `MAX_OBJECTS_TO_SCAN` to keep this responsive on huge
+/// buckets — when that happens, `truncated: true` is returned and the
+/// figures are a lower bound.
+#[tauri::command]
+pub async fn compute_bucket_stats(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<BucketStats, String> {
+    const MAX_OBJECTS_TO_SCAN: i64 = 50_000;
+
+    let client = get_client(&db, &pool, &connection_id).await?;
+
+    let mut total_bytes: i64 = 0;
+    let mut object_count: i64 = 0;
+    let mut by_class: HashMap<String, (i64, i64)> = HashMap::new(); // class -> (count, bytes)
+    let mut continuation: Option<String> = None;
+    let mut truncated = false;
+
+    loop {
+        let page = crate::s3::client::list_objects(
+            &client,
+            &bucket,
+            None,
+            None, // no delimiter — scan all keys
+            Some(1000),
+            continuation.as_deref(),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+        for obj in &page.objects {
+            object_count += 1;
+            total_bytes += obj.size;
+            let class = obj
+                .storage_class
+                .clone()
+                .unwrap_or_else(|| "STANDARD".to_string());
+            let entry = by_class.entry(class).or_insert((0, 0));
+            entry.0 += 1;
+            entry.1 += obj.size;
+        }
+
+        if object_count >= MAX_OBJECTS_TO_SCAN {
+            truncated = true;
+            break;
+        }
+        match (page.is_truncated, page.continuation_token) {
+            (true, Some(t)) => continuation = Some(t),
+            _ => break,
+        }
+    }
+
+    let mut by_storage_class: Vec<StorageClassBreakdown> = by_class
+        .into_iter()
+        .map(|(storage_class, (count, total_bytes))| StorageClassBreakdown {
+            storage_class,
+            count,
+            total_bytes,
+        })
+        .collect();
+    // Larger first — nicer in the UI than alphabetical noise.
+    by_storage_class.sort_by(|a, b| b.total_bytes.cmp(&a.total_bytes));
+
+    Ok(BucketStats {
+        object_count,
+        total_bytes,
+        by_storage_class,
+        truncated,
+    })
 }

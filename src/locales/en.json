@@ -353,5 +353,42 @@
   },
   "terminal": {
     "title": "S3 Terminal"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "eyebrow": "OVERVIEW",
+    "noConnection": "No active connection",
+    "kpi": {
+      "connections": "Connections",
+      "buckets": "Buckets",
+      "transfers": "Transfers",
+      "successRate": "Success rate",
+      "ok": "ok",
+      "fail": "failed",
+      "noData": "No data yet"
+    },
+    "storageBreakdown": "Storage class breakdown",
+    "storageBreakdownEmpty": "No data yet",
+    "storageBreakdownHint": "Compute stats on a bucket below to populate this chart.",
+    "aggregatedAcross_one": "Across 1 bucket",
+    "aggregatedAcross_other": "Across {{count}} buckets",
+    "topBuckets": "Top buckets by size",
+    "topBucketsEmpty": "No data yet",
+    "topBucketsHint": "Compute stats on a bucket to start ranking.",
+    "objects": "objects",
+    "transferActivity": "Transfer activity",
+    "last30Days": "Last 30 days",
+    "recentTransfers": "Recent transfers",
+    "noActivity": "No recent activity.",
+    "bucketsTitle": "Buckets",
+    "bucketsSubtitle": "{{name}} — click Compute to scan size and breakdown",
+    "bucketsLoading": "Loading buckets...",
+    "bucketsEmpty": "No buckets in this connection.",
+    "bucketsNoConnection": "Pick a connection in the sidebar to see its buckets.",
+    "bucketSize": "Size",
+    "bucketObjects": "Objects",
+    "computeStats": "Compute",
+    "computing": "Scanning...",
+    "truncatedHint": "Scanned 50k objects; figures are a lower bound."
   }
 }

@@ -92,3 +92,20 @@ pub struct LifecycleNoncurrentTransition {
     pub noncurrent_days: i32,
     pub storage_class: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StorageClassBreakdown {
+    pub storage_class: String,
+    pub count: i64,
+    pub total_bytes: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BucketStats {
+    pub object_count: i64,
+    pub total_bytes: i64,
+    pub by_storage_class: Vec<StorageClassBreakdown>,
+    /// True when the listing hit `max_objects_to_scan` and we stopped
+    /// early — figures are a lower bound, not the full picture.
+    pub truncated: bool,
+}

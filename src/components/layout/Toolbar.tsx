@@ -14,6 +14,7 @@ import {
   Info,
   Wand2,
   Terminal as TerminalIcon,
+  LayoutDashboard,
   X,
 } from "lucide-react";
 import { useObjectStore } from "@/stores/objectStore";
@@ -38,6 +39,8 @@ export function Toolbar() {
   const deleteSelected = useObjectStore((s) => s.deleteSelected);
   const toggleTransferPanel = useUiStore((s) => s.toggleTransferPanel);
   const toggleTerminalPanel = useUiStore((s) => s.toggleTerminalPanel);
+  const toggleDashboard = useUiStore((s) => s.toggleDashboard);
+  const showDashboard = useUiStore((s) => s.showDashboard);
   const startUpload = useTransferStore((s) => s.startUpload);
   const startDownload = useTransferStore((s) => s.startDownload);
 
@@ -215,6 +218,11 @@ export function Toolbar() {
           icon={<TerminalIcon size={16} />}
           label={t("terminal.title")}
           onClick={toggleTerminalPanel}
+        />
+        <ToolbarButton
+          icon={<LayoutDashboard size={16} className={showDashboard ? "text-brand-500" : ""} />}
+          label={t("dashboard.title")}
+          onClick={toggleDashboard}
         />
         <ToolbarButton
           icon={<Settings size={16} />}
