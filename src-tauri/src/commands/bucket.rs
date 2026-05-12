@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::models::bucket::{BucketDetails, BucketInfo, CreateBucketRequest};
+use crate::models::bucket::{BucketDetails, BucketEncryption, BucketInfo, CreateBucketRequest};
 use crate::s3::client::S3ClientPool;
 use crate::store::credentials;
 use crate::store::database::Database;
@@ -167,6 +167,54 @@ pub async fn set_bucket_versioning(
 ) -> Result<(), String> {
     let client = get_client(&db, &pool, &connection_id).await?;
     crate::s3::client::set_bucket_versioning(&client, &bucket, enabled)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_bucket_encryption(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<Option<BucketEncryption>, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::get_bucket_encryption(&client, &bucket)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_bucket_encryption(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    algorithm: String,
+    kms_master_key_id: Option<String>,
+    bucket_key_enabled: Option<bool>,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::set_bucket_encryption(
+        &client,
+        &bucket,
+        &algorithm,
+        kms_master_key_id.as_deref(),
+        bucket_key_enabled,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_bucket_encryption(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::delete_bucket_encryption(&client, &bucket)
         .await
         .map_err(|e| e.to_string())
 }

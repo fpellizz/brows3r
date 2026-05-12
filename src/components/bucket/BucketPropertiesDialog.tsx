@@ -72,7 +72,11 @@ export function BucketPropertiesDialog({
                 />
               </Tabs.Content>
               <Tabs.Content value="encryption">
-                <ComingSoon name="Encryption" />
+                <EncryptionTab
+                  connectionId={connectionId}
+                  bucket={bucket}
+                  active={open}
+                />
               </Tabs.Content>
               <Tabs.Content value="policy">
                 <ComingSoon name="Policy" />
@@ -240,6 +244,197 @@ function VersioningTab({
           className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {t("bucketProperties.versioning.suspend")}
+        </button>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={loading || submitting}
+          className="ml-auto px-3 py-2 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-40"
+        >
+          {t("common.refresh")}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-md px-3 py-2 text-xs bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 break-all">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Encryption tab -----------------------------------------------------
+
+interface BucketEncryption {
+  algorithm: string;
+  kms_master_key_id: string | null;
+  bucket_key_enabled: boolean | null;
+}
+
+type AlgorithmChoice = "none" | "AES256" | "aws:kms";
+
+function EncryptionTab({
+  connectionId,
+  bucket,
+  active,
+}: {
+  connectionId: string;
+  bucket: string;
+  active: boolean;
+}) {
+  const { t } = useTranslation();
+  const [current, setCurrent] = useState<BucketEncryption | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [algorithm, setAlgorithm] = useState<AlgorithmChoice>("none");
+  const [kmsKey, setKmsKey] = useState("");
+  const [bucketKey, setBucketKey] = useState(false);
+
+  const refresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await tauriInvoke<BucketEncryption | null>(
+        "get_bucket_encryption",
+        { connectionId, bucket },
+      );
+      setCurrent(result);
+      if (result) {
+        setAlgorithm(
+          result.algorithm === "AES256"
+            ? "AES256"
+            : result.algorithm.startsWith("aws:kms")
+              ? "aws:kms"
+              : "none",
+        );
+        setKmsKey(result.kms_master_key_id ?? "");
+        setBucketKey(result.bucket_key_enabled ?? false);
+      } else {
+        setAlgorithm("none");
+        setKmsKey("");
+        setBucketKey(false);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (active) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, connectionId, bucket]);
+
+  const apply = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      if (algorithm === "none") {
+        await tauriInvoke("delete_bucket_encryption", { connectionId, bucket });
+      } else {
+        await tauriInvoke("set_bucket_encryption", {
+          connectionId,
+          bucket,
+          algorithm,
+          kmsMasterKeyId: algorithm === "aws:kms" && kmsKey.trim() ? kmsKey.trim() : null,
+          bucketKeyEnabled: algorithm === "aws:kms" ? bucketKey : null,
+        });
+      }
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const currentLabel =
+    !current ? t("bucketProperties.encryption.statusNone")
+      : current.algorithm === "AES256" ? t("bucketProperties.encryption.statusSseS3")
+      : current.algorithm.startsWith("aws:kms") ? t("bucketProperties.encryption.statusSseKms")
+      : current.algorithm;
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-md px-4 py-3 text-sm bg-zinc-50 dark:bg-zinc-800/50 flex items-start gap-2">
+        {loading ? (
+          <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
+        ) : current ? (
+          <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        ) : (
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-zinc-400" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium">{loading ? t("bucketProperties.encryption.loading") : currentLabel}</p>
+          {current?.kms_master_key_id && (
+            <p className="text-xs mt-1 text-zinc-500 font-mono break-all">
+              {current.kms_master_key_id}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <p className="text-xs text-zinc-500 leading-relaxed">
+        {t("bucketProperties.encryption.description")}
+      </p>
+
+      <div className="space-y-3">
+        <label className="block text-xs font-medium text-zinc-500">
+          {t("bucketProperties.encryption.algorithm")}
+        </label>
+        <select
+          className="select-field w-full"
+          value={algorithm}
+          onChange={(e) => setAlgorithm(e.target.value as AlgorithmChoice)}
+          disabled={loading || submitting}
+        >
+          <option value="none">{t("bucketProperties.encryption.algoNone")}</option>
+          <option value="AES256">SSE-S3 (AES256)</option>
+          <option value="aws:kms">SSE-KMS</option>
+        </select>
+
+        {algorithm === "aws:kms" && (
+          <>
+            <label className="block text-xs font-medium text-zinc-500 mt-3">
+              {t("bucketProperties.encryption.kmsKey")}
+            </label>
+            <input
+              type="text"
+              className="input-field w-full font-mono text-xs"
+              placeholder="arn:aws:kms:region:account:key/uuid (default key if empty)"
+              value={kmsKey}
+              onChange={(e) => setKmsKey(e.target.value)}
+              disabled={loading || submitting}
+            />
+            <label className="flex items-center gap-2 mt-2 text-sm">
+              <input
+                type="checkbox"
+                checked={bucketKey}
+                onChange={(e) => setBucketKey(e.target.checked)}
+                disabled={loading || submitting}
+              />
+              <span>{t("bucketProperties.encryption.bucketKey")}</span>
+            </label>
+            <p className="text-xs text-zinc-500">
+              {t("bucketProperties.encryption.bucketKeyHint")}
+            </p>
+          </>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={apply}
+          disabled={loading || submitting}
+          className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {submitting ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+          {t("common.save")}
         </button>
         <button
           type="button"

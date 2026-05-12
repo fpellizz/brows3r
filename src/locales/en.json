@@ -265,6 +265,18 @@
       "description": "When enabled, S3 keeps a copy of every object version, including deleted ones. Suspending keeps the existing history but stops creating new versions. S3 does not allow going back to \"never versioned\" once enabled.",
       "enable": "Enable",
       "suspend": "Suspend"
+    },
+    "encryption": {
+      "loading": "Loading encryption status...",
+      "statusNone": "No default encryption configured.",
+      "statusSseS3": "Server-side encryption (SSE-S3, AES256) is enabled.",
+      "statusSseKms": "Server-side encryption (SSE-KMS) is enabled.",
+      "description": "When enabled, S3 automatically encrypts new objects with the chosen algorithm. Per-object encryption metadata on existing objects is not changed by switching the default.",
+      "algorithm": "Algorithm",
+      "algoNone": "No default encryption",
+      "kmsKey": "KMS Key ID (optional)",
+      "bucketKey": "Use S3 bucket key (reduces KMS request cost)",
+      "bucketKeyHint": "Recommended for KMS encryption — has no effect with SSE-S3."
     }
   }
 }

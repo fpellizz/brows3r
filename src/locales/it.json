@@ -265,6 +265,18 @@
       "description": "Quando abilitato, S3 conserva una copia di ogni versione degli oggetti, comprese quelle cancellate. Sospendere mantiene la cronologia esistente ma smette di creare nuove versioni. S3 non permette di tornare a \"mai versionato\" una volta abilitato.",
       "enable": "Abilita",
       "suspend": "Sospendi"
+    },
+    "encryption": {
+      "loading": "Caricamento configurazione crittografia...",
+      "statusNone": "Nessuna crittografia predefinita configurata.",
+      "statusSseS3": "Crittografia lato server (SSE-S3, AES256) abilitata.",
+      "statusSseKms": "Crittografia lato server (SSE-KMS) abilitata.",
+      "description": "Quando abilitata, S3 cifra automaticamente i nuovi oggetti con l'algoritmo scelto. La crittografia degli oggetti già presenti non viene modificata cambiando il default.",
+      "algorithm": "Algoritmo",
+      "algoNone": "Nessuna crittografia predefinita",
+      "kmsKey": "ID chiave KMS (opzionale)",
+      "bucketKey": "Usa S3 bucket key (riduce il costo delle richieste KMS)",
+      "bucketKeyHint": "Raccomandato per crittografia KMS — nessun effetto con SSE-S3."
     }
   }
 }
