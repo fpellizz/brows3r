@@ -255,7 +255,6 @@
       "policy": "Policy",
       "lifecycle": "Lifecycle"
     },
-    "comingSoon": "{{feature}} support coming soon.",
     "versioning": {
       "loading": "Loading versioning status...",
       "statusEnabled": "Versioning is enabled.",
@@ -305,6 +304,32 @@
       "deleteAll": "Delete CORS",
       "errorNoMethods": "Each rule must allow at least one HTTP method.",
       "errorNoOrigins": "Each rule must allow at least one origin."
+    },
+    "lifecycle": {
+      "loading": "Loading lifecycle configuration...",
+      "statusNone": "No lifecycle configuration attached.",
+      "statusAttached_one": "1 lifecycle rule attached.",
+      "statusAttached_other": "{{count}} lifecycle rules attached.",
+      "statusUnsupported": "Lifecycle rules with advanced features detected.",
+      "unsupportedHint": "Some rules use tag filters, size filters, AND combinations, or date-based transitions. The simplified editor doesn't represent them; editing is disabled to avoid losing data. You can still delete the entire configuration or refresh.",
+      "description": "Lifecycle rules transition objects to colder storage classes or expire them after a number of days. The simplified editor covers the most common cases: prefix filter, day-based transitions, and noncurrent-version rules.",
+      "empty": "No rules. Add one to start.",
+      "addRule": "Add rule",
+      "removeRule": "Remove rule",
+      "deleteAll": "Delete lifecycle",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "ruleIdPlaceholder": "Rule ID (optional)",
+      "prefix": "Prefix (empty = all objects)",
+      "prefixPlaceholder": "logs/",
+      "transitions": "Transitions (current version)",
+      "addTransition": "Add transition",
+      "daysTo": "days →",
+      "expirationDays": "Expiration (days)",
+      "abortMultipartDays": "Abort incomplete multipart (days)",
+      "noncurrentTransitions": "Transitions (noncurrent versions)",
+      "addNoncurrentTransition": "Add noncurrent transition",
+      "noncurrentExpirationDays": "Noncurrent expiration (days)"
     }
   }
 }

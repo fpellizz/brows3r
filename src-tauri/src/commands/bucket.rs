@@ -1,6 +1,9 @@
 use tauri::State;
 
-use crate::models::bucket::{BucketDetails, BucketEncryption, BucketInfo, CorsRule, CreateBucketRequest};
+use crate::models::bucket::{
+    BucketDetails, BucketEncryption, BucketInfo, CorsRule, CreateBucketRequest, LifecycleRule,
+    LifecycleSnapshot,
+};
 use crate::s3::client::S3ClientPool;
 use crate::store::credentials;
 use crate::store::database::Database;
@@ -295,6 +298,46 @@ pub async fn delete_bucket_cors(
 ) -> Result<(), String> {
     let client = get_client(&db, &pool, &connection_id).await?;
     crate::s3::client::delete_bucket_cors(&client, &bucket)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_bucket_lifecycle(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<Option<LifecycleSnapshot>, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::get_bucket_lifecycle(&client, &bucket)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_bucket_lifecycle(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    rules: Vec<LifecycleRule>,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::set_bucket_lifecycle(&client, &bucket, &rules)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_bucket_lifecycle(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::delete_bucket_lifecycle(&client, &bucket)
         .await
         .map_err(|e| e.to_string())
 }
