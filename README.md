@@ -68,6 +68,7 @@
 - Client-side search/filter with **glob** (`*.txt`, `img*`) and **regex** (`/pattern/`) support
 - Pagination with lazy loading (continuation tokens)
 - Drag & drop file upload with visual drop zone
+- **Integrated S3 terminal** for quick power-user operations: `pwd` / `cd` / `ls` / `cat` / `cp` / `mv` / `rm`, ↑/↓ history, scoped to the active connection. Toggle with the terminal icon in the toolbar.
 
 ### Object Operations
 - Upload (single + **parallel multipart** with configurable concurrency)
@@ -439,7 +440,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] Object versioning (list versions, download/restore/delete, delete markers)
 - [x] Bucket properties (versioning, encryption, policy, CORS, lifecycle)
 - [x] Sync (unidirectional, 3 modes: new / updated / mirror, with dry-run)
-- [ ] Integrated S3 terminal (ls, cp, mv, rm, cat)
+- [x] Integrated S3 terminal (`pwd`, `cd`, `ls`, `cat`, `cp`, `mv`, `rm`, with ↑/↓ history)
 - [x] Batch operations (storage class / content-type / ACL changes, with live per-object progress)
 - [x] Cross-connection transfers (download + re-upload with metadata)
 - [x] Bandwidth throttling with time-based schedules

@@ -13,6 +13,7 @@ import {
   RefreshCcwDot,
   Info,
   Wand2,
+  Terminal as TerminalIcon,
   X,
 } from "lucide-react";
 import { useObjectStore } from "@/stores/objectStore";
@@ -36,6 +37,7 @@ export function Toolbar() {
   const currentPrefix = useObjectStore((s) => s.currentPrefix);
   const deleteSelected = useObjectStore((s) => s.deleteSelected);
   const toggleTransferPanel = useUiStore((s) => s.toggleTransferPanel);
+  const toggleTerminalPanel = useUiStore((s) => s.toggleTerminalPanel);
   const startUpload = useTransferStore((s) => s.startUpload);
   const startDownload = useTransferStore((s) => s.startDownload);
 
@@ -208,6 +210,11 @@ export function Toolbar() {
           icon={<PanelBottom size={16} />}
           label={t("transfer.title")}
           onClick={toggleTransferPanel}
+        />
+        <ToolbarButton
+          icon={<TerminalIcon size={16} />}
+          label={t("terminal.title")}
+          onClick={toggleTerminalPanel}
         />
         <ToolbarButton
           icon={<Settings size={16} />}

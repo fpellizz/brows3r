@@ -9,6 +9,7 @@ import { Breadcrumb } from "./Breadcrumb";
 import { ObjectTable } from "@/components/object/ObjectTable";
 import { ObjectDetails } from "@/components/object/ObjectDetails";
 import { TransferPanel } from "@/components/transfer/TransferPanel";
+import { TerminalPanel } from "@/components/terminal/TerminalPanel";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { useUiStore } from "@/stores/uiStore";
 import { useObjectStore } from "@/stores/objectStore";
@@ -16,6 +17,7 @@ import { useConnectionStore } from "@/stores/connectionStore";
 
 export function AppShell() {
   const showTransferPanel = useUiStore((s) => s.showTransferPanel);
+  const showTerminalPanel = useUiStore((s) => s.showTerminalPanel);
   const previewObject = useUiStore((s) => s.previewObject);
   const detailsObject = useUiStore((s) => s.detailsObject);
   const closePreview = useUiStore((s) => s.closePreview);
@@ -86,6 +88,13 @@ export function AppShell() {
               {showTransferPanel && (
                 <Allotment.Pane preferredSize={200} minSize={100}>
                   <TransferPanel />
+                </Allotment.Pane>
+              )}
+
+              {/* S3 terminal */}
+              {showTerminalPanel && (
+                <Allotment.Pane preferredSize={220} minSize={120}>
+                  <TerminalPanel />
                 </Allotment.Pane>
               )}
             </Allotment>

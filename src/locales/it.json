@@ -350,5 +350,8 @@
     "summary_one": "Fatto: {{succeeded}} riuscite, {{failed}} fallite (1 totale).",
     "summary_other": "Fatto: {{succeeded}} riuscite, {{failed}} fallite.",
     "errorContentTypeEmpty": "Il content type non può essere vuoto."
+  },
+  "terminal": {
+    "title": "Terminale S3"
   }
 }
