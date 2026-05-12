@@ -79,7 +79,11 @@ export function BucketPropertiesDialog({
                 />
               </Tabs.Content>
               <Tabs.Content value="policy">
-                <ComingSoon name="Policy" />
+                <PolicyTab
+                  connectionId={connectionId}
+                  bucket={bucket}
+                  active={open}
+                />
               </Tabs.Content>
               <Tabs.Content value="cors">
                 <ComingSoon name="CORS" />
@@ -453,4 +457,192 @@ function EncryptionTab({
       )}
     </div>
   );
+}
+
+// --- Policy tab ---------------------------------------------------------
+
+function PolicyTab({
+  connectionId,
+  bucket,
+  active,
+}: {
+  connectionId: string;
+  bucket: string;
+  active: boolean;
+}) {
+  const { t } = useTranslation();
+  const [original, setOriginal] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  const refresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await tauriInvoke<string | null>("get_bucket_policy", {
+        connectionId,
+        bucket,
+      });
+      setOriginal(result);
+      setDraft(result ? prettify(result) : "");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (active) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, connectionId, bucket]);
+
+  const format = () => {
+    setParseError(null);
+    try {
+      setDraft(JSON.stringify(JSON.parse(draft), null, 2));
+    } catch (e) {
+      setParseError(String(e));
+    }
+  };
+
+  const save = async () => {
+    setParseError(null);
+    setError(null);
+    // Validate JSON client-side so the user sees the syntax error
+    // immediately rather than as an S3 MalformedPolicy at network time.
+    try {
+      JSON.parse(draft);
+    } catch (e) {
+      setParseError(String(e));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await tauriInvoke("set_bucket_policy", {
+        connectionId,
+        bucket,
+        policy: draft,
+      });
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!original) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await tauriInvoke("delete_bucket_policy", { connectionId, bucket });
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const hasPolicy = original !== null;
+  const dirty = draft.trim() !== (original ? prettify(original) : "").trim();
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-md px-4 py-3 text-sm bg-zinc-50 dark:bg-zinc-800/50 flex items-start gap-2">
+        {loading ? (
+          <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
+        ) : hasPolicy ? (
+          <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        ) : (
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-zinc-400" />
+        )}
+        <p className="font-medium flex-1">
+          {loading
+            ? t("bucketProperties.policy.loading")
+            : hasPolicy
+              ? t("bucketProperties.policy.statusAttached")
+              : t("bucketProperties.policy.statusNone")}
+        </p>
+      </div>
+
+      <p className="text-xs text-zinc-500 leading-relaxed">
+        {t("bucketProperties.policy.description")}
+      </p>
+
+      <textarea
+        className="input-field w-full font-mono text-xs"
+        rows={14}
+        spellCheck={false}
+        value={draft}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          if (parseError) setParseError(null);
+        }}
+        disabled={loading || submitting}
+        placeholder='{ "Version": "2012-10-17", "Statement": [ ... ] }'
+      />
+
+      {parseError && (
+        <div className="rounded-md px-3 py-2 text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 break-all">
+          {t("bucketProperties.policy.invalidJson")}: {parseError}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={save}
+          disabled={loading || submitting || !draft.trim() || !dirty}
+          className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {submitting ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+          {t("common.save")}
+        </button>
+        <button
+          type="button"
+          onClick={format}
+          disabled={loading || submitting || !draft.trim()}
+          className="px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-40"
+        >
+          {t("bucketProperties.policy.format")}
+        </button>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={loading || submitting || !hasPolicy}
+          className="px-3 py-2 text-sm border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-40"
+        >
+          {t("bucketProperties.policy.deletePolicy")}
+        </button>
+        <button
+          type="button"
+          onClick={refresh}
+          disabled={loading || submitting}
+          className="ml-auto px-3 py-2 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-40"
+        >
+          {t("common.refresh")}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-md px-3 py-2 text-xs bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 break-all">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function prettify(s: string): string {
+  try {
+    return JSON.stringify(JSON.parse(s), null, 2);
+  } catch {
+    return s;
+  }
 }

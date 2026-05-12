@@ -218,3 +218,43 @@ pub async fn delete_bucket_encryption(
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn get_bucket_policy(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<Option<String>, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::get_bucket_policy(&client, &bucket)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_bucket_policy(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    policy: String,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::set_bucket_policy(&client, &bucket, &policy)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_bucket_policy(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<(), String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::delete_bucket_policy(&client, &bucket)
+        .await
+        .map_err(|e| e.to_string())
+}
