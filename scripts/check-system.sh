@@ -95,6 +95,18 @@ REQUIRED_LIBS=(
   "librsvg-2.so.2|librsvg2-2|librsvg2|SVG rendering (icone)"
 )
 
+# Comandi/plugin extra. Non sono librerie linkate ma sono richiesti a
+# runtime per feature specifiche (apertura URL/cartelle, preview audio/
+# video via HTML5).
+# Ogni riga: <test_kind>|<probe>|<deb_pkg>|<rpm_pkg>|<descrizione>
+#   test_kind=cmd → probe è il nome del comando (verificato con command -v)
+#   test_kind=gst-plugin → probe è il nome dell'elemento GStreamer
+REQUIRED_EXTRAS=(
+  "cmd|xdg-open|xdg-utils|xdg-utils|Apertura URL/cartelle nel desktop"
+  "gst-plugin|playbin|gstreamer1.0-plugins-base|gstreamer1-plugins-base|GStreamer base (preview audio/video)"
+  "gst-plugin|vp8dec|gstreamer1.0-plugins-good|gstreamer1-plugins-good|GStreamer good (codec preview comuni)"
+)
+
 # Cache di ldconfig -p (più affidabile di find su /usr/lib*)
 LDCONFIG_CACHE=""
 build_ldconfig_cache() {
@@ -134,6 +146,35 @@ check_libs() {
       case " ${MISSING_PKGS_DEB[*]:-} " in *" $deb "*) ;; *) MISSING_PKGS_DEB+=("$deb") ;; esac
       case " ${MISSING_PKGS_RPM[*]:-} " in *" $rpm "*) ;; *) MISSING_PKGS_RPM+=("$rpm") ;; esac
       [ "$JSON" -eq 0 ] && echo -e "  ${RED}MISS${NC}  $soname  ${DIM}($desc)${NC}"
+    fi
+  done
+}
+
+# Verifica comandi/plugin extra (xdg-open, GStreamer playbin, ecc.).
+# Una mancanza non blocca la build (sono soft-deps), ma viene comunque
+# segnalata in modo che l'utente sappia come ripristinarla.
+gst_plugin_present() {
+  command -v gst-inspect-1.0 >/dev/null 2>&1 \
+    && gst-inspect-1.0 --exists "$1" >/dev/null 2>&1
+}
+
+check_extras() {
+  local row kind probe deb rpm desc present
+  for row in "${REQUIRED_EXTRAS[@]}"; do
+    IFS='|' read -r kind probe deb rpm desc <<<"$row"
+    present=0
+    case "$kind" in
+      cmd)         command -v "$probe" >/dev/null 2>&1 && present=1 ;;
+      gst-plugin)  gst_plugin_present "$probe" && present=1 ;;
+    esac
+    if [ "$present" -eq 1 ]; then
+      [ "$JSON" -eq 0 ] && echo -e "  ${GREEN}OK${NC}    $probe  ${DIM}($desc)${NC}"
+    else
+      MISSING_SONAMES+=("$probe")
+      MISSING_DESCS+=("$desc")
+      case " ${MISSING_PKGS_DEB[*]:-} " in *" $deb "*) ;; *) MISSING_PKGS_DEB+=("$deb") ;; esac
+      case " ${MISSING_PKGS_RPM[*]:-} " in *" $rpm "*) ;; *) MISSING_PKGS_RPM+=("$rpm") ;; esac
+      [ "$JSON" -eq 0 ] && echo -e "  ${RED}MISS${NC}  $probe  ${DIM}($desc)${NC}"
     fi
   done
 }
@@ -251,6 +292,7 @@ main() {
 
   build_ldconfig_cache
   check_libs
+  check_extras
 
   if [ "${#MISSING_SONAMES[@]}" -eq 0 ]; then
     log ""
@@ -276,6 +318,7 @@ main() {
     MISSING_SONAMES=(); MISSING_PKGS_DEB=(); MISSING_PKGS_RPM=(); MISSING_DESCS=()
     build_ldconfig_cache
     check_libs
+    check_extras
 
     if [ "${#MISSING_SONAMES[@]}" -eq 0 ]; then
       log ""

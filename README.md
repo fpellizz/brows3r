@@ -311,9 +311,11 @@ Output in `src-tauri/target/release/bundle/`:
 
 | Package | Path | Install command |
 |---------|------|-----------------|
-| `.deb` | `bundle/deb/brows3r_1.1.0_amd64.deb` | `sudo dpkg -i brows3r_*.deb` |
-| `.rpm` | `bundle/rpm/brows3r-1.1.0-1.x86_64.rpm` | `sudo rpm -i brows3r-*.rpm` |
-| `.AppImage` | `bundle/appimage/brows3r_1.1.0_amd64.AppImage` | `chmod +x brows3r_*.AppImage && ./brows3r_*.AppImage` |
+| `.deb` | `bundle/deb/brows3r_<version>_amd64.deb` | `sudo apt install ./brows3r_*.deb` |
+| `.rpm` | `bundle/rpm/brows3r-<version>-1.x86_64.rpm` | `sudo dnf install ./brows3r-*.rpm` |
+| `.AppImage` | `bundle/appimage/brows3r_<version>_amd64.AppImage` | `chmod +x brows3r_*.AppImage && ./brows3r_*.AppImage` |
+
+> **Runtime dependencies** — both `.deb` and `.rpm` declare their full set of runtime dependencies (`libwebkit2gtk-4.1`, `libgtk-3`, `libsoup-3.0`, `libjavascriptcoregtk-4.1`, `librsvg2`, `xdg-utils`, `gstreamer1.0-plugins-base/good`). When installed with `apt install ./pkg.deb` or `dnf install ./pkg.rpm` the package manager resolves and pulls in every missing system library transitively — on a clean Ubuntu 22.04 that means ~350 packages, on a clean Fedora 40 ~160. **Do not** use `dpkg -i` / `rpm -i`: they skip dependency resolution.
 
 > **Nota:** Per generare il pacchetto `.rpm` da una macchina Debian/Ubuntu serve il pacchetto `rpm`:
 > ```bash
