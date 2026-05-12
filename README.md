@@ -74,6 +74,7 @@
 - Download with folder selection dialog
 - Copy / Move / Rename via context menu (intra-bucket and cross-bucket)
 - Batch delete with confirmation dialog showing file list
+- **Batch operations** on selection: change storage class, content-type, or canned ACL across many objects with live per-object progress
 - Create / delete folders
 - Presigned URL generation (GET/PUT, configurable expiry)
 - **Metadata editing** (content-type + custom key-value pairs)
@@ -439,7 +440,7 @@ Credentials are stored in the OS keychain when available, with encrypted SQLite 
 - [x] Bucket properties (versioning, encryption, policy, CORS, lifecycle)
 - [x] Sync (unidirectional, 3 modes: new / updated / mirror, with dry-run)
 - [ ] Integrated S3 terminal (ls, cp, mv, rm, cat)
-- [ ] Batch operations (mass metadata/storage class/ACL changes)
+- [x] Batch operations (storage class / content-type / ACL changes, with live per-object progress)
 - [x] Cross-connection transfers (download + re-upload with metadata)
 - [x] Bandwidth throttling with time-based schedules
 - [ ] Dashboard and statistics

@@ -88,7 +88,8 @@
     "delete": "Elimina",
     "search": "Cerca",
     "sync": "Sincronizza",
-    "settings": "Impostazioni"
+    "settings": "Impostazioni",
+    "batch": "Batch"
   },
   "connection": {
     "title": "Connessione",
@@ -331,5 +332,23 @@
       "addNoncurrentTransition": "Aggiungi transizione non corrente",
       "noncurrentExpirationDays": "Scadenza versioni non correnti (giorni)"
     }
+  },
+  "batch": {
+    "title": "Operazioni batch",
+    "targetCount_one": "1 oggetto selezionato",
+    "targetCount_other": "{{count}} oggetti selezionati",
+    "operation": "Operazione",
+    "opStorageClass": "Cambia storage class",
+    "opContentType": "Cambia content type",
+    "opAcl": "Imposta ACL",
+    "storageClass": "Storage class",
+    "storageClassHint": "Ogni oggetto viene riscritto sul posto tramite CopyObject. I metadata esistenti vengono preservati.",
+    "contentType": "Content type",
+    "acl": "ACL predefinita",
+    "aclHint": "Applica l'ACL predefinita a ogni oggetto selezionato tramite PutObjectAcl.",
+    "apply": "Applica",
+    "summary_one": "Fatto: {{succeeded}} riuscite, {{failed}} fallite (1 totale).",
+    "summary_other": "Fatto: {{succeeded}} riuscite, {{failed}} fallite.",
+    "errorContentTypeEmpty": "Il content type non può essere vuoto."
   }
 }

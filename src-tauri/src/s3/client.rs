@@ -329,6 +329,89 @@ pub async fn copy_object(
     Ok(())
 }
 
+/// Apply metadata / content-type / storage-class changes to an
+/// existing object via an in-place `CopyObject` with
+/// `MetadataDirective=REPLACE`. Caller passes the values they want to
+/// end up with on the object — anything left as `None` is preserved
+/// from the source via a preceding `HeadObject`.
+pub async fn copy_object_in_place_replace(
+    client: &Client,
+    bucket: &str,
+    key: &str,
+    new_content_type: Option<&str>,
+    new_metadata: Option<std::collections::HashMap<String, String>>,
+    new_storage_class: Option<&str>,
+) -> Result<(), S3Error> {
+    use aws_sdk_s3::types::{MetadataDirective, StorageClass};
+
+    // Resolve the values we want to write. For each field, prefer the
+    // explicit override; otherwise preserve what's already on the
+    // object so the user doesn't accidentally clear metadata they care
+    // about by changing only the storage class.
+    let head = client
+        .head_object()
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+    let preserved_content_type = head.content_type().map(|s| s.to_string());
+    let preserved_metadata: std::collections::HashMap<String, String> = head
+        .metadata()
+        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        .unwrap_or_default();
+
+    let final_content_type = new_content_type
+        .map(|s| s.to_string())
+        .or(preserved_content_type);
+    let final_metadata = new_metadata.unwrap_or(preserved_metadata);
+
+    let copy_source = format!("{}/{}", bucket, key);
+    let mut req = client
+        .copy_object()
+        .copy_source(&copy_source)
+        .bucket(bucket)
+        .key(key)
+        .metadata_directive(MetadataDirective::Replace);
+
+    if let Some(ct) = final_content_type {
+        req = req.content_type(ct);
+    }
+    for (k, v) in final_metadata {
+        req = req.metadata(k, v);
+    }
+    if let Some(sc) = new_storage_class {
+        req = req.storage_class(StorageClass::from(sc));
+    }
+
+    req.send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
+/// Apply a canned ACL to an object (`private`, `public-read`,
+/// `public-read-write`, `authenticated-read`, `bucket-owner-read`,
+/// `bucket-owner-full-control`).
+pub async fn put_object_acl(
+    client: &Client,
+    bucket: &str,
+    key: &str,
+    acl: &str,
+) -> Result<(), S3Error> {
+    use aws_sdk_s3::types::ObjectCannedAcl;
+    client
+        .put_object_acl()
+        .bucket(bucket)
+        .key(key)
+        .acl(ObjectCannedAcl::from(acl))
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
 pub async fn create_bucket(
     client: &Client,
     bucket: &str,
