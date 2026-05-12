@@ -96,6 +96,11 @@ const PROVIDER_PRESETS: Record<
     region: "eu-central-1",
     path_style: "virtual",
   },
+  garage: {
+    endpoint: "https://s3.example.com",
+    region: "garage",
+    path_style: "path",
+  },
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -111,6 +116,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   scaleway: "Scaleway",
   ovh: "OVHcloud",
   linode: "Linode / Akamai",
+  garage: "Garage",
 };
 
 export function ConnectionDialog({
