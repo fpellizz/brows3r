@@ -256,7 +256,6 @@
       "policy": "Policy",
       "lifecycle": "Ciclo di vita"
     },
-    "comingSoon": "Supporto {{feature}} in arrivo.",
     "versioning": {
       "loading": "Caricamento stato versioning...",
       "statusEnabled": "Il versioning è abilitato.",
@@ -306,6 +305,32 @@
       "deleteAll": "Elimina CORS",
       "errorNoMethods": "Ogni regola deve permettere almeno un metodo HTTP.",
       "errorNoOrigins": "Ogni regola deve permettere almeno un'origine."
+    },
+    "lifecycle": {
+      "loading": "Caricamento configurazione lifecycle...",
+      "statusNone": "Nessuna configurazione lifecycle collegata.",
+      "statusAttached_one": "1 regola lifecycle collegata.",
+      "statusAttached_other": "{{count}} regole lifecycle collegate.",
+      "statusUnsupported": "Rilevate regole lifecycle con feature avanzate.",
+      "unsupportedHint": "Alcune regole usano filtri per tag, dimensione, combinazioni AND, o transizioni basate su data. L'editor semplificato non le rappresenta; la modifica è disabilitata per non perdere dati. Puoi comunque eliminare l'intera configurazione o ricaricare.",
+      "description": "Le regole di lifecycle spostano gli oggetti in classi di storage più economiche o li scadono dopo un certo numero di giorni. L'editor semplificato copre i casi più comuni: filtro per prefisso, transizioni in giorni, regole per versioni non correnti.",
+      "empty": "Nessuna regola. Aggiungine una per iniziare.",
+      "addRule": "Aggiungi regola",
+      "removeRule": "Rimuovi regola",
+      "deleteAll": "Elimina lifecycle",
+      "enabled": "Abilitata",
+      "disabled": "Disabilitata",
+      "ruleIdPlaceholder": "ID regola (opzionale)",
+      "prefix": "Prefisso (vuoto = tutti gli oggetti)",
+      "prefixPlaceholder": "logs/",
+      "transitions": "Transizioni (versione corrente)",
+      "addTransition": "Aggiungi transizione",
+      "daysTo": "giorni →",
+      "expirationDays": "Scadenza (giorni)",
+      "abortMultipartDays": "Annulla multipart incompleti (giorni)",
+      "noncurrentTransitions": "Transizioni (versioni non correnti)",
+      "addNoncurrentTransition": "Aggiungi transizione non corrente",
+      "noncurrentExpirationDays": "Scadenza versioni non correnti (giorni)"
     }
   },
   "batch": {

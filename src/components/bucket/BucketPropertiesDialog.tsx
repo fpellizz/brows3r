@@ -93,7 +93,11 @@ export function BucketPropertiesDialog({
                 />
               </Tabs.Content>
               <Tabs.Content value="lifecycle">
-                <ComingSoon name="Lifecycle" />
+                <LifecycleTab
+                  connectionId={connectionId}
+                  bucket={bucket}
+                  active={open}
+                />
               </Tabs.Content>
             </div>
           </Tabs.Root>
@@ -120,15 +124,6 @@ function TabTrigger({
       {icon}
       {label}
     </Tabs.Trigger>
-  );
-}
-
-function ComingSoon({ name }: { name: string }) {
-  const { t } = useTranslation();
-  return (
-    <div className="text-sm text-zinc-500 py-8 text-center">
-      {t("bucketProperties.comingSoon", { feature: name })}
-    </div>
   );
 }
 
@@ -1000,6 +995,502 @@ function CorsList({
         onBlur={(e) => onChange(e.target.value)}
         disabled={disabled}
       />
+    </div>
+  );
+}
+
+// --- Lifecycle tab ------------------------------------------------------
+
+interface LifecycleTransition {
+  days: number;
+  storage_class: string;
+}
+interface LifecycleNoncurrentTransition {
+  noncurrent_days: number;
+  storage_class: string;
+}
+interface LifecycleRule {
+  id: string | null;
+  status: string; // "Enabled" | "Disabled"
+  prefix: string | null;
+  transitions: LifecycleTransition[];
+  expiration_days: number | null;
+  expired_object_delete_marker: boolean | null;
+  noncurrent_version_transitions: LifecycleNoncurrentTransition[];
+  noncurrent_version_expiration_days: number | null;
+  abort_incomplete_multipart_upload_days: number | null;
+}
+interface LifecycleSnapshot {
+  rules: LifecycleRule[];
+  has_unsupported: boolean;
+}
+
+const STORAGE_CLASSES = [
+  "STANDARD_IA",
+  "ONEZONE_IA",
+  "INTELLIGENT_TIERING",
+  "GLACIER_IR",
+  "GLACIER",
+  "DEEP_ARCHIVE",
+];
+
+function emptyLifecycleRule(): LifecycleRule {
+  return {
+    id: null,
+    status: "Enabled",
+    prefix: null,
+    transitions: [],
+    expiration_days: null,
+    expired_object_delete_marker: null,
+    noncurrent_version_transitions: [],
+    noncurrent_version_expiration_days: null,
+    abort_incomplete_multipart_upload_days: null,
+  };
+}
+
+function LifecycleTab({
+  connectionId,
+  bucket,
+  active,
+}: {
+  connectionId: string;
+  bucket: string;
+  active: boolean;
+}) {
+  const { t } = useTranslation();
+  const [original, setOriginal] = useState<LifecycleSnapshot | null>(null);
+  const [rules, setRules] = useState<LifecycleRule[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const refresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await tauriInvoke<LifecycleSnapshot | null>(
+        "get_bucket_lifecycle",
+        { connectionId, bucket },
+      );
+      setOriginal(result);
+      setRules(result ? structuredClone(result.rules) : []);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (active) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, connectionId, bucket]);
+
+  const save = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await tauriInvoke("set_bucket_lifecycle", { connectionId, bucket, rules });
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const removeAll = async () => {
+    if (!original) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      await tauriInvoke("delete_bucket_lifecycle", { connectionId, bucket });
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const updateRule = (idx: number, patch: Partial<LifecycleRule>) =>
+    setRules((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+  const removeRule = (idx: number) =>
+    setRules((prev) => prev.filter((_, i) => i !== idx));
+  const addRule = () => setRules((prev) => [...prev, emptyLifecycleRule()]);
+
+  const hasConfig = original !== null;
+  const hasUnsupported = original?.has_unsupported ?? false;
+  const dirty = JSON.stringify(rules) !== JSON.stringify(original?.rules ?? []);
+
+  return (
+    <div className="space-y-4">
+      <div
+        className={`rounded-md px-4 py-3 text-sm flex items-start gap-2 ${
+          hasUnsupported
+            ? "bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200"
+            : "bg-zinc-50 dark:bg-zinc-800/50"
+        }`}
+      >
+        {loading ? (
+          <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
+        ) : hasUnsupported ? (
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+        ) : hasConfig ? (
+          <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        ) : (
+          <AlertCircle size={16} className="mt-0.5 shrink-0 text-zinc-400" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium">
+            {loading
+              ? t("bucketProperties.lifecycle.loading")
+              : hasUnsupported
+                ? t("bucketProperties.lifecycle.statusUnsupported")
+                : hasConfig
+                  ? t("bucketProperties.lifecycle.statusAttached", { count: rules.length })
+                  : t("bucketProperties.lifecycle.statusNone")}
+          </p>
+          {hasUnsupported && (
+            <p className="text-xs mt-1 opacity-80">
+              {t("bucketProperties.lifecycle.unsupportedHint")}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <p className="text-xs text-zinc-500 leading-relaxed">
+        {t("bucketProperties.lifecycle.description")}
+      </p>
+
+      {!hasUnsupported && (
+        <>
+          <div className="space-y-3">
+            {rules.map((rule, idx) => (
+              <LifecycleRuleCard
+                key={idx}
+                rule={rule}
+                onChange={(patch) => updateRule(idx, patch)}
+                onRemove={() => removeRule(idx)}
+                disabled={loading || submitting}
+              />
+            ))}
+            {rules.length === 0 && !loading && (
+              <div className="text-xs text-zinc-500 py-4 text-center border border-dashed border-zinc-200 dark:border-zinc-700 rounded-md">
+                {t("bucketProperties.lifecycle.empty")}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={addRule}
+              disabled={loading || submitting}
+              className="w-full px-3 py-2 text-xs border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-600 rounded-md disabled:opacity-40 flex items-center justify-center gap-1.5"
+            >
+              <Plus size={12} />
+              {t("bucketProperties.lifecycle.addRule")}
+            </button>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={save}
+              disabled={loading || submitting || !dirty || rules.length === 0}
+              className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {submitting ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+              {t("common.save")}
+            </button>
+            <button
+              type="button"
+              onClick={removeAll}
+              disabled={loading || submitting || !hasConfig}
+              className="px-3 py-2 text-sm border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-40"
+            >
+              {t("bucketProperties.lifecycle.deleteAll")}
+            </button>
+            <button
+              type="button"
+              onClick={refresh}
+              disabled={loading || submitting}
+              className="ml-auto px-3 py-2 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-40"
+            >
+              {t("common.refresh")}
+            </button>
+          </div>
+        </>
+      )}
+
+      {hasUnsupported && (
+        <div className="flex gap-2 pt-2">
+          <button
+            type="button"
+            onClick={removeAll}
+            disabled={loading || submitting}
+            className="px-3 py-2 text-sm border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-40"
+          >
+            {t("bucketProperties.lifecycle.deleteAll")}
+          </button>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading || submitting}
+            className="ml-auto px-3 py-2 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-40"
+          >
+            {t("common.refresh")}
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-md px-3 py-2 text-xs bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 break-all">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LifecycleRuleCard({
+  rule,
+  onChange,
+  onRemove,
+  disabled,
+}: {
+  rule: LifecycleRule;
+  onChange: (patch: Partial<LifecycleRule>) => void;
+  onRemove: () => void;
+  disabled: boolean;
+}) {
+  const { t } = useTranslation();
+
+  const setTransitions = (transitions: LifecycleTransition[]) => onChange({ transitions });
+  const setNct = (ncts: LifecycleNoncurrentTransition[]) =>
+    onChange({ noncurrent_version_transitions: ncts });
+
+  const numOrNull = (raw: string): number | null =>
+    raw.trim() === "" ? null : Math.max(0, Number(raw));
+
+  return (
+    <div className="border border-zinc-200 dark:border-zinc-700 rounded-md p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          className="input-field text-xs flex-1"
+          placeholder={t("bucketProperties.lifecycle.ruleIdPlaceholder")}
+          value={rule.id ?? ""}
+          onChange={(e) => onChange({ id: e.target.value || null })}
+          disabled={disabled}
+        />
+        <select
+          className="select-field text-xs"
+          value={rule.status}
+          onChange={(e) => onChange({ status: e.target.value })}
+          disabled={disabled}
+        >
+          <option value="Enabled">{t("bucketProperties.lifecycle.enabled")}</option>
+          <option value="Disabled">{t("bucketProperties.lifecycle.disabled")}</option>
+        </select>
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={disabled}
+          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-400 hover:text-red-500 disabled:opacity-40"
+          title={t("bucketProperties.lifecycle.removeRule")}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      <div>
+        <label className="block text-[11px] font-medium text-zinc-500 mb-1">
+          {t("bucketProperties.lifecycle.prefix")}
+        </label>
+        <input
+          type="text"
+          className="input-field text-xs w-full font-mono"
+          placeholder={t("bucketProperties.lifecycle.prefixPlaceholder")}
+          value={rule.prefix ?? ""}
+          onChange={(e) => onChange({ prefix: e.target.value || null })}
+          disabled={disabled}
+        />
+      </div>
+
+      {/* Transitions */}
+      <div>
+        <label className="block text-[11px] font-medium text-zinc-500 mb-1">
+          {t("bucketProperties.lifecycle.transitions")}
+        </label>
+        <div className="space-y-1.5">
+          {rule.transitions.map((tx, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={0}
+                className="input-field text-xs w-24"
+                value={tx.days}
+                onChange={(e) => {
+                  const next = [...rule.transitions];
+                  next[i] = { ...next[i], days: Number(e.target.value) };
+                  setTransitions(next);
+                }}
+                disabled={disabled}
+              />
+              <span className="text-[11px] text-zinc-500">{t("bucketProperties.lifecycle.daysTo")}</span>
+              <select
+                className="select-field text-xs flex-1"
+                value={tx.storage_class}
+                onChange={(e) => {
+                  const next = [...rule.transitions];
+                  next[i] = { ...next[i], storage_class: e.target.value };
+                  setTransitions(next);
+                }}
+                disabled={disabled}
+              >
+                {STORAGE_CLASSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setTransitions(rule.transitions.filter((_, j) => j !== i))}
+                disabled={disabled}
+                className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-400 hover:text-red-500"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              setTransitions([
+                ...rule.transitions,
+                { days: 30, storage_class: STORAGE_CLASSES[0] },
+              ])
+            }
+            disabled={disabled}
+            className="text-xs text-brand-600 hover:underline disabled:opacity-40 flex items-center gap-1"
+          >
+            <Plus size={12} />
+            {t("bucketProperties.lifecycle.addTransition")}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-[11px] font-medium text-zinc-500 mb-1">
+            {t("bucketProperties.lifecycle.expirationDays")}
+          </label>
+          <input
+            type="number"
+            min={0}
+            className="input-field text-xs w-full"
+            placeholder="—"
+            value={rule.expiration_days ?? ""}
+            onChange={(e) => onChange({ expiration_days: numOrNull(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium text-zinc-500 mb-1">
+            {t("bucketProperties.lifecycle.abortMultipartDays")}
+          </label>
+          <input
+            type="number"
+            min={0}
+            className="input-field text-xs w-full"
+            placeholder="—"
+            value={rule.abort_incomplete_multipart_upload_days ?? ""}
+            onChange={(e) =>
+              onChange({ abort_incomplete_multipart_upload_days: numOrNull(e.target.value) })
+            }
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
+      {/* Noncurrent versions */}
+      <div>
+        <label className="block text-[11px] font-medium text-zinc-500 mb-1">
+          {t("bucketProperties.lifecycle.noncurrentTransitions")}
+        </label>
+        <div className="space-y-1.5">
+          {rule.noncurrent_version_transitions.map((tx, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={0}
+                className="input-field text-xs w-24"
+                value={tx.noncurrent_days}
+                onChange={(e) => {
+                  const next = [...rule.noncurrent_version_transitions];
+                  next[i] = { ...next[i], noncurrent_days: Number(e.target.value) };
+                  setNct(next);
+                }}
+                disabled={disabled}
+              />
+              <span className="text-[11px] text-zinc-500">{t("bucketProperties.lifecycle.daysTo")}</span>
+              <select
+                className="select-field text-xs flex-1"
+                value={tx.storage_class}
+                onChange={(e) => {
+                  const next = [...rule.noncurrent_version_transitions];
+                  next[i] = { ...next[i], storage_class: e.target.value };
+                  setNct(next);
+                }}
+                disabled={disabled}
+              >
+                {STORAGE_CLASSES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() =>
+                  setNct(rule.noncurrent_version_transitions.filter((_, j) => j !== i))
+                }
+                disabled={disabled}
+                className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-400 hover:text-red-500"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              setNct([
+                ...rule.noncurrent_version_transitions,
+                { noncurrent_days: 30, storage_class: STORAGE_CLASSES[0] },
+              ])
+            }
+            disabled={disabled}
+            className="text-xs text-brand-600 hover:underline disabled:opacity-40 flex items-center gap-1"
+          >
+            <Plus size={12} />
+            {t("bucketProperties.lifecycle.addNoncurrentTransition")}
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-[11px] font-medium text-zinc-500 mb-1">
+          {t("bucketProperties.lifecycle.noncurrentExpirationDays")}
+        </label>
+        <input
+          type="number"
+          min={0}
+          className="input-field text-xs w-40"
+          placeholder="—"
+          value={rule.noncurrent_version_expiration_days ?? ""}
+          onChange={(e) =>
+            onChange({ noncurrent_version_expiration_days: numOrNull(e.target.value) })
+          }
+          disabled={disabled}
+        />
+      </div>
     </div>
   );
 }

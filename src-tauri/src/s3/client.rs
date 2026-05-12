@@ -837,6 +837,253 @@ pub async fn delete_bucket_cors(client: &Client, bucket: &str) -> Result<(), S3E
     Ok(())
 }
 
+/// Read the lifecycle configuration of a bucket and convert it to
+/// our simplified `LifecycleSnapshot`. Returns `None` when no
+/// configuration is attached. Rules using features outside the
+/// simplified editor (tag/And filters, date-based transitions, ...)
+/// are skipped and `has_unsupported` is set to `true` — the UI
+/// switches to read-only mode in that case.
+pub async fn get_bucket_lifecycle(
+    client: &Client,
+    bucket: &str,
+) -> Result<Option<crate::models::bucket::LifecycleSnapshot>, S3Error> {
+    use aws_sdk_s3::types::TransitionStorageClass;
+
+    let res = client
+        .get_bucket_lifecycle_configuration()
+        .bucket(bucket)
+        .send()
+        .await;
+    let out = match res {
+        Ok(o) => o,
+        Err(e) => {
+            let detail = super::error::sdk_error_detail(&e);
+            if detail.contains("NoSuchLifecycleConfiguration") {
+                return Ok(None);
+            }
+            return Err(S3Error::SdkError(detail));
+        }
+    };
+
+    let mut rules = Vec::new();
+    let mut has_unsupported = false;
+
+    for r in out.rules() {
+        // Filter: support only "no filter" or "Prefix-only". Any
+        // tag / size / And combination means the rule is too rich for
+        // our simplified editor — mark unsupported and skip.
+        let prefix: Option<String> = match r.filter() {
+            None => None,
+            Some(f) => {
+                if f.tag().is_some()
+                    || f.object_size_greater_than().is_some()
+                    || f.object_size_less_than().is_some()
+                    || f.and().is_some()
+                {
+                    has_unsupported = true;
+                    continue;
+                }
+                f.prefix().map(|s| s.to_string())
+            }
+        };
+
+        // Transitions: require days, skip rule if any uses date or has
+        // no storage class.
+        let mut transitions = Vec::new();
+        let mut tx_unsupported = false;
+        for t in r.transitions() {
+            if t.date().is_some() {
+                tx_unsupported = true;
+                break;
+            }
+            let (Some(days), Some(sc)) = (t.days(), t.storage_class()) else {
+                tx_unsupported = true;
+                break;
+            };
+            transitions.push(crate::models::bucket::LifecycleTransition {
+                days,
+                storage_class: sc.as_str().to_string(),
+            });
+        }
+        if tx_unsupported {
+            has_unsupported = true;
+            continue;
+        }
+
+        // Expiration: only days variant.
+        let (expiration_days, expired_marker) = match r.expiration() {
+            None => (None, None),
+            Some(exp) => {
+                if exp.date().is_some() {
+                    has_unsupported = true;
+                    continue;
+                }
+                (exp.days().filter(|d| *d > 0).map(|d| d), exp.expired_object_delete_marker())
+            }
+        };
+
+        // Noncurrent version transitions.
+        let nct = r
+            .noncurrent_version_transitions()
+            .iter()
+            .map(|t| {
+                let storage_class = t
+                    .storage_class()
+                    .map(|s| s.as_str().to_string())
+                    .unwrap_or_else(|| TransitionStorageClass::StandardIa.as_str().to_string());
+                crate::models::bucket::LifecycleNoncurrentTransition {
+                    noncurrent_days: t.noncurrent_days().unwrap_or(0),
+                    storage_class,
+                }
+            })
+            .collect();
+
+        let nce_days = r
+            .noncurrent_version_expiration()
+            .and_then(|n| n.noncurrent_days());
+
+        let abort_days = r
+            .abort_incomplete_multipart_upload()
+            .and_then(|a| a.days_after_initiation());
+
+        rules.push(crate::models::bucket::LifecycleRule {
+            id: r.id().map(|s| s.to_string()),
+            status: r.status().as_str().to_string(),
+            prefix,
+            transitions,
+            expiration_days,
+            expired_object_delete_marker: expired_marker,
+            noncurrent_version_transitions: nct,
+            noncurrent_version_expiration_days: nce_days,
+            abort_incomplete_multipart_upload_days: abort_days,
+        });
+    }
+
+    Ok(Some(crate::models::bucket::LifecycleSnapshot {
+        rules,
+        has_unsupported,
+    }))
+}
+
+/// Replace the lifecycle configuration with the given rules. Each rule
+/// translates to a `LifecycleRule` with at most a `Prefix` filter and
+/// day-based transitions/expirations.
+pub async fn set_bucket_lifecycle(
+    client: &Client,
+    bucket: &str,
+    rules: &[crate::models::bucket::LifecycleRule],
+) -> Result<(), S3Error> {
+    use aws_sdk_s3::types::{
+        AbortIncompleteMultipartUpload, BucketLifecycleConfiguration, ExpirationStatus,
+        LifecycleExpiration, LifecycleRule as SdkLifecycleRule, LifecycleRuleFilter,
+        NoncurrentVersionExpiration, NoncurrentVersionTransition, Transition,
+        TransitionStorageClass,
+    };
+
+    let mut sdk_rules = Vec::new();
+    for r in rules {
+        let status = match r.status.as_str() {
+            "Enabled" => ExpirationStatus::Enabled,
+            _ => ExpirationStatus::Disabled,
+        };
+
+        // Filter is required when no top-level Prefix is set (S3
+        // would reject an empty rule). Always include one with the
+        // user prefix (or empty string = all objects).
+        let filter = LifecycleRuleFilter::builder()
+            .set_prefix(Some(r.prefix.clone().unwrap_or_default()))
+            .build();
+
+        let mut b = SdkLifecycleRule::builder()
+            .status(status)
+            .filter(filter);
+        if let Some(id) = &r.id {
+            b = b.id(id);
+        }
+
+        // Transitions
+        for t in &r.transitions {
+            b = b.transitions(
+                Transition::builder()
+                    .days(t.days)
+                    .storage_class(TransitionStorageClass::from(t.storage_class.as_str()))
+                    .build(),
+            );
+        }
+
+        // Expiration: only set if any subfield is meaningful.
+        if r.expiration_days.is_some() || r.expired_object_delete_marker.is_some() {
+            let mut eb = LifecycleExpiration::builder();
+            if let Some(d) = r.expiration_days {
+                eb = eb.days(d);
+            }
+            if let Some(m) = r.expired_object_delete_marker {
+                eb = eb.expired_object_delete_marker(m);
+            }
+            b = b.expiration(eb.build());
+        }
+
+        // Noncurrent version transitions
+        for nct in &r.noncurrent_version_transitions {
+            b = b.noncurrent_version_transitions(
+                NoncurrentVersionTransition::builder()
+                    .noncurrent_days(nct.noncurrent_days)
+                    .storage_class(TransitionStorageClass::from(nct.storage_class.as_str()))
+                    .build(),
+            );
+        }
+
+        if let Some(d) = r.noncurrent_version_expiration_days {
+            b = b.noncurrent_version_expiration(
+                NoncurrentVersionExpiration::builder()
+                    .noncurrent_days(d)
+                    .build(),
+            );
+        }
+
+        if let Some(d) = r.abort_incomplete_multipart_upload_days {
+            b = b.abort_incomplete_multipart_upload(
+                AbortIncompleteMultipartUpload::builder()
+                    .days_after_initiation(d)
+                    .build(),
+            );
+        }
+
+        let rule = b.build().map_err(|e| {
+            S3Error::ConfigError(format!("invalid lifecycle rule: {e}"))
+        })?;
+        sdk_rules.push(rule);
+    }
+
+    let cfg = BucketLifecycleConfiguration::builder()
+        .set_rules(Some(sdk_rules))
+        .build()
+        .map_err(|e| S3Error::ConfigError(format!("invalid lifecycle config: {e}")))?;
+
+    client
+        .put_bucket_lifecycle_configuration()
+        .bucket(bucket)
+        .lifecycle_configuration(cfg)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
+/// Remove the lifecycle configuration from a bucket entirely.
+pub async fn delete_bucket_lifecycle(
+    client: &Client,
+    bucket: &str,
+) -> Result<(), S3Error> {
+    client
+        .delete_bucket_lifecycle()
+        .bucket(bucket)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+    Ok(())
+}
+
 /// Permanently delete a specific version of an object. Bypasses the
 /// "soft delete" (delete marker) behavior — the version is gone.
 pub async fn delete_object_version(
