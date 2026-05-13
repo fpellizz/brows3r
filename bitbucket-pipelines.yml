@@ -60,6 +60,14 @@ pipelines:
           - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
           - source $HOME/.cargo/env
           - cd src-tauri && cargo fmt --all -- --check
+          # `tauri::generate_context!` (proc macro) reads
+          # `frontendDist: "../dist"` from tauri.conf.json and panics
+          # at compile time if the path does not exist. The Backend
+          # step does not build the frontend (that happens in the
+          # Build step), so we lay down a minimal placeholder dir
+          # just so the macro can include something — clippy/test
+          # only need the code to compile, not the real bundle.
+          - mkdir -p ../dist && touch ../dist/index.html
           - cargo clippy -- -D clippy::correctness -D clippy::suspicious
           - cargo test
 
@@ -162,6 +170,8 @@ pipelines:
             - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
             - source $HOME/.cargo/env
             - cd src-tauri && cargo fmt --all -- --check
+            # See default-pipeline note: tauri proc macro needs ../dist to exist.
+            - mkdir -p ../dist && touch ../dist/index.html
             - cargo clippy -- -D clippy::correctness -D clippy::suspicious
             - cargo test
 
