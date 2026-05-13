@@ -9,10 +9,25 @@
       "recommended": true,
       "correctness": {
         "noUnusedImports": "warn",
-        "noUnusedVariables": "warn"
+        "noUnusedVariables": "warn",
+        "useExhaustiveDependencies": "warn"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "warn",
+        "noAssignInExpressions": "warn"
       },
       "style": {
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "useTemplate": "warn"
+      },
+      "a11y": {
+        "useButtonType": "warn",
+        "useKeyWithClickEvents": "warn",
+        "noLabelWithoutControl": "warn",
+        "noAutofocus": "warn",
+        "useMediaCaption": "warn",
+        "useSemanticElements": "warn",
+        "noSvgWithoutTitle": "warn"
       }
     }
   },
@@ -29,5 +44,17 @@
   },
   "files": {
     "ignore": ["src-tauri/", "dist/", "node_modules/", "src/types/generated.ts"]
-  }
+  },
+  "overrides": [
+    {
+      "include": ["**/*.css"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnknownFunction": "off"
+          }
+        }
+      }
+    }
+  ]
 }
