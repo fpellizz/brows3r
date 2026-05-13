@@ -29,6 +29,9 @@ pipelines:
           - pnpm
           - node
         script:
+          # ubuntu:24.04 minimale non ha curl/ca-certificates preinstallati;
+          # serve installarli prima del setup script di NodeSource.
+          - apt-get update -qq && apt-get install -y -qq curl ca-certificates
           - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
           - apt-get install -y nodejs
           - corepack enable
@@ -106,6 +109,9 @@ pipelines:
             - pnpm
             - node
           script:
+            # ubuntu:24.04 minimale non ha curl/ca-certificates preinstallati;
+            # serve installarli prima del setup script di NodeSource.
+            - apt-get update -qq && apt-get install -y -qq curl ca-certificates
             - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
             - apt-get install -y nodejs
             - corepack enable
