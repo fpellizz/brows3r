@@ -4,7 +4,7 @@ version = "1.18.0"
 description = "Cross-platform S3-compatible object storage browser"
 authors = ["brows3r contributors"]
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.80"
 
 [lib]
 name = "brows3r_lib"

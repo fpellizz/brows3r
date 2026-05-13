@@ -1,8 +1,8 @@
+import { type UnlistenFn, tauriInvoke, tauriListen } from "@/lib/tauri";
+import * as Dialog from "@radix-ui/react-dialog";
+import { AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import * as Dialog from "@radix-ui/react-dialog";
-import { X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { tauriInvoke, tauriListen, type UnlistenFn } from "@/lib/tauri";
 
 interface BatchOperationsDialogProps {
   open: boolean;
@@ -122,7 +122,10 @@ export function BatchOperationsDialog({
         setError(t("batch.errorContentTypeEmpty"));
         return;
       }
-      operation = { type: "set_content_type", content_type: contentType.trim() };
+      operation = {
+        type: "set_content_type",
+        content_type: contentType.trim(),
+      };
     } else {
       operation = { type: "set_acl", acl };
     }
@@ -183,8 +186,12 @@ export function BatchOperationsDialog({
                 onChange={(e) => setOpKind(e.target.value as OpKind)}
                 disabled={running}
               >
-                <option value="set_storage_class">{t("batch.opStorageClass")}</option>
-                <option value="set_content_type">{t("batch.opContentType")}</option>
+                <option value="set_storage_class">
+                  {t("batch.opStorageClass")}
+                </option>
+                <option value="set_content_type">
+                  {t("batch.opContentType")}
+                </option>
                 <option value="set_acl">{t("batch.opAcl")}</option>
               </select>
             </div>
@@ -201,7 +208,9 @@ export function BatchOperationsDialog({
                   disabled={running}
                 >
                   {STORAGE_CLASSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
                   ))}
                 </select>
                 <p className="text-[11px] text-zinc-500 mt-1">
@@ -238,7 +247,9 @@ export function BatchOperationsDialog({
                   disabled={running}
                 >
                   {CANNED_ACLS.map((a) => (
-                    <option key={a} value={a}>{a}</option>
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
                   ))}
                 </select>
                 <p className="text-[11px] text-zinc-500 mt-1">
@@ -263,7 +274,11 @@ export function BatchOperationsDialog({
                   {progress.map((p, i) => (
                     <div
                       key={i}
-                      className={p.status === "ok" ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}
+                      className={
+                        p.status === "ok"
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : "text-red-600 dark:text-red-400"
+                      }
                     >
                       [{p.status === "ok" ? "OK" : "ERR"}] {p.key}
                       {p.error ? ` — ${p.error}` : ""}
@@ -319,7 +334,9 @@ export function BatchOperationsDialog({
               disabled={running || keys.length === 0 || complete !== null}
               className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {running ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+              {running ? (
+                <Loader2 size={14} className="animate-spin inline mr-1.5" />
+              ) : null}
               {t("batch.apply")}
             </button>
           </div>

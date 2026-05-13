@@ -100,10 +100,7 @@ fn walk_local_blocking(
                 continue;
             }
 
-            let basename = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("");
+            let basename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if let Some(set) = exclude {
                 if set.is_match(basename) {
                     continue;
@@ -159,10 +156,7 @@ pub async fn list_remote(
     };
 
     loop {
-        let mut req = client
-            .list_objects_v2()
-            .bucket(bucket)
-            .prefix(&norm_prefix);
+        let mut req = client.list_objects_v2().bucket(bucket).prefix(&norm_prefix);
         if let Some(t) = continuation.as_ref() {
             req = req.continuation_token(t);
         }
@@ -285,10 +279,7 @@ pub async fn plan_sync(
                     SyncDirection::LocalToRemote => {
                         // Source is local → compare local mtime vs stamp (or
                         // fallback to S3 LastModified).
-                        (
-                            src_info.mtime,
-                            stamped.unwrap_or(dst_info.mtime),
-                        )
+                        (src_info.mtime, stamped.unwrap_or(dst_info.mtime))
                     }
                     SyncDirection::RemoteToLocal => {
                         // Source is remote (the stamp, if present, IS the
@@ -386,11 +377,7 @@ fn compose_remote_key(prefix: &str, rel: &str) -> String {
 /// HEAD the object and extract the `brows3r-mtime` user-metadata value if
 /// present. Returns `None` on any failure — callers fall back to comparing
 /// against S3 LastModified.
-async fn read_stamped_mtime(
-    client: &Client,
-    bucket: &str,
-    key: &str,
-) -> Option<DateTime<Utc>> {
+async fn read_stamped_mtime(client: &Client, bucket: &str, key: &str) -> Option<DateTime<Utc>> {
     let out = client
         .head_object()
         .bucket(bucket)

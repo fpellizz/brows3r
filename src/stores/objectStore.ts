@@ -1,6 +1,6 @@
-import { create } from "zustand";
 import { tauriInvoke } from "@/lib/tauri";
 import { useUiStore } from "@/stores/uiStore";
+import { create } from "zustand";
 
 export interface ObjectInfo {
   key: string;
@@ -432,10 +432,8 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
 }));
 
 // Subscribe to uiStore activeTabId changes to sync derived fields
-useUiStore.subscribe(
-  (state, prevState) => {
-    if (state.activeTabId !== prevState.activeTabId) {
-      useObjectStore.getState()._syncActiveTab();
-    }
-  },
-);
+useUiStore.subscribe((state, prevState) => {
+  if (state.activeTabId !== prevState.activeTabId) {
+    useObjectStore.getState()._syncActiveTab();
+  }
+});

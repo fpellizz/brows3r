@@ -65,10 +65,9 @@ pub async fn start_batch_operation(
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("Secret key not found for connection {connection_id}"))
     })?;
-    let session_token = credentials::get_session_token(&connection_id)
-        .unwrap_or_else(|_| {
-            crate::store::database::get_db_session_token(&db, &connection_id).unwrap_or(None)
-        });
+    let session_token = credentials::get_session_token(&connection_id).unwrap_or_else(|_| {
+        crate::store::database::get_db_session_token(&db, &connection_id).unwrap_or(None)
+    });
     let config = build_s3_config(&conn, &secret, session_token.as_deref());
     let client = pool
         .get_or_create(&connection_id, &config)

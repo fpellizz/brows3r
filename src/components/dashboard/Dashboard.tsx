@@ -1,8 +1,11 @@
+import i18n from "@/lib/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import i18n from "@/lib/i18n";
 
 const i18nLang = () => i18n.language || "en";
+import { tauriInvoke } from "@/lib/tauri";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { useUiStore } from "@/stores/uiStore";
 import {
   ArrowUpRight,
   Boxes,
@@ -18,9 +21,6 @@ import {
   Wand2,
   X,
 } from "lucide-react";
-import { tauriInvoke } from "@/lib/tauri";
-import { useUiStore } from "@/stores/uiStore";
-import { useConnectionStore } from "@/stores/connectionStore";
 
 interface BucketInfo {
   name: string;
@@ -84,13 +84,28 @@ function saveDashboardState(state: DashboardPersistedShape) {
 function formatRelative(ts: number, locale: string): string {
   const diff = Date.now() - ts;
   const sec = Math.round(diff / 1000);
-  if (sec < 60) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-sec, "second");
+  if (sec < 60)
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(
+      -sec,
+      "second",
+    );
   const min = Math.round(sec / 60);
-  if (min < 60) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-min, "minute");
+  if (min < 60)
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(
+      -min,
+      "minute",
+    );
   const hr = Math.round(min / 60);
-  if (hr < 24) return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-hr, "hour");
+  if (hr < 24)
+    return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(
+      -hr,
+      "hour",
+    );
   const day = Math.round(hr / 24);
-  return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(-day, "day");
+  return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(
+    -day,
+    "day",
+  );
 }
 
 const STORAGE_CLASS_COLORS: Record<string, string> = {
@@ -139,9 +154,10 @@ export function Dashboard() {
   const [bucketsError, setBucketsError] = useState<string | null>(null);
   const [history, setHistory] = useState<TransferHistoryEntry[]>([]);
   const [computing, setComputing] = useState<Set<string>>(new Set());
-  const [scanAllProgress, setScanAllProgress] = useState<
-    { done: number; total: number } | null
-  >(null);
+  const [scanAllProgress, setScanAllProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const scanCancelled = useRef(false);
 
   // Per-connection state — hydrated from localStorage on mount.
@@ -153,8 +169,8 @@ export function Dashboard() {
   }, [persisted]);
 
   // Convenience slice for the active connection.
-  const connectionState: ConnectionDashboardState =
-    (activeConnectionId && persisted[activeConnectionId]) || { bucketStats: {} };
+  const connectionState: ConnectionDashboardState = (activeConnectionId &&
+    persisted[activeConnectionId]) || { bucketStats: {} };
   const stats = connectionState.bucketStats;
   const lastScannedAt = connectionState.lastScannedAt;
 
@@ -193,7 +209,9 @@ export function Dashboard() {
       } else {
         setBuckets([]);
       }
-      const h = await tauriInvoke<TransferHistoryEntry[]>("list_transfer_history");
+      const h = await tauriInvoke<TransferHistoryEntry[]>(
+        "list_transfer_history",
+      );
       setHistory(h);
     } catch (e) {
       setBucketsError(String(e));
@@ -282,15 +300,23 @@ export function Dashboard() {
   // Top-N buckets by size
   const topBuckets = useMemo(() => {
     return Object.entries(stats)
-      .map(([bucket, s]) => ({ bucket, bytes: s.total_bytes, objects: s.object_count }))
+      .map(([bucket, s]) => ({
+        bucket,
+        bytes: s.total_bytes,
+        objects: s.object_count,
+      }))
       .sort((a, b) => b.bytes - a.bytes)
       .slice(0, 8);
   }, [stats]);
 
   // Transfer aggregates
   const txDone = history.length;
-  const txSuccess = history.filter((h) => h.status === "Completed" || h.status === "completed").length;
-  const txFailed = history.filter((h) => h.status === "Failed" || h.status === "failed").length;
+  const txSuccess = history.filter(
+    (h) => h.status === "Completed" || h.status === "completed",
+  ).length;
+  const txFailed = history.filter(
+    (h) => h.status === "Failed" || h.status === "failed",
+  ).length;
   const successRate = txDone > 0 ? Math.round((txSuccess / txDone) * 100) : 0;
 
   // Per-day transfer counts (last 30 days, used by the sparkline)
@@ -330,14 +356,17 @@ export function Dashboard() {
             </h1>
             {lastScannedAt && (
               <div className="text-[11px] text-zinc-500 mt-0.5">
-                {t("dashboard.lastScanned", { when: formatRelative(lastScannedAt, i18nLang()) })}
+                {t("dashboard.lastScanned", {
+                  when: formatRelative(lastScannedAt, i18nLang()),
+                })}
               </div>
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {/* Scan-all: prominent action when there are buckets to scan */}
-            {activeConnectionId && buckets.length > 0 && (
-              scanAllProgress ? (
+            {activeConnectionId &&
+              buckets.length > 0 &&
+              (scanAllProgress ? (
                 <button
                   type="button"
                   onClick={cancelScanAll}
@@ -360,8 +389,7 @@ export function Dashboard() {
                   <Wand2 size={12} />
                   {t("dashboard.scanAll")}
                 </button>
-              )
-            )}
+              ))}
             <button
               type="button"
               onClick={refreshAll}
@@ -369,7 +397,10 @@ export function Dashboard() {
               className="p-1.5 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-50"
               title={t("common.refresh")}
             >
-              <RefreshCw size={16} className={bucketsLoading ? "animate-spin" : ""} />
+              <RefreshCw
+                size={16}
+                className={bucketsLoading ? "animate-spin" : ""}
+              />
             </button>
             {/* Clear cached stats for this connection */}
             {Object.keys(stats).length > 0 && (
@@ -426,7 +457,11 @@ export function Dashboard() {
             value={`${successRate}%`}
             sub={txDone === 0 ? t("dashboard.kpi.noData") : ""}
             icon={<CheckCircle2 size={18} />}
-            gradient={successRate >= 90 ? "from-emerald-500 to-green-600" : "from-amber-500 to-orange-600"}
+            gradient={
+              successRate >= 90
+                ? "from-emerald-500 to-green-600"
+                : "from-amber-500 to-orange-600"
+            }
           />
         </div>
 
@@ -438,7 +473,9 @@ export function Dashboard() {
               subtitle={
                 Object.keys(stats).length === 0
                   ? t("dashboard.storageBreakdownEmpty")
-                  : t("dashboard.aggregatedAcross", { count: Object.keys(stats).length })
+                  : t("dashboard.aggregatedAcross", {
+                      count: Object.keys(stats).length,
+                    })
               }
               icon={<DatabaseIcon size={14} className="text-violet-500" />}
             />
@@ -448,10 +485,19 @@ export function Dashboard() {
               </div>
             ) : (
               <div className="flex items-center gap-4">
-                <DonutChart data={classBreakdown.map((c) => ({ label: c.storage_class, value: c.bytes, color: colorFor(c.storage_class) }))} />
+                <DonutChart
+                  data={classBreakdown.map((c) => ({
+                    label: c.storage_class,
+                    value: c.bytes,
+                    color: colorFor(c.storage_class),
+                  }))}
+                />
                 <div className="flex-1 space-y-1.5 text-xs">
                   {classBreakdown.map((c) => (
-                    <div key={c.storage_class} className="flex items-center gap-2">
+                    <div
+                      key={c.storage_class}
+                      className="flex items-center gap-2"
+                    >
                       <span
                         className="w-2.5 h-2.5 rounded-sm shrink-0"
                         style={{ backgroundColor: colorFor(c.storage_class) }}
@@ -522,13 +568,17 @@ export function Dashboard() {
             title={t("dashboard.bucketsTitle")}
             subtitle={
               activeConnection
-                ? t("dashboard.bucketsSubtitle", { name: activeConnection.name })
+                ? t("dashboard.bucketsSubtitle", {
+                    name: activeConnection.name,
+                  })
                 : t("dashboard.noConnection")
             }
             icon={<Cloud size={14} className="text-blue-500" />}
           />
           {bucketsError && (
-            <div className="text-xs text-red-600 dark:text-red-400 mb-2">{bucketsError}</div>
+            <div className="text-xs text-red-600 dark:text-red-400 mb-2">
+              {bucketsError}
+            </div>
           )}
           {buckets.length === 0 ? (
             <div className="text-xs text-zinc-500 py-6 text-center">
@@ -570,10 +620,7 @@ function Card({
 }) {
   return (
     <div
-      className={
-        "relative rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/60 backdrop-blur p-4 shadow-sm hover:shadow-md transition-shadow " +
-        (className ?? "")
-      }
+      className={`relative rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/60 backdrop-blur p-4 shadow-sm hover:shadow-md transition-shadow ${className ?? ""}`}
     >
       {children}
     </div>
@@ -597,7 +644,9 @@ function CardHeader({
           {title}
         </div>
         {subtitle && (
-          <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">{subtitle}</div>
+          <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
+            {subtitle}
+          </div>
         )}
       </div>
     </div>
@@ -700,7 +749,9 @@ function DonutChart({
   );
 }
 
-function BarList({ items }: { items: { label: string; value: number; display: string }[] }) {
+function BarList({
+  items,
+}: { items: { label: string; value: number; display: string }[] }) {
   const max = Math.max(1, ...items.map((i) => i.value));
   return (
     <div className="space-y-2">
@@ -709,7 +760,9 @@ function BarList({ items }: { items: { label: string; value: number; display: st
         return (
           <div key={i} className="text-xs">
             <div className="flex items-baseline justify-between mb-0.5">
-              <span className="font-mono truncate text-zinc-700 dark:text-zinc-300">{it.label}</span>
+              <span className="font-mono truncate text-zinc-700 dark:text-zinc-300">
+                {it.label}
+              </span>
               <span className="text-zinc-500 shrink-0 ml-2">{it.display}</span>
             </div>
             <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
@@ -739,7 +792,9 @@ function Sparkline({
     x: i * stepX,
     y: height - (d.count / max) * height,
   }));
-  const linePath = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
+  const linePath = pts
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`)
+    .join(" ");
   const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
   const total = data.reduce((s, d) => s + d.count, 0);
 
@@ -801,13 +856,21 @@ function ActivityFeed({ entries }: { entries: TransferHistoryEntry[] }) {
           >
             <span
               className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                ok ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                ok
+                  ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                  : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
               }`}
             >
-              {e.transfer_type === "upload" ? <Upload size={12} /> : <Download size={12} />}
+              {e.transfer_type === "upload" ? (
+                <Upload size={12} />
+              ) : (
+                <Download size={12} />
+              )}
             </span>
             <div className="flex-1 min-w-0">
-              <div className="font-mono truncate text-zinc-700 dark:text-zinc-300">{e.key}</div>
+              <div className="font-mono truncate text-zinc-700 dark:text-zinc-300">
+                {e.key}
+              </div>
               <div className="text-[10px] text-zinc-500">
                 {e.bucket} · {formatBytes(e.total_bytes)}
               </div>
@@ -835,7 +898,9 @@ function BucketCard({
     <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800/70 bg-white/60 dark:bg-zinc-900/60 p-3 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
       <div className="flex items-center gap-2 mb-2">
         <Boxes size={14} className="text-fuchsia-500 shrink-0" />
-        <span className="text-sm font-medium truncate flex-1">{bucket.name}</span>
+        <span className="text-sm font-medium truncate flex-1">
+          {bucket.name}
+        </span>
       </div>
       {stats ? (
         <div className="space-y-1 text-xs">
@@ -847,7 +912,9 @@ function BucketCard({
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">{t("dashboard.bucketObjects")}</span>
+            <span className="text-zinc-500">
+              {t("dashboard.bucketObjects")}
+            </span>
             <span className="font-mono text-zinc-900 dark:text-zinc-100 tabular-nums">
               {formatNumber(stats.object_count)}
               {stats.truncated && "+"}

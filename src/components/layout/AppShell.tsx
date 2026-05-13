@@ -1,23 +1,23 @@
-import { useEffect } from "react";
 import { Allotment } from "allotment";
+import { useEffect } from "react";
 import "allotment/dist/style.css";
 
+import { UpdateBanner } from "@/components/common/UpdateBanner";
+import { Dashboard } from "@/components/dashboard/Dashboard";
+import { ObjectDetails } from "@/components/object/ObjectDetails";
+import { ObjectTable } from "@/components/object/ObjectTable";
+import { PreviewPanel } from "@/components/preview/PreviewPanel";
+import { TerminalPanel } from "@/components/terminal/TerminalPanel";
+import { TransferPanel } from "@/components/transfer/TransferPanel";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { useObjectStore } from "@/stores/objectStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useUpdaterStore } from "@/stores/updaterStore";
+import { Breadcrumb } from "./Breadcrumb";
 import { Sidebar } from "./Sidebar";
-import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { TabBar } from "./TabBar";
-import { Breadcrumb } from "./Breadcrumb";
-import { ObjectTable } from "@/components/object/ObjectTable";
-import { ObjectDetails } from "@/components/object/ObjectDetails";
-import { TransferPanel } from "@/components/transfer/TransferPanel";
-import { TerminalPanel } from "@/components/terminal/TerminalPanel";
-import { PreviewPanel } from "@/components/preview/PreviewPanel";
-import { Dashboard } from "@/components/dashboard/Dashboard";
-import { UpdateBanner } from "@/components/common/UpdateBanner";
-import { useUiStore } from "@/stores/uiStore";
-import { useObjectStore } from "@/stores/objectStore";
-import { useConnectionStore } from "@/stores/connectionStore";
-import { useUpdaterStore } from "@/stores/updaterStore";
+import { Toolbar } from "./Toolbar";
 
 export function AppShell() {
   // Updater bootstrap: detect install kind and run a silent check ~1.5s
@@ -87,31 +87,45 @@ export function AppShell() {
                   </Allotment.Pane>
 
                   {/* Preview panel */}
-                  {!isDashboard && previewObject && activeConnectionId && currentBucket && (
-                    <Allotment.Pane preferredSize={380} minSize={250} maxSize={600}>
-                      <PreviewPanel
-                        connectionId={activeConnectionId}
-                        bucket={currentBucket}
-                        objectKey={previewObject.key}
-                        displayName={previewObject.displayName}
-                        onClose={closePreview}
-                      />
-                    </Allotment.Pane>
-                  )}
+                  {!isDashboard &&
+                    previewObject &&
+                    activeConnectionId &&
+                    currentBucket && (
+                      <Allotment.Pane
+                        preferredSize={380}
+                        minSize={250}
+                        maxSize={600}
+                      >
+                        <PreviewPanel
+                          connectionId={activeConnectionId}
+                          bucket={currentBucket}
+                          objectKey={previewObject.key}
+                          displayName={previewObject.displayName}
+                          onClose={closePreview}
+                        />
+                      </Allotment.Pane>
+                    )}
 
                   {/* Details panel */}
-                  {!isDashboard && detailsObject && activeConnectionId && currentBucket && (
-                    <Allotment.Pane preferredSize={320} minSize={220} maxSize={500}>
-                      <ObjectDetails
-                        connectionId={activeConnectionId}
-                        bucket={currentBucket}
-                        objectKey={detailsObject.key}
-                        displayName={detailsObject.displayName}
-                        isFolder={detailsObject.isFolder}
-                        onClose={closeDetails}
-                      />
-                    </Allotment.Pane>
-                  )}
+                  {!isDashboard &&
+                    detailsObject &&
+                    activeConnectionId &&
+                    currentBucket && (
+                      <Allotment.Pane
+                        preferredSize={320}
+                        minSize={220}
+                        maxSize={500}
+                      >
+                        <ObjectDetails
+                          connectionId={activeConnectionId}
+                          bucket={currentBucket}
+                          objectKey={detailsObject.key}
+                          displayName={detailsObject.displayName}
+                          isFolder={detailsObject.isFolder}
+                          onClose={closeDetails}
+                        />
+                      </Allotment.Pane>
+                    )}
                 </Allotment>
               </Allotment.Pane>
 

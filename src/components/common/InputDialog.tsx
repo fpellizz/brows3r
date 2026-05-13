@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface InputDialogProps {
@@ -61,7 +61,6 @@ export function InputDialog({
                 if (e.key === "Enter") handleConfirm();
               }}
               placeholder={placeholder}
-              autoFocus
             />
           </div>
           <div className="flex justify-end gap-2 mt-6">

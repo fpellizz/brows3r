@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { formatBytes } from "@/lib/format";
+import { tauriInvoke } from "@/lib/tauri";
 import * as Dialog from "@radix-ui/react-dialog";
-import { open as openShell } from "@tauri-apps/plugin-shell";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { open as openShell } from "@tauri-apps/plugin-shell";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -13,8 +13,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { tauriInvoke } from "@/lib/tauri";
-import { formatBytes } from "@/lib/format";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ObjectVersion {
   key: string;
@@ -171,7 +171,9 @@ export function VersionsDialog({
   if (!open) return null;
 
   const unversioned =
-    versioningStatus !== null && versioningStatus !== "Enabled" && versioningStatus !== "Suspended";
+    versioningStatus !== null &&
+    versioningStatus !== "Enabled" &&
+    versioningStatus !== "Suspended";
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -238,7 +240,7 @@ export function VersionsDialog({
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800 z-10">
                   <tr className="text-left text-zinc-600 dark:text-zinc-300">
-                    <th className="px-2 py-2 w-6"></th>
+                    <th className="px-2 py-2 w-6" />
                     <th className="px-2 py-2">{t("versions.versionId")}</th>
                     <th className="px-2 py-2 w-28 text-right">
                       {t("versions.size")}
@@ -246,7 +248,7 @@ export function VersionsDialog({
                     <th className="px-2 py-2 w-44">
                       {t("versions.lastModified")}
                     </th>
-                    <th className="px-2 py-2 w-32 text-right"></th>
+                    <th className="px-2 py-2 w-32 text-right" />
                   </tr>
                 </thead>
                 <tbody>
@@ -259,10 +261,7 @@ export function VersionsDialog({
                     >
                       <td className="px-2 py-1.5">
                         {v.is_delete_marker ? (
-                          <AlertTriangle
-                            size={12}
-                            className="text-red-500"
-                          />
+                          <AlertTriangle size={12} className="text-red-500" />
                         ) : v.is_latest ? (
                           <CheckCircle2 size={12} className="text-green-500" />
                         ) : (

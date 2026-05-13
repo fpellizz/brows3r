@@ -1,33 +1,33 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import {
-  Upload,
-  Download,
-  RefreshCw,
-  FolderPlus,
-  Trash2,
-  Search,
-  Settings,
-  PanelBottom,
-  RefreshCcwDot,
-  Info,
-  Wand2,
-  Terminal as TerminalIcon,
-  LayoutDashboard,
-  X,
-} from "lucide-react";
-import { useObjectStore } from "@/stores/objectStore";
-import { useConnectionStore } from "@/stores/connectionStore";
-import { useTransferStore } from "@/stores/transferStore";
-import { useUiStore } from "@/stores/uiStore";
-import { tauriInvoke } from "@/lib/tauri";
+import { AboutDialog } from "@/components/common/AboutDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InputDialog } from "@/components/common/InputDialog";
+import { BatchOperationsDialog } from "@/components/object/BatchOperationsDialog";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
 import { SyncDialog } from "@/components/sync/SyncDialog";
-import { AboutDialog } from "@/components/common/AboutDialog";
-import { BatchOperationsDialog } from "@/components/object/BatchOperationsDialog";
+import { tauriInvoke } from "@/lib/tauri";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { useObjectStore } from "@/stores/objectStore";
+import { useTransferStore } from "@/stores/transferStore";
+import { useUiStore } from "@/stores/uiStore";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
+import {
+  Download,
+  FolderPlus,
+  Info,
+  LayoutDashboard,
+  PanelBottom,
+  RefreshCcwDot,
+  RefreshCw,
+  Search,
+  Settings,
+  Terminal as TerminalIcon,
+  Trash2,
+  Upload,
+  Wand2,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function Toolbar() {
   const { t } = useTranslation();
@@ -118,9 +118,7 @@ export function Toolbar() {
   const handleNewFolder = async (folderName: string) => {
     if (!activeConnectionId || !currentBucket) return;
 
-    const prefix = currentPrefix
-      ? `${currentPrefix}${folderName}`
-      : folderName;
+    const prefix = currentPrefix ? `${currentPrefix}${folderName}` : folderName;
 
     try {
       await tauriInvoke("create_folder", {
@@ -252,7 +250,6 @@ export function Toolbar() {
                 setSearchOpen(false);
               }
             }}
-            autoFocus
           />
           {filterText && (
             <button
@@ -272,9 +269,7 @@ export function Toolbar() {
         title={t("toolbar.delete")}
         description={`Delete ${selectedKeys.size} selected object(s)?`}
         items={Array.from(selectedKeys).map((k) =>
-          k.endsWith("/")
-            ? k
-            : k.split("/").pop() ?? k
+          k.endsWith("/") ? k : (k.split("/").pop() ?? k),
         )}
         confirmLabel={t("common.delete")}
         destructive

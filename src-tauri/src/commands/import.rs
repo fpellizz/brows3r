@@ -78,8 +78,7 @@ fn home_dir() -> Result<PathBuf, String> {
 }
 
 fn read_file(path: &PathBuf) -> Result<String, String> {
-    std::fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read {}: {e}", path.display()))
+    std::fs::read_to_string(path).map_err(|e| format!("Failed to read {}: {e}", path.display()))
 }
 
 // ---------------------------------------------------------------------------
@@ -141,9 +140,7 @@ fn parse_aws(file_path: Option<String>) -> Result<Vec<ImportedConnection>, Strin
             .or_else(|| config_ini.get(&format!("profile {profile}")));
 
         let access_key = creds.and_then(|c| c.get("aws_access_key_id")).cloned();
-        let secret_key = creds
-            .and_then(|c| c.get("aws_secret_access_key"))
-            .cloned();
+        let secret_key = creds.and_then(|c| c.get("aws_secret_access_key")).cloned();
         let session_token = creds.and_then(|c| c.get("aws_session_token")).cloned();
 
         let region = cfg.and_then(|c| c.get("region")).cloned();
@@ -198,9 +195,7 @@ fn parse_rclone(file_path: Option<String>) -> Result<Vec<ImportedConnection>, St
         let region = kv.get("region").cloned();
 
         // rclone uses "force_path_style" boolean
-        let path_style = kv
-            .get("force_path_style")
-            .map(|v| v == "true" || v == "1");
+        let path_style = kv.get("force_path_style").map(|v| v == "true" || v == "1");
 
         results.push(ImportedConnection {
             name: format!("rclone - {name}"),
@@ -296,8 +291,8 @@ fn parse_minio(file_path: Option<String>) -> Result<Vec<ImportedConnection>, Str
 
     let content = read_file(&path)?;
 
-    let json: serde_json::Value =
-        serde_json::from_str(&content).map_err(|e| format!("Invalid JSON in {}: {e}", path.display()))?;
+    let json: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Invalid JSON in {}: {e}", path.display()))?;
 
     // mc config.json has an "aliases" object at the top level
     let aliases = json

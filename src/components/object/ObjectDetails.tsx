@@ -1,25 +1,25 @@
-import { useEffect, useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  X,
-  Info,
-  Loader2,
-  Copy,
-  HardDrive,
-  Calendar,
-  Hash,
-  FileType,
-  Tag,
-  Layers,
-  Save,
-  Plus,
-  Trash2,
-  Check,
-  AlertCircle,
-} from "lucide-react";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { tauriInvoke } from "@/lib/tauri";
 import { formatBytes, formatDate } from "@/lib/format";
+import { tauriInvoke } from "@/lib/tauri";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import {
+  AlertCircle,
+  Calendar,
+  Check,
+  Copy,
+  FileType,
+  HardDrive,
+  Hash,
+  Info,
+  Layers,
+  Loader2,
+  Plus,
+  Save,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface MetadataEntry {
   key: string;
@@ -181,7 +181,9 @@ export function ObjectDetails({
       });
 
       setFeedbackStatus("success");
-      setFeedbackMessage(t("object.metadataSaved", "Metadata saved successfully"));
+      setFeedbackMessage(
+        t("object.metadataSaved", "Metadata saved successfully"),
+      );
 
       // Reload details to reflect server state
       await loadDetails();
@@ -221,15 +223,27 @@ export function ObjectDetails({
           </div>
         )}
 
-        {error && (
-          <p className="text-sm text-red-500">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-500">{error}</p>}
 
         {isFolder && (
           <div className="space-y-3">
-            <DetailRow icon={<Tag size={14} />} label="Key" value={objectKey} onCopy={() => copyValue(objectKey)} />
-            <DetailRow icon={<Tag size={14} />} label="S3 URI" value={`s3://${bucket}/${objectKey}`} onCopy={() => copyValue(`s3://${bucket}/${objectKey}`)} />
-            <DetailRow icon={<Layers size={14} />} label="Type" value="Folder (prefix)" />
+            <DetailRow
+              icon={<Tag size={14} />}
+              label="Key"
+              value={objectKey}
+              onCopy={() => copyValue(objectKey)}
+            />
+            <DetailRow
+              icon={<Tag size={14} />}
+              label="S3 URI"
+              value={`s3://${bucket}/${objectKey}`}
+              onCopy={() => copyValue(`s3://${bucket}/${objectKey}`)}
+            />
+            <DetailRow
+              icon={<Layers size={14} />}
+              label="Type"
+              value="Folder (prefix)"
+            />
           </div>
         )}
 
@@ -322,14 +336,18 @@ export function ObjectDetails({
                     type="text"
                     className="input-field flex-1 text-xs"
                     value={m.key}
-                    onChange={(e) => handleMetadataKeyChange(index, e.target.value)}
+                    onChange={(e) =>
+                      handleMetadataKeyChange(index, e.target.value)
+                    }
                     placeholder={t("object.metadataKey", "Key")}
                   />
                   <input
                     type="text"
                     className="input-field flex-1 text-xs"
                     value={m.value}
-                    onChange={(e) => handleMetadataValueChange(index, e.target.value)}
+                    onChange={(e) =>
+                      handleMetadataValueChange(index, e.target.value)
+                    }
                     placeholder={t("object.metadataValue", "Value")}
                   />
                   <button

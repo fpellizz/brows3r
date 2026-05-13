@@ -22,7 +22,8 @@
 
 /* Prevent text selection on UI elements */
 body {
-  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui,
+    -apple-system, sans-serif;
   font-feature-settings: "cv11", "ss01"; /* alt single-storey a, contextual spacing */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

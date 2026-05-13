@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Terminal as TerminalIcon, X } from "lucide-react";
 import { tauriInvoke } from "@/lib/tauri";
-import { useUiStore } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useObjectStore } from "@/stores/objectStore";
+import { useUiStore } from "@/stores/uiStore";
+import { Terminal as TerminalIcon, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Line {
   kind: "input" | "output" | "error" | "info";
@@ -82,7 +82,10 @@ export function TerminalPanel() {
     }
 
     if (!connectionId) {
-      push({ kind: "error", text: "No active connection. Pick one in the sidebar first." });
+      push({
+        kind: "error",
+        text: "No active connection. Pick one in the sidebar first.",
+      });
       return;
     }
 
@@ -105,7 +108,8 @@ export function TerminalPanel() {
     if (e.key === "ArrowUp") {
       e.preventDefault();
       if (history.length === 0) return;
-      const next = historyIdx === null ? history.length - 1 : Math.max(0, historyIdx - 1);
+      const next =
+        historyIdx === null ? history.length - 1 : Math.max(0, historyIdx - 1);
       setHistoryIdx(next);
       setInput(history[next]);
       return;
@@ -165,10 +169,11 @@ export function TerminalPanel() {
 
       {/* Prompt */}
       <div className="flex items-center gap-1 px-3 py-1.5 border-t border-zinc-200 dark:border-zinc-800 font-mono text-[12px] shrink-0">
-        <span className="text-emerald-600 dark:text-emerald-400 shrink-0">{prompt}$</span>
+        <span className="text-emerald-600 dark:text-emerald-400 shrink-0">
+          {prompt}$
+        </span>
         <input
           ref={inputRef}
-          autoFocus
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKey}
@@ -257,7 +262,10 @@ async function dispatch(
     case "ls": {
       const target = resolvePath(args[0] ?? "", cwd);
       if (!target.bucket) {
-        push({ kind: "error", text: "ls: no bucket. Use `cd s3://<bucket>` first." });
+        push({
+          kind: "error",
+          text: "ls: no bucket. Use `cd s3://<bucket>` first.",
+        });
         return;
       }
       const result = await tauriInvoke<ListObjectsResponse>("list_objects", {
@@ -307,7 +315,10 @@ async function dispatch(
         bucket: target.bucket,
         key: target.prefix,
       });
-      if (result.preview_type !== "text" && result.preview_type !== "markdown") {
+      if (
+        result.preview_type !== "text" &&
+        result.preview_type !== "markdown"
+      ) {
         push({
           kind: "error",
           text: `cat: object is ${result.content_type || "binary"}, refusing to dump`,
@@ -316,7 +327,10 @@ async function dispatch(
       }
       push({ kind: "output", text: result.content || "(empty)" });
       if (result.truncated) {
-        push({ kind: "info", text: "(truncated — open the preview panel for full content)" });
+        push({
+          kind: "info",
+          text: "(truncated — open the preview panel for full content)",
+        });
       }
       return;
     }
@@ -330,7 +344,10 @@ async function dispatch(
       const src = resolvePath(args[0], cwd);
       const dst = resolvePath(args[1], cwd);
       if (!src.bucket || !src.prefix || !dst.bucket || !dst.prefix) {
-        push({ kind: "error", text: `${cmd}: both src and dst must be full object paths` });
+        push({
+          kind: "error",
+          text: `${cmd}: both src and dst must be full object paths`,
+        });
         return;
       }
       if (src.bucket !== dst.bucket) {
@@ -349,7 +366,10 @@ async function dispatch(
           dest_key: dst.prefix,
         },
       });
-      push({ kind: "output", text: `${cmd} OK: ${src.prefix} → ${dst.prefix}` });
+      push({
+        kind: "output",
+        text: `${cmd} OK: ${src.prefix} → ${dst.prefix}`,
+      });
       return;
     }
 
@@ -373,7 +393,10 @@ async function dispatch(
         await tauriInvoke("delete_objects", {
           request: { connection_id: connectionId, bucket, keys },
         });
-        push({ kind: "output", text: `rm OK: ${keys.length} object(s) in ${bucket}` });
+        push({
+          kind: "output",
+          text: `rm OK: ${keys.length} object(s) in ${bucket}`,
+        });
       }
       return;
     }
@@ -383,7 +406,12 @@ async function dispatch(
   }
 }
 
-function handleCd(args: string[], cwd: Cwd, setCwd: (c: Cwd) => void, push: (l: Line) => void) {
+function handleCd(
+  args: string[],
+  cwd: Cwd,
+  setCwd: (c: Cwd) => void,
+  push: (l: Line) => void,
+) {
   if (args.length === 0 || args[0] === "/") {
     setCwd({ bucket: cwd.bucket, prefix: "" });
     return;
@@ -396,7 +424,7 @@ function handleCd(args: string[], cwd: Cwd, setCwd: (c: Cwd) => void, push: (l: 
     }
     const parts = cwd.prefix.replace(/\/$/, "").split("/");
     parts.pop();
-    const np = parts.length > 0 ? parts.join("/") + "/" : "";
+    const np = parts.length > 0 ? `${parts.join("/")}/` : "";
     setCwd({ bucket: cwd.bucket, prefix: np });
     return;
   }
@@ -457,7 +485,8 @@ function resolvePath(input: string, cwd: Cwd): Cwd {
     return { bucket: cwd.bucket, prefix: input.slice(1) };
   }
   // Relative to current prefix
-  const base = cwd.prefix && !cwd.prefix.endsWith("/") ? cwd.prefix + "/" : cwd.prefix;
+  const base =
+    cwd.prefix && !cwd.prefix.endsWith("/") ? `${cwd.prefix}/` : cwd.prefix;
   return { bucket: cwd.bucket, prefix: base + input };
 }
 

@@ -1,12 +1,12 @@
-import { useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { RecoveryDialog } from "@/components/transfer/RecoveryDialog";
+import { tauriListen } from "@/lib/tauri";
+import { applyTheme } from "@/lib/theme";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useObjectStore } from "@/stores/objectStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTransferStore } from "@/stores/transferStore";
-import { tauriListen } from "@/lib/tauri";
-import { applyTheme } from "@/lib/theme";
+import { useEffect } from "react";
 
 export function App() {
   const fetchConnections = useConnectionStore((s) => s.fetchConnections);

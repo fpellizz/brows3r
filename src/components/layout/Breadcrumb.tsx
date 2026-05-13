@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronRight } from "lucide-react";
-import { useObjectStore } from "@/stores/objectStore";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { useObjectStore } from "@/stores/objectStore";
+import { ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Parse an address bar value into bucket and prefix.
@@ -150,8 +150,7 @@ export function Breadcrumb() {
 
   const navigateTo = (index: number) => {
     if (!activeConnectionId) return;
-    const prefix =
-      index < 0 ? "" : `${parts.slice(0, index + 1).join("/")}/`;
+    const prefix = index < 0 ? "" : `${parts.slice(0, index + 1).join("/")}/`;
     navigateToPrefix(prefix);
     fetchObjects(activeConnectionId);
   };

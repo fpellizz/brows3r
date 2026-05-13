@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { tauriInvoke } from "@/lib/tauri";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { useTransferStore } from "@/stores/transferStore";
-import { tauriInvoke } from "@/lib/tauri";
+import * as Dialog from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Bucket {
   name: string;
@@ -205,7 +205,9 @@ export function CrossTransferDialog({
               disabled={!destConnId || !destBucket || starting}
               onClick={handleStart}
             >
-              {starting ? t("crossTransfer.starting") : t("crossTransfer.start")}
+              {starting
+                ? t("crossTransfer.starting")
+                : t("crossTransfer.start")}
             </button>
           </div>
         </Dialog.Content>

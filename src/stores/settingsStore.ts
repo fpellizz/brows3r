@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { tauriInvoke } from "@/lib/tauri";
+import { create } from "zustand";
 
 export interface BandwidthSchedule {
   name: string;

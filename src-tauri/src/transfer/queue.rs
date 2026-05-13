@@ -65,5 +65,4 @@ impl TransferQueue {
             )
         });
     }
-
 }

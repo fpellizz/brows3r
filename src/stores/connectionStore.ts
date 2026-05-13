@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { tauriInvoke } from "@/lib/tauri";
+import { create } from "zustand";
 
 export interface Connection {
   id: string;
@@ -51,8 +51,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   fetchConnections: async () => {
     set({ loading: true, error: null });
     try {
-      const connections =
-        await tauriInvoke<Connection[]>("list_connections");
+      const connections = await tauriInvoke<Connection[]>("list_connections");
       set({ connections, loading: false });
     } catch (e) {
       set({ error: String(e), loading: false });
