@@ -18,12 +18,22 @@ definitions:
           - pnpm-lock.yaml
       path: .pnpm-store
 
+# Bitbucket runs only lint + unit tests, then mirrors the source to
+# `github.com/fpellizz/brows3r` so the actual Linux bundling (.deb /
+# .rpm / .AppImage + updater signing + GitHub release) can happen on
+# GitHub Actions, which has /dev/fuse on its Ubuntu runners and can
+# therefore run `linuxdeploy` (the Tauri AppImage bundler) — something
+# the Bitbucket pipeline container cannot.
+#
+# - default (push to main): lint+test, then mirror branch+tags
+# - pull-requests: lint+test
+# - tags v*: lint+test, then mirror branch+tags (so the tag arrives on
+#            GitHub and triggers the release workflow there)
+#
+# The GitHub Actions workflow lives at .github/workflows/build-linux.yml.
 pipelines:
   default:
-    # --------------------------------------------------------
-    # Step 1: Frontend — lint, typecheck, test
-    # --------------------------------------------------------
-    - step:
+    - step: &frontend
         name: "Frontend: lint + typecheck + test"
         caches:
           - pnpm
@@ -42,10 +52,7 @@ pipelines:
           - pnpm typecheck
           - pnpm test
 
-    # --------------------------------------------------------
-    # Step 2: Backend — fmt, clippy, test
-    # --------------------------------------------------------
-    - step:
+    - step: &backend
         name: "Backend: fmt + clippy + test"
         size: 2x
         caches:
@@ -63,69 +70,16 @@ pipelines:
           # `tauri::generate_context!` (proc macro) reads
           # `frontendDist: "../dist"` from tauri.conf.json and panics
           # at compile time if the path does not exist. The Backend
-          # step does not build the frontend (that happens in the
-          # Build step), so we lay down a minimal placeholder dir
-          # just so the macro can include something — clippy/test
-          # only need the code to compile, not the real bundle.
+          # step does not build the frontend, so we lay down a minimal
+          # placeholder dir just so the macro can include something.
           - mkdir -p ../dist && touch ../dist/index.html
           - cargo clippy -- -D clippy::correctness -D clippy::suspicious
           - cargo test
 
-    # --------------------------------------------------------
-    # Step 3: Build Linux packages (.deb + .rpm + .AppImage)
-    # --------------------------------------------------------
-    - step:
-        name: "Build: Linux (deb + rpm + AppImage)"
-        size: 2x
-        caches:
-          - pnpm
-          - node
-          - cargo
-          - cargo-target
-        script:
-          # libfuse2t64 = compat package per libfuse2 su Ubuntu 24.04 (la
-          # distro è passata di default a libfuse3). Serve perché Tauri
-          # scarica `linuxdeploy-x86_64.AppImage` durante il bundling
-          # dell'AppImage, e quel runtime AppImage v1 si monta via FUSE2.
-          # Senza libfuse2t64 il bundler muore con un criptico "failed
-          # to run linuxdeploy". `APPIMAGE_EXTRACT_AND_RUN=1` da solo
-          # non basta nel container Bitbucket (alcune versioni di
-          # linuxdeploy ignorano la variabile / /tmp è noexec).
-          - apt-get update && apt-get install -y
-              build-essential curl pkg-config file rpm
-              libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
-              libayatana-appindicator3-dev librsvg2-dev
-              libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
-              libfuse2t64
-          - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
-          - source $HOME/.cargo/env
-          - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-          - apt-get install -y nodejs
-          - corepack enable
-          - corepack prepare pnpm@latest --activate
-          - pnpm config set store-dir .pnpm-store
-          - cargo install tauri-cli --locked
-          - pnpm install --frozen-lockfile
-          # Belt-and-suspenders: chiediamo anche all'AppImage di auto-estrarsi
-          # invece di montarsi via FUSE, nel caso libfuse2 non bastasse.
-          - export APPIMAGE_EXTRACT_AND_RUN=1
-          - pnpm tauri build
-          # Show what was built
-          - echo "=== Build artifacts ==="
-          - find src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -exec ls -lh {} \;
-        artifacts:
-          - src-tauri/target/release/bundle/deb/**
-          - src-tauri/target/release/bundle/rpm/**
-          - src-tauri/target/release/bundle/appimage/**
-
-    # --------------------------------------------------------
-    # Step 4: Mirror main → GitHub (so the GitHub Releases feed
-    # consumed by the auto-updater always tracks the canonical
-    # Bitbucket main). No-op on every other branch.
-    #
-    # Requires `GITHUB_TOKEN` (Bitbucket repo variable, secured)
-    # with `repo` + `workflow` scopes.
-    # --------------------------------------------------------
+    # Mirror main + tags to GitHub. No-op on every branch other than
+    # main. Requires `GITHUB_TOKEN` repo variable (secured) with `repo`
+    # scope. The push to GitHub fires the GitHub Actions workflow that
+    # builds and (on tags) releases the Linux bundles.
     - step:
         name: "Mirror to GitHub (main only)"
         image: alpine/git:latest
@@ -141,187 +95,37 @@ pipelines:
               echo "GITHUB_TOKEN not set — skipping mirror (configure the secret to enable)."
               exit 0
             fi
-            git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/fpellizz/brows3r.git" "HEAD:refs/heads/main"
+            URL="https://x-access-token:${GITHUB_TOKEN}@github.com/fpellizz/brows3r.git"
+            git push --force "$URL" "HEAD:refs/heads/main"
+            git push --force "$URL" --tags
 
-  # --------------------------------------------------------
-  # Pipeline per i pull request
-  # --------------------------------------------------------
   pull-requests:
     "**":
-      - step:
-          name: "Frontend: lint + typecheck + test"
-          caches:
-            - pnpm
-            - node
-          script:
-            # ubuntu:24.04 minimale non ha curl/ca-certificates preinstallati;
-            # serve installarli prima del setup script di NodeSource.
-            - apt-get update -qq && apt-get install -y -qq curl ca-certificates
-            - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-            - apt-get install -y nodejs
-            - corepack enable
-            - corepack prepare pnpm@latest --activate
-            - pnpm config set store-dir .pnpm-store
-            - pnpm install --frozen-lockfile
-            - pnpm lint
-            - pnpm typecheck
-            - pnpm test
+      - step: *frontend
+      - step: *backend
 
-      - step:
-          name: "Backend: fmt + clippy + test"
-          size: 2x
-          caches:
-            - cargo
-            - cargo-target
-          script:
-            - apt-get update && apt-get install -y
-                build-essential curl pkg-config
-                libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
-                libayatana-appindicator3-dev librsvg2-dev
-                libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
-            - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
-            - source $HOME/.cargo/env
-            - cd src-tauri && cargo fmt --all -- --check
-            # See default-pipeline note: tauri proc macro needs ../dist to exist.
-            - mkdir -p ../dist && touch ../dist/index.html
-            - cargo clippy -- -D clippy::correctness -D clippy::suspicious
-            - cargo test
-
-  # --------------------------------------------------------
-  # Pipeline per i tag (release)
-  # --------------------------------------------------------
+  # Tag pipeline: still run lint+test, then push the tag to GitHub so
+  # the release workflow on the mirror fires. The release itself
+  # (signed AppImage + latest.json + gh release create) is handled by
+  # .github/workflows/build-linux.yml.
   tags:
     "v*":
+      - step: *frontend
+      - step: *backend
       - step:
-          name: "Build: Linux release (deb + rpm + AppImage)"
-          size: 2x
-          caches:
-            - pnpm
-            - node
-            - cargo
-            - cargo-target
+          name: "Mirror tag to GitHub"
+          image: alpine/git:latest
+          clone:
+            depth: full
           script:
-            # See default-pipeline note: libfuse2t64 needed for AppImage
-            # bundling on Ubuntu 24.04.
-            - apt-get update && apt-get install -y
-                build-essential curl pkg-config file rpm
-                libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
-                libayatana-appindicator3-dev librsvg2-dev
-                libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
-                libfuse2t64
-            - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
-            - source $HOME/.cargo/env
-            - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-            - apt-get install -y nodejs
-            - corepack enable
-            - corepack prepare pnpm@latest --activate
-            - pnpm config set store-dir .pnpm-store
-            - cargo install tauri-cli --locked
-            - pnpm install --frozen-lockfile
-            # `createUpdaterArtifacts: true` in tauri.conf.json plus
-            # TAURI_SIGNING_PRIVATE_KEY in the env make `tauri build`
-            # emit a signed .AppImage + .AppImage.sig alongside the
-            # normal bundles. The signature is verified client-side
-            # against the public key embedded in the app.
-            # See default-pipeline note: AppImage bundler needs the
-            # FUSE-less workaround inside the Bitbucket container.
-            - export APPIMAGE_EXTRACT_AND_RUN=1
-            - pnpm tauri build
-            - echo "=== Release artifacts ==="
-            - find src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.AppImage.sig" \) -exec ls -lh {} \;
-            # Produce latest.json for the auto-updater (consumed at
-            # `github.com/fpellizz/brows3r/releases/latest/download/latest.json`).
-            # Only the AppImage is published as the Linux updater
-            # target — deb/rpm get a "new version available" banner
-            # client-side, not an in-place install.
-            - |
-              set -e
-              VERSION="${BITBUCKET_TAG#v}"
-              APPIMAGE=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name "*.AppImage" | head -n1)
-              SIG_FILE="${APPIMAGE}.sig"
-              if [ ! -f "$APPIMAGE" ] || [ ! -f "$SIG_FILE" ]; then
-                echo "ERROR: AppImage or its .sig file missing. Check that TAURI_SIGNING_PRIVATE_KEY is set."
-                ls -la src-tauri/target/release/bundle/appimage/ || true
-                exit 1
-              fi
-              SIGNATURE=$(tr -d '\n' < "$SIG_FILE")
-              APPIMAGE_BASENAME=$(basename "$APPIMAGE")
-              PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              cat > latest.json <<JSON
-              {
-                "version": "${VERSION}",
-                "notes": "See the GitHub release for the changelog.",
-                "pub_date": "${PUB_DATE}",
-                "platforms": {
-                  "linux-x86_64": {
-                    "signature": "${SIGNATURE}",
-                    "url": "https://github.com/fpellizz/brows3r/releases/download/${BITBUCKET_TAG}/${APPIMAGE_BASENAME}"
-                  }
-                }
-              }
-              JSON
-              echo "=== latest.json ==="
-              cat latest.json
-          artifacts:
-            - src-tauri/target/release/bundle/deb/**
-            - src-tauri/target/release/bundle/rpm/**
-            - src-tauri/target/release/bundle/appimage/**
-            - latest.json
-
-      - step:
-          name: "Upload to Bitbucket Downloads"
-          script:
-            - apt-get update && apt-get install -y curl
-            - |
-              for file in src-tauri/target/release/bundle/deb/*.deb \
-                          src-tauri/target/release/bundle/rpm/*.rpm \
-                          src-tauri/target/release/bundle/appimage/*.AppImage; do
-                if [ -f "$file" ]; then
-                  echo "Uploading $(basename $file)..."
-                  curl -X POST \
-                    -u "${BB_AUTH_STRING}" \
-                    "https://api.bitbucket.org/2.0/repositories/${BITBUCKET_REPO_OWNER}/${BITBUCKET_REPO_SLUG}/downloads" \
-                    --form files=@"$file"
-                fi
-              done
-
-      # --------------------------------------------------------
-      # Push the tag to GitHub and create the matching GitHub
-      # release. The auto-updater reads `latest.json` from the
-      # release assets, so this is the step that actually unlocks
-      # in-place updates for AppImage users.
-      # --------------------------------------------------------
-      - step:
-          name: "Publish GitHub release"
-          image: alpine:3.20
-          script:
-            - apk add --no-cache git github-cli
             - |
               if [ -z "$GITHUB_TOKEN" ]; then
-                echo "ERROR: GITHUB_TOKEN not set — cannot publish to GitHub."
+                echo "GITHUB_TOKEN not set — skipping mirror."
                 exit 1
               fi
-            # Make sure github.com/fpellizz/brows3r has the tag the
-            # release will attach to. We rely on the mirror step on
-            # `main` having seeded the history; here we only push the
-            # tag ref. Force in case of re-runs.
-            - git config --global user.email "ci@brows3r"
-            - git config --global user.name "brows3r-ci"
-            - git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/fpellizz/brows3r.git" "${BITBUCKET_TAG}"
-            # Collect everything we want shipped as release assets.
-            - |
-              shopt -s nullglob 2>/dev/null || true
-              ASSETS=""
-              for f in src-tauri/target/release/bundle/deb/*.deb \
-                       src-tauri/target/release/bundle/rpm/*.rpm \
-                       src-tauri/target/release/bundle/appimage/*.AppImage \
-                       src-tauri/target/release/bundle/appimage/*.AppImage.sig \
-                       latest.json; do
-                [ -f "$f" ] && ASSETS="$ASSETS $f"
-              done
-              echo "Assets to publish: $ASSETS"
-              GH_TOKEN="$GITHUB_TOKEN" gh release create "${BITBUCKET_TAG}" \
-                --repo fpellizz/brows3r \
-                --title "${BITBUCKET_TAG}" \
-                --notes "Auto-published from Bitbucket Pipelines (\`${BITBUCKET_COMMIT}\`)." \
-                $ASSETS
+              URL="https://x-access-token:${GITHUB_TOKEN}@github.com/fpellizz/brows3r.git"
+              # Push the tag and the branch it points to. `BITBUCKET_TAG`
+              # is the tag name (e.g. v1.18.1); refs/tags/<name> lets us
+              # push it explicitly without relying on `--tags` walking
+              # the local refs.
+              git push --force "$URL" "refs/tags/${BITBUCKET_TAG}:refs/tags/${BITBUCKET_TAG}"

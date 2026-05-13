@@ -1,0 +1,106 @@
+name: Build Linux
+
+# Triggered by Bitbucket mirroring `main` and `v*` tags to this repo.
+#
+# - push to main: build .deb / .rpm / .AppImage as workflow artifacts
+#   (sanity check; nothing is published).
+# - push of a v* tag: same build, but with updater signing enabled and
+#   a GitHub release is created containing the bundles, the .sig file
+#   and a `latest.json` manifest consumed by the in-app auto-updater
+#   (see `src-tauri/tauri.conf.json` → plugins.updater.endpoints).
+#
+# Required GitHub repository secrets:
+#   - TAURI_SIGNING_PRIVATE_KEY           (full content of brows3r-updater.key)
+#   - TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (the passphrase used when generating the key)
+# `GITHUB_TOKEN` is provided automatically by GitHub Actions; it's what
+# tauri-action uses to create the release.
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # needed to create the release on tag pushes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Tauri's Linux build needs the WebKitGTK + GTK + soup dev
+      # headers; `file` and `rpm` are needed by the bundler to produce
+      # the .deb / .rpm packages. FUSE is preinstalled on
+      # ubuntu-24.04 runners and accessible, so the AppImage bundler
+      # can mount linuxdeploy without any workaround.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential file pkg-config rpm \
+            libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev \
+            libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The official Tauri action handles `cargo install tauri-cli`,
+      # runs `pnpm tauri build`, and — when `tagName` is set — creates
+      # a GitHub release with all bundles. With
+      # `includeUpdaterJson: true` and createUpdaterArtifacts on, it
+      # also generates and uploads the signed `latest.json` consumed
+      # by tauri-plugin-updater.
+      - name: Tauri build + release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          # Only create a release on tag pushes. On main pushes the
+          # action just builds and we upload the bundles as workflow
+          # artifacts below.
+          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('brows3r {0}', github.ref_name) || '' }}
+          releaseBody: "See the commit history for changes in this release."
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+
+      # On non-tag builds, expose the bundles as workflow artifacts so
+      # we can sanity-check them without publishing anything.
+      - name: Upload bundles (non-tag builds)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-bundles
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
+          if-no-files-found: warn
+          retention-days: 14
