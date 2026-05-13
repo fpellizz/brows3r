@@ -45,7 +45,9 @@ pub fn get_secret_key(connection_id: &str) -> Result<String, String> {
         }
     }
 
-    Err(format!("Secret key not found for connection {connection_id}"))
+    Err(format!(
+        "Secret key not found for connection {connection_id}"
+    ))
 }
 
 /// Delete a secret access key.

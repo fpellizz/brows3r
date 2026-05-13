@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use globset::{Glob, GlobSetBuilder};
-use tauri::{Emitter, Manager, State, AppHandle};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::models::transfer::{
     RecoverableUpload, StartCrossTransferRequest, StartDownloadRequest, StartUploadRequest,
@@ -44,9 +44,7 @@ impl MultipartPersistence for DbMultipartPersistence {
 
     fn record_part(&self, part: UploadedPart) {
         let db = self.app.state::<Database>();
-        if let Err(e) =
-            crate::store::database::append_pending_part(&db, &self.transfer_id, part)
-        {
+        if let Err(e) = crate::store::database::append_pending_part(&db, &self.transfer_id, part) {
             tracing::warn!(
                 "Failed to persist completed part for transfer {}: {}",
                 self.transfer_id,
@@ -59,20 +57,15 @@ impl MultipartPersistence for DbMultipartPersistence {
 /// Build a GlobSet from user-configured exclude patterns. Returns an error
 /// (with the offending pattern) if any pattern is invalid, so the user gets
 /// a clear message instead of a silent drop.
-pub(crate) fn build_exclude_set(
-    patterns: &[String],
-) -> Result<Option<globset::GlobSet>, String> {
-    let cleaned: Vec<&String> = patterns
-        .iter()
-        .filter(|p| !p.trim().is_empty())
-        .collect();
+pub(crate) fn build_exclude_set(patterns: &[String]) -> Result<Option<globset::GlobSet>, String> {
+    let cleaned: Vec<&String> = patterns.iter().filter(|p| !p.trim().is_empty()).collect();
     if cleaned.is_empty() {
         return Ok(None);
     }
     let mut builder = GlobSetBuilder::new();
     for p in cleaned {
-        let glob = Glob::new(p.trim())
-            .map_err(|e| format!("Invalid exclude pattern '{p}': {e}"))?;
+        let glob =
+            Glob::new(p.trim()).map_err(|e| format!("Invalid exclude pattern '{p}': {e}"))?;
         builder.add(glob);
     }
     builder
@@ -119,14 +112,18 @@ pub async fn start_upload(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {}", request.connection_id))?;
 
-    let secret_key = credentials::get_secret_key(&request.connection_id)
-        .or_else(|_| {
-            crate::store::database::get_db_secret(&db, &request.connection_id)
-                .map_err(|e| e.to_string())?
-                .ok_or_else(|| format!("Secret key not found for connection {}", request.connection_id))
-        })?;
-    let session_token = credentials::get_session_token(&request.connection_id)
-        .unwrap_or_else(|_| {
+    let secret_key = credentials::get_secret_key(&request.connection_id).or_else(|_| {
+        crate::store::database::get_db_secret(&db, &request.connection_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| {
+                format!(
+                    "Secret key not found for connection {}",
+                    request.connection_id
+                )
+            })
+    })?;
+    let session_token =
+        credentials::get_session_token(&request.connection_id).unwrap_or_else(|_| {
             crate::store::database::get_db_session_token(&db, &request.connection_id)
                 .unwrap_or(None)
         });
@@ -227,8 +224,11 @@ pub async fn start_upload(
                 Ok(etag) => {
                     queue.complete(&tid).await;
                     let mut done_item = TransferItem::new_upload(
-                        request_conn_id.clone(), bucket.clone(),
-                        key.clone(), local.clone(), task_size,
+                        request_conn_id.clone(),
+                        bucket.clone(),
+                        key.clone(),
+                        local.clone(),
+                        task_size,
                     );
                     done_item.id = tid.clone();
                     done_item.status = TransferStatus::Completed;
@@ -249,8 +249,11 @@ pub async fn start_upload(
                 Err(e) => {
                     queue.fail(&tid, e.to_string()).await;
                     let mut fail_item = TransferItem::new_upload(
-                        request_conn_id.clone(), bucket.clone(),
-                        key.clone(), local.clone(), task_size,
+                        request_conn_id.clone(),
+                        bucket.clone(),
+                        key.clone(),
+                        local.clone(),
+                        task_size,
                     );
                     fail_item.id = tid.clone();
                     fail_item.status = TransferStatus::Failed;
@@ -289,14 +292,18 @@ pub async fn start_download(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {}", request.connection_id))?;
 
-    let secret_key = credentials::get_secret_key(&request.connection_id)
-        .or_else(|_| {
-            crate::store::database::get_db_secret(&db, &request.connection_id)
-                .map_err(|e| e.to_string())?
-                .ok_or_else(|| format!("Secret key not found for connection {}", request.connection_id))
-        })?;
-    let session_token = credentials::get_session_token(&request.connection_id)
-        .unwrap_or_else(|_| {
+    let secret_key = credentials::get_secret_key(&request.connection_id).or_else(|_| {
+        crate::store::database::get_db_secret(&db, &request.connection_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| {
+                format!(
+                    "Secret key not found for connection {}",
+                    request.connection_id
+                )
+            })
+    })?;
+    let session_token =
+        credentials::get_session_token(&request.connection_id).unwrap_or_else(|_| {
             crate::store::database::get_db_session_token(&db, &request.connection_id)
                 .unwrap_or(None)
         });
@@ -432,28 +439,19 @@ pub async fn start_download(
 }
 
 #[tauri::command]
-pub async fn pause_transfer(
-    queue: State<'_, TransferQueue>,
-    id: String,
-) -> Result<(), String> {
+pub async fn pause_transfer(queue: State<'_, TransferQueue>, id: String) -> Result<(), String> {
     queue.update_status(&id, TransferStatus::Paused).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn resume_transfer(
-    queue: State<'_, TransferQueue>,
-    id: String,
-) -> Result<(), String> {
+pub async fn resume_transfer(queue: State<'_, TransferQueue>, id: String) -> Result<(), String> {
     queue.update_status(&id, TransferStatus::InProgress).await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn cancel_transfer(
-    queue: State<'_, TransferQueue>,
-    id: String,
-) -> Result<(), String> {
+pub async fn cancel_transfer(queue: State<'_, TransferQueue>, id: String) -> Result<(), String> {
     queue.update_status(&id, TransferStatus::Cancelled).await;
     Ok(())
 }
@@ -498,14 +496,19 @@ pub async fn start_cross_transfer(
     // Build both clients up-front so credential errors surface immediately.
     let src_conn = crate::store::database::get_connection(&db, &request.source_connection_id)
         .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("Source connection not found: {}", request.source_connection_id))?;
+        .ok_or_else(|| {
+            format!(
+                "Source connection not found: {}",
+                request.source_connection_id
+            )
+        })?;
     let src_secret = credentials::get_secret_key(&request.source_connection_id).or_else(|_| {
         crate::store::database::get_db_secret(&db, &request.source_connection_id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Source secret key not found".to_string())
     })?;
-    let src_session = credentials::get_session_token(&request.source_connection_id)
-        .unwrap_or_else(|_| {
+    let src_session =
+        credentials::get_session_token(&request.source_connection_id).unwrap_or_else(|_| {
             crate::store::database::get_db_session_token(&db, &request.source_connection_id)
                 .unwrap_or(None)
         });
@@ -523,8 +526,8 @@ pub async fn start_cross_transfer(
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Dest secret key not found".to_string())
     })?;
-    let dst_session = credentials::get_session_token(&request.dest_connection_id)
-        .unwrap_or_else(|_| {
+    let dst_session =
+        credentials::get_session_token(&request.dest_connection_id).unwrap_or_else(|_| {
             crate::store::database::get_db_session_token(&db, &request.dest_connection_id)
                 .unwrap_or(None)
         });
@@ -555,7 +558,7 @@ pub async fn start_cross_transfer(
         let file_size = head.content_length().unwrap_or(0);
         let src_metadata: Option<std::collections::HashMap<String, String>> =
             if request.preserve_metadata {
-                head.metadata().map(|m| m.clone())
+                head.metadata().cloned()
             } else {
                 None
             };
@@ -587,12 +590,17 @@ pub async fn start_cross_transfer(
 
         tokio::spawn(async move {
             let result = cross_copy_one(
-                &sc, &sb, &sk,
-                &dc, &db_, &dk,
+                &sc,
+                &sb,
+                &sk,
+                &dc,
+                &db_,
+                &dk,
                 file_size as u64,
                 src_metadata,
                 dl_throttle,
-                app_handle.clone(), tid.clone(),
+                app_handle.clone(),
+                tid.clone(),
             )
             .await;
 
@@ -602,21 +610,35 @@ pub async fn start_cross_transfer(
                 Ok(()) => {
                     queue.complete(&tid).await;
                     let mut done = TransferItem::new_upload(
-                        conn_id, db_.clone(), dk, format!("cross://{}/{}", sb, sk), file_size,
+                        conn_id,
+                        db_.clone(),
+                        dk,
+                        format!("cross://{}/{}", sb, sk),
+                        file_size,
                     );
                     done.id = tid.clone();
                     done.status = TransferStatus::Completed;
                     done.completed_at = Some(chrono::Utc::now().to_rfc3339());
                     let _ = crate::store::database::insert_transfer_history(&db, &done);
                     let _ = crate::store::database::delete_pending_transfer(&db, &tid);
-                    let _ = app_handle.emit("transfer:complete", TransferCompleteEvent {
-                        id: tid, success: true, error: None, etag: None,
-                    });
+                    let _ = app_handle.emit(
+                        "transfer:complete",
+                        TransferCompleteEvent {
+                            id: tid,
+                            success: true,
+                            error: None,
+                            etag: None,
+                        },
+                    );
                 }
                 Err(e) => {
                     queue.fail(&tid, e.clone()).await;
                     let mut fail = TransferItem::new_upload(
-                        conn_id, db_.clone(), dk, format!("cross://{}/{}", sb, sk), file_size,
+                        conn_id,
+                        db_.clone(),
+                        dk,
+                        format!("cross://{}/{}", sb, sk),
+                        file_size,
                     );
                     fail.id = tid.clone();
                     fail.status = TransferStatus::Failed;
@@ -624,9 +646,15 @@ pub async fn start_cross_transfer(
                     fail.completed_at = Some(chrono::Utc::now().to_rfc3339());
                     let _ = crate::store::database::insert_transfer_history(&db, &fail);
                     let _ = crate::store::database::delete_pending_transfer(&db, &tid);
-                    let _ = app_handle.emit("transfer:complete", TransferCompleteEvent {
-                        id: tid, success: false, error: Some(e), etag: None,
-                    });
+                    let _ = app_handle.emit(
+                        "transfer:complete",
+                        TransferCompleteEvent {
+                            id: tid,
+                            success: false,
+                            error: Some(e),
+                            etag: None,
+                        },
+                    );
                 }
             }
         });
@@ -671,7 +699,7 @@ async fn cross_copy_one(
         &tmp_path,
         Some(throttle),
         move |dl, _t| {
-            let combined = (dl / 2) as u64;
+            let combined = (dl / 2);
             let (speed_bps, eta_secs) = dl_tracker.update(combined, total);
             let _ = dl_app.emit(
                 "transfer:progress",
@@ -700,7 +728,7 @@ async fn cross_copy_one(
         None,
         None,
         move |ul, _t| {
-            let combined = (total / 2 + ul / 2) as u64;
+            let combined = (total / 2 + ul / 2);
             let (speed_bps, eta_secs) = ul_tracker.update(combined, total);
             let _ = ul_app.emit(
                 "transfer:progress",
@@ -768,7 +796,12 @@ pub async fn resume_upload(
     // Local file still exists and matches the recorded size?
     let metadata = tokio::fs::metadata(&pending.local_path)
         .await
-        .map_err(|e| format!("Local file '{}' is no longer accessible: {e}", pending.local_path))?;
+        .map_err(|e| {
+            format!(
+                "Local file '{}' is no longer accessible: {e}",
+                pending.local_path
+            )
+        })?;
     if metadata.len() as i64 != pending.total_bytes {
         return Err(format!(
             "Local file size changed since upload was interrupted (was {}, now {}); cannot resume safely.",
@@ -777,16 +810,18 @@ pub async fn resume_upload(
         ));
     }
 
-    let secret_key = credentials::get_secret_key(&pending.connection_id)
-        .or_else(|_| {
-            crate::store::database::get_db_secret(&db, &pending.connection_id)
-                .map_err(|e| e.to_string())?
-                .ok_or_else(|| {
-                    format!("Secret key not found for connection {}", pending.connection_id)
-                })
-        })?;
-    let session_token = credentials::get_session_token(&pending.connection_id)
-        .unwrap_or_else(|_| {
+    let secret_key = credentials::get_secret_key(&pending.connection_id).or_else(|_| {
+        crate::store::database::get_db_secret(&db, &pending.connection_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| {
+                format!(
+                    "Secret key not found for connection {}",
+                    pending.connection_id
+                )
+            })
+    })?;
+    let session_token =
+        credentials::get_session_token(&pending.connection_id).unwrap_or_else(|_| {
             crate::store::database::get_db_session_token(&db, &pending.connection_id)
                 .unwrap_or(None)
         });
@@ -871,7 +906,11 @@ pub async fn resume_upload(
 
         match result {
             Ok(etag) => {
-                tracing::info!("resume_upload[{}]: completed successfully (etag={})", tid, etag);
+                tracing::info!(
+                    "resume_upload[{}]: completed successfully (etag={})",
+                    tid,
+                    etag
+                );
                 let _ = app_handle.emit(
                     "transfer:complete",
                     TransferCompleteEvent {
@@ -943,6 +982,5 @@ pub async fn discard_upload(
         }
     }
 
-    crate::store::database::delete_pending_transfer(&db, &transfer_id)
-        .map_err(|e| e.to_string())
+    crate::store::database::delete_pending_transfer(&db, &transfer_id).map_err(|e| e.to_string())
 }

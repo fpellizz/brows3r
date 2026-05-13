@@ -62,11 +62,10 @@ pub async fn list_buckets(
 ) -> Result<Vec<BucketInfo>, String> {
     tracing::info!("list_buckets called for connection {connection_id}");
 
-    let client = get_client(&db, &pool, &connection_id).await
-        .map_err(|e| {
-            tracing::error!("get_client failed: {e}");
-            e
-        })?;
+    let client = get_client(&db, &pool, &connection_id).await.map_err(|e| {
+        tracing::error!("get_client failed: {e}");
+        e
+    })?;
 
     let buckets = crate::s3::client::list_buckets(&client)
         .await
@@ -402,11 +401,13 @@ pub async fn compute_bucket_stats(
 
     let mut by_storage_class: Vec<StorageClassBreakdown> = by_class
         .into_iter()
-        .map(|(storage_class, (count, total_bytes))| StorageClassBreakdown {
-            storage_class,
-            count,
-            total_bytes,
-        })
+        .map(
+            |(storage_class, (count, total_bytes))| StorageClassBreakdown {
+                storage_class,
+                count,
+                total_bytes,
+            },
+        )
         .collect();
     // Larger first — nicer in the UI than alphabetical noise.
     by_storage_class.sort_by(|a, b| b.total_bytes.cmp(&a.total_bytes));

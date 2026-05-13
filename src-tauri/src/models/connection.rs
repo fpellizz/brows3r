@@ -66,30 +66,24 @@ pub struct UpdateConnectionRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum SignatureVersion {
     V2,
+    #[default]
     V4,
 }
 
-impl Default for SignatureVersion {
-    fn default() -> Self {
-        Self::V4
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum PathStyle {
+    #[default]
     Auto,
     Path,
     Virtual,
 }
 
-impl Default for PathStyle {
-    fn default() -> Self {
-        Self::Auto
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ConnectionTestResult {

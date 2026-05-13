@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use rusqlite::Connection;
 use tauri::{AppHandle, Manager};
 
-use crate::models::connection::{Connection as ConnProfile, SignatureVersion, PathStyle};
+use crate::models::connection::{Connection as ConnProfile, PathStyle, SignatureVersion};
 use crate::models::transfer::{
     RecoverableUpload, TransferHistoryEntry, TransferItem, TransferType, UploadedPart,
 };
@@ -315,7 +315,11 @@ fn path_style_str(v: &PathStyle) -> &str {
 
 // --- Secrets stored in DB (base64-obfuscated, not truly encrypted) ---
 
-pub fn store_db_secret(db: &Database, connection_id: &str, secret: &str) -> Result<(), rusqlite::Error> {
+pub fn store_db_secret(
+    db: &Database,
+    connection_id: &str,
+    secret: &str,
+) -> Result<(), rusqlite::Error> {
     use base64::Engine;
     let encoded = base64::engine::general_purpose::STANDARD.encode(secret);
     let conn = db.conn.lock().unwrap();
@@ -326,14 +330,20 @@ pub fn store_db_secret(db: &Database, connection_id: &str, secret: &str) -> Resu
     Ok(())
 }
 
-pub fn get_db_secret(db: &Database, connection_id: &str) -> Result<Option<String>, rusqlite::Error> {
+pub fn get_db_secret(
+    db: &Database,
+    connection_id: &str,
+) -> Result<Option<String>, rusqlite::Error> {
     use base64::Engine;
     let conn = db.conn.lock().unwrap();
-    let result: Option<String> = conn.query_row(
-        "SELECT encrypted_secret FROM connections WHERE id = ?1",
-        [connection_id],
-        |row| row.get(0),
-    ).ok().flatten();
+    let result: Option<String> = conn
+        .query_row(
+            "SELECT encrypted_secret FROM connections WHERE id = ?1",
+            [connection_id],
+            |row| row.get(0),
+        )
+        .ok()
+        .flatten();
 
     Ok(result.and_then(|encoded| {
         base64::engine::general_purpose::STANDARD
@@ -343,7 +353,11 @@ pub fn get_db_secret(db: &Database, connection_id: &str) -> Result<Option<String
     }))
 }
 
-pub fn store_db_session_token(db: &Database, connection_id: &str, token: &str) -> Result<(), rusqlite::Error> {
+pub fn store_db_session_token(
+    db: &Database,
+    connection_id: &str,
+    token: &str,
+) -> Result<(), rusqlite::Error> {
     use base64::Engine;
     let encoded = base64::engine::general_purpose::STANDARD.encode(token);
     let conn = db.conn.lock().unwrap();
@@ -354,14 +368,20 @@ pub fn store_db_session_token(db: &Database, connection_id: &str, token: &str) -
     Ok(())
 }
 
-pub fn get_db_session_token(db: &Database, connection_id: &str) -> Result<Option<String>, rusqlite::Error> {
+pub fn get_db_session_token(
+    db: &Database,
+    connection_id: &str,
+) -> Result<Option<String>, rusqlite::Error> {
     use base64::Engine;
     let conn = db.conn.lock().unwrap();
-    let result: Option<String> = conn.query_row(
-        "SELECT encrypted_session_token FROM connections WHERE id = ?1",
-        [connection_id],
-        |row| row.get(0),
-    ).ok().flatten();
+    let result: Option<String> = conn
+        .query_row(
+            "SELECT encrypted_session_token FROM connections WHERE id = ?1",
+            [connection_id],
+            |row| row.get(0),
+        )
+        .ok()
+        .flatten();
 
     Ok(result.and_then(|encoded| {
         base64::engine::general_purpose::STANDARD
@@ -478,10 +498,7 @@ pub fn append_pending_part(
 /// or after a Discard action from the recovery UI).
 pub fn delete_pending_transfer(db: &Database, transfer_id: &str) -> Result<(), rusqlite::Error> {
     let conn = db.conn.lock().unwrap();
-    conn.execute(
-        "DELETE FROM pending_transfers WHERE id = ?1",
-        [transfer_id],
-    )?;
+    conn.execute("DELETE FROM pending_transfers WHERE id = ?1", [transfer_id])?;
     Ok(())
 }
 
@@ -526,10 +543,7 @@ pub fn list_recoverable_uploads(db: &Database) -> Result<Vec<RecoverableUpload>,
 
 /// Record a finished transfer. Called from the upload/download task
 /// completion paths, before deleting the pending row.
-pub fn insert_transfer_history(
-    db: &Database,
-    item: &TransferItem,
-) -> Result<(), rusqlite::Error> {
+pub fn insert_transfer_history(db: &Database, item: &TransferItem) -> Result<(), rusqlite::Error> {
     let conn = db.conn.lock().unwrap();
     let tt = match item.transfer_type {
         TransferType::Upload => "upload",
