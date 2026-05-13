@@ -11,7 +11,9 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{filter::EnvFilter, fmt, layer::SubscriberExt, reload, util::SubscriberInitExt};
+use tracing_subscriber::{
+    filter::EnvFilter, fmt, layer::SubscriberExt, reload, util::SubscriberInitExt,
+};
 
 use crate::models::settings::AppSettings;
 
@@ -193,7 +195,9 @@ pub fn purge_old_logs(dir: &Path, retention_days: u32) {
             continue;
         }
         let Ok(meta) = entry.metadata() else { continue };
-        let Ok(modified) = meta.modified() else { continue };
+        let Ok(modified) = meta.modified() else {
+            continue;
+        };
         if modified < cutoff {
             if let Err(e) = std::fs::remove_file(&path) {
                 tracing::warn!("failed to purge old log {}: {}", path.display(), e);

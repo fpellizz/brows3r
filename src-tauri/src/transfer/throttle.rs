@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 use std::sync::{Arc, RwLock};
 
-use chrono::{Local, Datelike, Timelike};
+use chrono::{Datelike, Local, Timelike};
 use governor::{Quota, RateLimiter};
 
 /// A bandwidth schedule entry — limits bandwidth during a specific time window.
@@ -22,7 +22,9 @@ pub struct BandwidthSchedule {
 impl BandwidthSchedule {
     fn parse_time(t: &str) -> Option<(u32, u32)> {
         let parts: Vec<&str> = t.split(':').collect();
-        if parts.len() != 2 { return None; }
+        if parts.len() != 2 {
+            return None;
+        }
         let h = parts[0].parse::<u32>().ok()?;
         let m = parts[1].parse::<u32>().ok()?;
         Some((h, m))
@@ -110,7 +112,9 @@ impl BandwidthThrottle {
         for schedule in &config.schedules {
             if schedule.is_active_now() {
                 let mbps = schedule.max_bandwidth_mbps;
-                if mbps == 0 { return None; } // 0 = unlimited
+                if mbps == 0 {
+                    return None;
+                } // 0 = unlimited
                 return Some(mbps as u64 * 1024 * 1024);
             }
         }

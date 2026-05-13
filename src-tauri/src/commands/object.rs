@@ -1,12 +1,12 @@
-use tauri::State;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use tauri::State;
 
 use crate::models::object::{
-    BucketVersioningStatus, CopyObjectRequest, DeleteObjectsRequest,
-    ListObjectVersionsRequest, ListObjectVersionsResponse, ListObjectsRequest,
-    ListObjectsResponse, ObjectDetails, ObjectInfo, PresignMethod, PresignedUrlRequest,
+    BucketVersioningStatus, CopyObjectRequest, DeleteObjectsRequest, ListObjectVersionsRequest,
+    ListObjectVersionsResponse, ListObjectsRequest, ListObjectsResponse, ObjectDetails, ObjectInfo,
+    PresignMethod, PresignedUrlRequest,
 };
 use crate::s3::client::S3ClientPool;
 use crate::store::credentials;
@@ -79,12 +79,7 @@ pub async fn list_objects(
         .objects
         .into_iter()
         .map(|o| {
-            let display_name = o
-                .key
-                .rsplit('/')
-                .next()
-                .unwrap_or(&o.key)
-                .to_string();
+            let display_name = o.key.rsplit('/').next().unwrap_or(&o.key).to_string();
             ObjectInfo {
                 key: o.key,
                 display_name,
@@ -202,9 +197,13 @@ pub async fn move_object(
     .map_err(|e| e.to_string())?;
 
     // Delete original
-    crate::s3::client::delete_objects(&client, &request.source_bucket, &[request.source_key.clone()])
-        .await
-        .map_err(|e| e.to_string())?;
+    crate::s3::client::delete_objects(
+        &client,
+        &request.source_bucket,
+        &[request.source_key.clone()],
+    )
+    .await
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -271,27 +270,23 @@ pub async fn get_presigned_url(
     let client = get_client(&db, &pool, &request.connection_id).await?;
 
     match request.method {
-        PresignMethod::Get => {
-            crate::s3::presign::presign_get_object_v(
-                &client,
-                &request.bucket,
-                &request.key,
-                request.version_id.as_deref(),
-                request.expiry_secs,
-            )
-            .await
-            .map_err(|e| e.to_string())
-        }
-        PresignMethod::Put => {
-            crate::s3::presign::presign_put_object(
-                &client,
-                &request.bucket,
-                &request.key,
-                request.expiry_secs,
-            )
-            .await
-            .map_err(|e| e.to_string())
-        }
+        PresignMethod::Get => crate::s3::presign::presign_get_object_v(
+            &client,
+            &request.bucket,
+            &request.key,
+            request.version_id.as_deref(),
+            request.expiry_secs,
+        )
+        .await
+        .map_err(|e| e.to_string()),
+        PresignMethod::Put => crate::s3::presign::presign_put_object(
+            &client,
+            &request.bucket,
+            &request.key,
+            request.expiry_secs,
+        )
+        .await
+        .map_err(|e| e.to_string()),
     }
 }
 
@@ -326,10 +321,7 @@ pub async fn update_object_metadata(
         request = request.content_type(ct);
     }
 
-    request
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    request.send().await.map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -399,8 +391,8 @@ pub async fn get_object_preview(
         });
     }
 
-    if size > MAX_PREVIEW_BYTES {
-        if preview_type == "image" {
+    if size > MAX_PREVIEW_BYTES
+        && preview_type == "image" {
             // Images: don't preview if too large
             return Ok(PreviewResponse {
                 preview_type: "unsupported".to_string(),
@@ -411,7 +403,6 @@ pub async fn get_object_preview(
             });
         }
         // Text: download first 500KB only
-    }
 
     let is_text_like = preview_type == "text" || preview_type == "markdown";
     let text_limit = 512 * 1024i64; // 500 KB for text
@@ -444,9 +435,7 @@ pub async fn get_object_preview(
     // For image formats the browser can't render natively (currently TIFF),
     // transcode to PNG on the backend so the frontend can display them.
     let mut effective_content_type = content_type.clone();
-    let content_bytes: Vec<u8> = if preview_type == "image"
-        && is_tiff(&content_type, &key)
-    {
+    let content_bytes: Vec<u8> = if preview_type == "image" && is_tiff(&content_type, &key) {
         match transcode_tiff_to_png(&bytes) {
             Ok(png) => {
                 effective_content_type = "image/png".to_string();
@@ -501,8 +490,8 @@ fn transcode_tiff_to_png(bytes: &[u8]) -> Result<Vec<u8>, String> {
     use image::ImageFormat;
     use std::io::Cursor;
 
-    let img = image::load_from_memory_with_format(bytes, ImageFormat::Tiff)
-        .map_err(|e| e.to_string())?;
+    let img =
+        image::load_from_memory_with_format(bytes, ImageFormat::Tiff).map_err(|e| e.to_string())?;
     let mut out = Cursor::new(Vec::new());
     img.write_to(&mut out, ImageFormat::Png)
         .map_err(|e| e.to_string())?;
@@ -568,18 +557,18 @@ fn classify_content_type(content_type: &str, key: &str) -> String {
         "mp3" | "ogg" | "wav" | "flac" => "audio".to_string(),
 
         // Text/code
-        "txt" | "csv" | "tsv" | "log" | "ini" | "cfg" | "conf"
-        | "json" | "xml" | "yaml" | "yml" | "toml" | "html" | "htm" | "css" | "js"
-        | "ts" | "tsx" | "jsx" | "py" | "rb" | "rs" | "go" | "java" | "c" | "h"
-        | "cpp" | "hpp" | "cs" | "sh" | "bash" | "zsh" | "fish" | "ps1" | "bat"
-        | "cmd" | "sql" | "graphql" | "proto" | "tf" | "hcl" | "dockerfile"
-        | "makefile" | "gitignore" | "env" | "properties" | "gradle" | "sbt"
-        | "scala" | "kt" | "swift" | "r" | "lua" | "pl" | "php" | "ex" | "exs"
-        | "erl" | "hs" | "ml" | "vim" | "el" | "lisp" | "clj" => "text".to_string(),
+        "txt" | "csv" | "tsv" | "log" | "ini" | "cfg" | "conf" | "json" | "xml" | "yaml"
+        | "yml" | "toml" | "html" | "htm" | "css" | "js" | "ts" | "tsx" | "jsx" | "py" | "rb"
+        | "rs" | "go" | "java" | "c" | "h" | "cpp" | "hpp" | "cs" | "sh" | "bash" | "zsh"
+        | "fish" | "ps1" | "bat" | "cmd" | "sql" | "graphql" | "proto" | "tf" | "hcl"
+        | "dockerfile" | "makefile" | "gitignore" | "env" | "properties" | "gradle" | "sbt"
+        | "scala" | "kt" | "swift" | "r" | "lua" | "pl" | "php" | "ex" | "exs" | "erl" | "hs"
+        | "ml" | "vim" | "el" | "lisp" | "clj" => "text".to_string(),
 
         // Images
-        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico"
-        | "tif" | "tiff" => "image".to_string(),
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico" | "tif" | "tiff" => {
+            "image".to_string()
+        }
 
         _ => "unsupported".to_string(),
     }

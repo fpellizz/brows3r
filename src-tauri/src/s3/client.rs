@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use aws_sdk_s3::config::{BehaviorVersion, Region};
-use aws_sdk_s3::Client;
 use aws_config;
 use aws_config::timeout::TimeoutConfig;
+use aws_sdk_s3::config::{BehaviorVersion, Region};
+use aws_sdk_s3::Client;
 use tokio::sync::RwLock;
 
 use super::auth::build_credentials_provider;
@@ -56,7 +56,7 @@ impl S3ClientPool {
 async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
     let credentials_provider = build_credentials_provider(config);
 
-    let connect_secs = config.timeout_secs.max(5) as u64;
+    let connect_secs = config.timeout_secs.max(5);
     let timeout_config = TimeoutConfig::builder()
         .connect_timeout(Duration::from_secs(connect_secs))
         .operation_timeout(Duration::from_secs(connect_secs * 3))
@@ -80,7 +80,11 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
     // a proxy URL or a CA bundle path — the default client built by
     // `aws_config::defaults()` knows nothing about either setting,
     // so without this step those UI fields are silently ignored.
-    let proxy_url = config.proxy.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let proxy_url = config
+        .proxy
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     let ca_bundle_path = config
         .ca_bundle
         .as_deref()
@@ -90,9 +94,8 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
         use aws_smithy_http_client::{proxy, tls, Builder as HttpClientBuilder, Connector};
 
         let proxy_cfg = if let Some(url) = proxy_url {
-            let cfg = proxy::ProxyConfig::all(url).map_err(|e| {
-                S3Error::ConfigError(format!("invalid proxy URL '{url}': {e}"))
-            })?;
+            let cfg = proxy::ProxyConfig::all(url)
+                .map_err(|e| S3Error::ConfigError(format!("invalid proxy URL '{url}': {e}")))?;
             tracing::info!("S3 client using HTTP proxy: {}", url);
             Some(cfg)
         } else {
@@ -110,9 +113,7 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
             let ctx = tls::TlsContext::builder()
                 .with_trust_store(store)
                 .build()
-                .map_err(|e| {
-                    S3Error::ConfigError(format!("invalid CA bundle '{path}': {e}"))
-                })?;
+                .map_err(|e| S3Error::ConfigError(format!("invalid CA bundle '{path}': {e}")))?;
             tracing::info!("S3 client using custom CA bundle: {}", path);
             Some(ctx)
         } else {
@@ -148,14 +149,17 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
 
     let sdk_config = loader.load().await;
 
-    let mut s3_config_builder =
-        aws_sdk_s3::config::Builder::from(&sdk_config);
+    let mut s3_config_builder = aws_sdk_s3::config::Builder::from(&sdk_config);
 
     if let Some(force_path_style) = config.force_path_style {
         s3_config_builder = s3_config_builder.force_path_style(force_path_style);
         tracing::info!(
             "S3 client addressing: {} (endpoint={})",
-            if force_path_style { "path-style" } else { "virtual-hosted" },
+            if force_path_style {
+                "path-style"
+            } else {
+                "virtual-hosted"
+            },
             config.endpoint
         );
     }
@@ -167,15 +171,11 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
 // --- Operations ---
 
 pub async fn list_buckets(client: &Client) -> Result<Vec<S3Bucket>, S3Error> {
-    let output = client
-        .list_buckets()
-        .send()
-        .await
-        .map_err(|e| {
-            let msg = super::error::sdk_error_detail(&e);
-            tracing::error!("ListBuckets failed: {msg}");
-            S3Error::SdkError(msg)
-        })?;
+    let output = client.list_buckets().send().await.map_err(|e| {
+        let msg = super::error::sdk_error_detail(&e);
+        tracing::error!("ListBuckets failed: {msg}");
+        S3Error::SdkError(msg)
+    })?;
 
     let buckets = output
         .buckets()
@@ -280,11 +280,7 @@ pub async fn head_object(
     })
 }
 
-pub async fn delete_objects(
-    client: &Client,
-    bucket: &str,
-    keys: &[String],
-) -> Result<(), S3Error> {
+pub async fn delete_objects(client: &Client, bucket: &str, keys: &[String]) -> Result<(), S3Error> {
     use aws_sdk_s3::types::{Delete, ObjectIdentifier};
 
     let objects: Vec<ObjectIdentifier> = keys
@@ -610,9 +606,7 @@ pub async fn get_bucket_encryption(
             };
             Ok(Some(crate::models::bucket::BucketEncryption {
                 algorithm: default.sse_algorithm().as_str().to_string(),
-                kms_master_key_id: default
-                    .kms_master_key_id()
-                    .map(|s| s.to_string()),
+                kms_master_key_id: default.kms_master_key_id().map(|s| s.to_string()),
                 bucket_key_enabled: rule.bucket_key_enabled(),
             }))
         }
@@ -653,12 +647,12 @@ pub async fn set_bucket_encryption(
     if let Some(key) = kms_master_key_id {
         default_builder = default_builder.kms_master_key_id(key);
     }
-    let default = default_builder.build().map_err(|e| {
-        S3Error::ConfigError(format!("invalid encryption config: {e}"))
-    })?;
+    let default = default_builder
+        .build()
+        .map_err(|e| S3Error::ConfigError(format!("invalid encryption config: {e}")))?;
 
-    let mut rule_builder = ServerSideEncryptionRule::builder()
-        .apply_server_side_encryption_by_default(default);
+    let mut rule_builder =
+        ServerSideEncryptionRule::builder().apply_server_side_encryption_by_default(default);
     if let Some(b) = bucket_key_enabled {
         rule_builder = rule_builder.bucket_key_enabled(b);
     }
@@ -682,10 +676,7 @@ pub async fn set_bucket_encryption(
 /// Remove the default server-side encryption configuration from a
 /// bucket. New writes will no longer be auto-encrypted (the per-object
 /// encryption metadata of existing objects is untouched).
-pub async fn delete_bucket_encryption(
-    client: &Client,
-    bucket: &str,
-) -> Result<(), S3Error> {
+pub async fn delete_bucket_encryption(client: &Client, bucket: &str) -> Result<(), S3Error> {
     client
         .delete_bucket_encryption()
         .bucket(bucket)
@@ -697,10 +688,7 @@ pub async fn delete_bucket_encryption(
 
 /// Read the bucket policy as a JSON string. Returns `None` if no
 /// policy is attached (`NoSuchBucketPolicy` from S3).
-pub async fn get_bucket_policy(
-    client: &Client,
-    bucket: &str,
-) -> Result<Option<String>, S3Error> {
+pub async fn get_bucket_policy(client: &Client, bucket: &str) -> Result<Option<String>, S3Error> {
     match client.get_bucket_policy().bucket(bucket).send().await {
         Ok(out) => Ok(out.policy().map(|p| p.to_string())),
         Err(e) => {
@@ -717,11 +705,7 @@ pub async fn get_bucket_policy(
 /// Replace the bucket policy with the given JSON document. The S3
 /// service does the syntactic + permissions validation; we surface
 /// its error verbatim.
-pub async fn set_bucket_policy(
-    client: &Client,
-    bucket: &str,
-    policy: &str,
-) -> Result<(), S3Error> {
+pub async fn set_bucket_policy(client: &Client, bucket: &str, policy: &str) -> Result<(), S3Error> {
     client
         .put_bucket_policy()
         .bucket(bucket)
@@ -733,10 +717,7 @@ pub async fn set_bucket_policy(
 }
 
 /// Remove the bucket policy entirely.
-pub async fn delete_bucket_policy(
-    client: &Client,
-    bucket: &str,
-) -> Result<(), S3Error> {
+pub async fn delete_bucket_policy(client: &Client, bucket: &str) -> Result<(), S3Error> {
     client
         .delete_bucket_policy()
         .bucket(bucket)
@@ -918,7 +899,10 @@ pub async fn get_bucket_lifecycle(
                     has_unsupported = true;
                     continue;
                 }
-                (exp.days().filter(|d| *d > 0).map(|d| d), exp.expired_object_delete_marker())
+                (
+                    exp.days().filter(|d| *d > 0).map(|d| d),
+                    exp.expired_object_delete_marker(),
+                )
             }
         };
 
@@ -994,9 +978,7 @@ pub async fn set_bucket_lifecycle(
             .set_prefix(Some(r.prefix.clone().unwrap_or_default()))
             .build();
 
-        let mut b = SdkLifecycleRule::builder()
-            .status(status)
-            .filter(filter);
+        let mut b = SdkLifecycleRule::builder().status(status).filter(filter);
         if let Some(id) = &r.id {
             b = b.id(id);
         }
@@ -1049,9 +1031,9 @@ pub async fn set_bucket_lifecycle(
             );
         }
 
-        let rule = b.build().map_err(|e| {
-            S3Error::ConfigError(format!("invalid lifecycle rule: {e}"))
-        })?;
+        let rule = b
+            .build()
+            .map_err(|e| S3Error::ConfigError(format!("invalid lifecycle rule: {e}")))?;
         sdk_rules.push(rule);
     }
 
@@ -1071,10 +1053,7 @@ pub async fn set_bucket_lifecycle(
 }
 
 /// Remove the lifecycle configuration from a bucket entirely.
-pub async fn delete_bucket_lifecycle(
-    client: &Client,
-    bucket: &str,
-) -> Result<(), S3Error> {
+pub async fn delete_bucket_lifecycle(client: &Client, bucket: &str) -> Result<(), S3Error> {
     client
         .delete_bucket_lifecycle()
         .bucket(bucket)

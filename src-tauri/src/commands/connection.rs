@@ -1,8 +1,7 @@
 use tauri::State;
 
 use crate::models::connection::{
-    Connection, ConnectionTestResult, CreateConnectionRequest, PathStyle,
-    UpdateConnectionRequest,
+    Connection, ConnectionTestResult, CreateConnectionRequest, PathStyle, UpdateConnectionRequest,
 };
 use crate::s3::client::S3ClientPool;
 use crate::s3::types::S3ClientConfig;
@@ -86,7 +85,9 @@ pub async fn update_connection(
         access_key_id: request.access_key_id.unwrap_or(existing.access_key_id),
         secret_access_key: None,
         session_token: None,
-        signature_version: request.signature_version.unwrap_or(existing.signature_version),
+        signature_version: request
+            .signature_version
+            .unwrap_or(existing.signature_version),
         path_style: request.path_style.unwrap_or(existing.path_style),
         proxy: request.proxy.or(existing.proxy),
         ca_bundle: request.ca_bundle.or(existing.ca_bundle),
@@ -145,16 +146,13 @@ pub async fn test_connection(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Connection not found: {id}"))?;
 
-    let secret_key = credentials::get_secret_key(&id)
-        .or_else(|_| {
-            crate::store::database::get_db_secret(&db, &id)
-                .map_err(|e| e.to_string())?
-                .ok_or_else(|| format!("Secret key not found for connection {id}"))
-        })?;
+    let secret_key = credentials::get_secret_key(&id).or_else(|_| {
+        crate::store::database::get_db_secret(&db, &id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Secret key not found for connection {id}"))
+    })?;
     let session_token = credentials::get_session_token(&id)
-        .unwrap_or_else(|_| {
-            crate::store::database::get_db_session_token(&db, &id).unwrap_or(None)
-        });
+        .unwrap_or_else(|_| crate::store::database::get_db_session_token(&db, &id).unwrap_or(None));
 
     let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
 
@@ -209,7 +207,11 @@ pub async fn test_connection_inline(
     let result = crate::s3::client::test_connection(&client).await;
 
     match &result {
-        Ok(r) => tracing::info!("Test result: success={}, latency={}ms", r.success, r.latency_ms),
+        Ok(r) => tracing::info!(
+            "Test result: success={}, latency={}ms",
+            r.success,
+            r.latency_ms
+        ),
         Err(e) => tracing::error!("Test connection error: {e:?}"),
     }
 

@@ -84,10 +84,9 @@ async fn build_client(
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("Secret key not found for connection {connection_id}"))
     })?;
-    let session_token = credentials::get_session_token(connection_id)
-        .unwrap_or_else(|_| {
-            crate::store::database::get_db_session_token(db, connection_id).unwrap_or(None)
-        });
+    let session_token = credentials::get_session_token(connection_id).unwrap_or_else(|_| {
+        crate::store::database::get_db_session_token(db, connection_id).unwrap_or(None)
+    });
     let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
     pool.get_or_create(connection_id, &config)
         .await
@@ -112,11 +111,25 @@ async fn run_sync(
     for action in &request.actions {
         if matches!(action.kind, SyncActionKind::Skip) {
             skipped += 1;
-            emit_action(&app, &sync_id, action.kind, &action.rel_path, SyncActionStatus::Completed, None);
+            emit_action(
+                &app,
+                &sync_id,
+                action.kind,
+                &action.rel_path,
+                SyncActionStatus::Completed,
+                None,
+            );
             continue;
         }
 
-        emit_action(&app, &sync_id, action.kind, &action.rel_path, SyncActionStatus::Started, None);
+        emit_action(
+            &app,
+            &sync_id,
+            action.kind,
+            &action.rel_path,
+            SyncActionStatus::Started,
+            None,
+        );
 
         let result: Result<(), String> = match action.kind {
             SyncActionKind::Upload => {
@@ -152,12 +165,32 @@ async fn run_sync(
         match result {
             Ok(()) => {
                 succeeded += 1;
-                emit_action(&app, &sync_id, action.kind, &action.rel_path, SyncActionStatus::Completed, None);
+                emit_action(
+                    &app,
+                    &sync_id,
+                    action.kind,
+                    &action.rel_path,
+                    SyncActionStatus::Completed,
+                    None,
+                );
             }
             Err(e) => {
                 failed += 1;
-                tracing::error!("sync[{}] {} {:?} failed: {}", sync_id, action.rel_path, action.kind, e);
-                emit_action(&app, &sync_id, action.kind, &action.rel_path, SyncActionStatus::Failed, Some(e));
+                tracing::error!(
+                    "sync[{}] {} {:?} failed: {}",
+                    sync_id,
+                    action.rel_path,
+                    action.kind,
+                    e
+                );
+                emit_action(
+                    &app,
+                    &sync_id,
+                    action.kind,
+                    &action.rel_path,
+                    SyncActionStatus::Failed,
+                    Some(e),
+                );
             }
         }
     }
@@ -173,7 +206,10 @@ async fn run_sync(
     );
     tracing::info!(
         "sync[{}] done — {} succeeded, {} failed, {} skipped",
-        sync_id, succeeded, failed, skipped
+        sync_id,
+        succeeded,
+        failed,
+        skipped
     );
 }
 

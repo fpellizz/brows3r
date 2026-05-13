@@ -1,9 +1,9 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
-use aws_sdk_s3::Client;
 use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::Client;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::Semaphore;
 
@@ -43,12 +43,7 @@ pub struct MultipartUploader {
 }
 
 impl MultipartUploader {
-    pub fn new(
-        client: Client,
-        bucket: String,
-        key: String,
-        part_size_mb: Option<u32>,
-    ) -> Self {
+    pub fn new(client: Client, bucket: String, key: String, part_size_mb: Option<u32>) -> Self {
         Self::with_concurrency(client, bucket, key, part_size_mb, None)
     }
 
@@ -126,7 +121,7 @@ impl MultipartUploader {
         }
 
         // Calculate total parts
-        let total_parts = ((file_size as usize + self.part_size - 1) / self.part_size).max(1);
+        let total_parts = (file_size as usize).div_ceil(self.part_size).max(1);
 
         // Shared progress counter
         let bytes_uploaded = Arc::new(AtomicU64::new(0));
@@ -158,9 +153,10 @@ impl MultipartUploader {
 
             let handle = tokio::spawn(async move {
                 // Acquire semaphore permit to limit concurrency
-                let _permit = sem.acquire().await.map_err(|e| {
-                    S3Error::MultipartError(format!("Semaphore error: {e}"))
-                })?;
+                let _permit = sem
+                    .acquire()
+                    .await
+                    .map_err(|e| S3Error::MultipartError(format!("Semaphore error: {e}")))?;
 
                 // Read part data from file at the correct offset
                 let mut f = tokio::fs::File::open(&file)
@@ -197,10 +193,7 @@ impl MultipartUploader {
                     .await
                     .map_err(|e| S3Error::MultipartError(super::error::sdk_error_detail(&e)))?;
 
-                let etag = upload_part_output
-                    .e_tag()
-                    .unwrap_or_default()
-                    .to_string();
+                let etag = upload_part_output.e_tag().unwrap_or_default().to_string();
 
                 // Persist the completed part so it survives a crash. Done
                 // BEFORE updating progress so a recoverable row never claims
@@ -215,7 +208,8 @@ impl MultipartUploader {
                 }
 
                 // Update progress
-                let uploaded = progress.fetch_add(bytes_read as u64, Ordering::Relaxed) + bytes_read as u64;
+                let uploaded =
+                    progress.fetch_add(bytes_read as u64, Ordering::Relaxed) + bytes_read as u64;
                 cb(uploaded, file_size);
 
                 Ok::<(i32, String), S3Error>((part_number, etag))
@@ -286,10 +280,7 @@ impl MultipartUploader {
             .await
             .map_err(|e| S3Error::MultipartError(super::error::sdk_error_detail(&e)))?;
 
-        let etag = complete_output
-            .e_tag()
-            .unwrap_or_default()
-            .to_string();
+        let etag = complete_output.e_tag().unwrap_or_default().to_string();
 
         Ok(etag)
     }
@@ -327,7 +318,7 @@ where
         .len();
 
     let part_size = part_size_bytes.max(MIN_PART_SIZE);
-    let total_parts = ((file_size as usize + part_size - 1) / part_size).max(1);
+    let total_parts = (file_size as usize).div_ceil(part_size).max(1);
 
     // Source of truth: ask S3 which parts are already there. Paginated.
     let mut existing: Vec<(i32, String)> = Vec::new();
@@ -377,8 +368,7 @@ where
         }
     }
 
-    let already_done: std::collections::HashSet<i32> =
-        existing.iter().map(|(pn, _)| *pn).collect();
+    let already_done: std::collections::HashSet<i32> = existing.iter().map(|(pn, _)| *pn).collect();
 
     tracing::info!(
         "resume: {} part(s) already on S3, {} part(s) to upload (total {}, part_size={})",
@@ -474,10 +464,7 @@ where
                 .await
                 .map_err(|e| S3Error::MultipartError(super::error::sdk_error_detail(&e)))?;
 
-            let etag = upload_part_output
-                .e_tag()
-                .unwrap_or_default()
-                .to_string();
+            let etag = upload_part_output.e_tag().unwrap_or_default().to_string();
 
             if let Some(p) = persist.as_ref() {
                 p.record_part(UploadedPart {
