@@ -37,6 +37,19 @@
     "prereqMissing_one": "Manca 1 dipendenza nativa.",
     "prereqMissing_other": "Mancano {{count}} dipendenze native."
   },
+  "updater": {
+    "checkForUpdates": "Controlla aggiornamenti",
+    "upToDate": "Sei già all'ultima versione.",
+    "newVersionAvailable": "v{{version}} disponibile",
+    "updateAvailable": "Aggiornamento disponibile",
+    "installNow": "Installa ora",
+    "downloadPage": "Apri pagina download",
+    "downloading": "Download in corso…",
+    "installedRestart": "Aggiornamento installato.",
+    "restartHint": "Riavvia per applicare",
+    "later": "Più tardi",
+    "checkFailed": "Controllo fallito"
+  },
   "crossTransfer": {
     "title": "Copia su Altra Connessione",
     "menuLabel": "Copia su connessione...",

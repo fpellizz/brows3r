@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 
@@ -12,11 +13,24 @@ import { TransferPanel } from "@/components/transfer/TransferPanel";
 import { TerminalPanel } from "@/components/terminal/TerminalPanel";
 import { PreviewPanel } from "@/components/preview/PreviewPanel";
 import { Dashboard } from "@/components/dashboard/Dashboard";
+import { UpdateBanner } from "@/components/common/UpdateBanner";
 import { useUiStore } from "@/stores/uiStore";
 import { useObjectStore } from "@/stores/objectStore";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { useUpdaterStore } from "@/stores/updaterStore";
 
 export function AppShell() {
+  // Updater bootstrap: detect install kind and run a silent check ~1.5s
+  // after first paint. Silent means we only surface "available" — no
+  // toast for "up to date" or transient network failures.
+  const initUpdater = useUpdaterStore((s) => s.init);
+  const checkForUpdates = useUpdaterStore((s) => s.checkForUpdates);
+  useEffect(() => {
+    void initUpdater();
+    const t = window.setTimeout(() => void checkForUpdates(true), 1500);
+    return () => window.clearTimeout(t);
+  }, [initUpdater, checkForUpdates]);
+
   const showTransferPanel = useUiStore((s) => s.showTransferPanel);
   const showTerminalPanel = useUiStore((s) => s.showTerminalPanel);
   const activeTab = useUiStore((s) =>
@@ -33,6 +47,9 @@ export function AppShell() {
 
   return (
     <div className="flex flex-col h-screen">
+      {/* Update banner (only renders when an update is available) */}
+      <UpdateBanner />
+
       {/* Toolbar */}
       <Toolbar />
 

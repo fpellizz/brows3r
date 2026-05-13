@@ -27,6 +27,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(s3::client::S3ClientPool::new())
         .manage(transfer::queue::TransferQueue::new(4))
         .manage(std::sync::Arc::new(transfer::throttle::BandwidthThrottle::new()))
@@ -128,6 +129,8 @@ pub fn run() {
             commands::batch::start_batch_operation,
             // System commands
             commands::system::check_system_prerequisites,
+            // Updater
+            commands::updater::get_install_info,
         ])
         .run({
             let mut ctx = tauri::generate_context!();
