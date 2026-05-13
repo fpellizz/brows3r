@@ -18,14 +18,22 @@ definitions:
           - pnpm-lock.yaml
       path: .pnpm-store
 
-# Bitbucket runs only lint + unit tests. The actual Linux bundling
-# (.deb / .rpm / .AppImage + updater signing + GitHub release) happens
-# on GitHub Actions, because Bitbucket's pipeline container has no
-# /dev/fuse access and the Tauri AppImage bundler (linuxdeploy) cannot
-# run there. See `.github/workflows/build-linux.yml` on the mirror.
+# Bitbucket runs only lint + unit tests, then mirrors the source to
+# `github.com/fpellizz/brows3r` so the actual Linux bundling (.deb /
+# .rpm / .AppImage + updater signing + GitHub release) can happen on
+# GitHub Actions, which has /dev/fuse on its Ubuntu runners and can
+# therefore run `linuxdeploy` (the Tauri AppImage bundler) — something
+# the Bitbucket pipeline container cannot.
+#
+# - default (push to main): lint+test, then mirror branch+tags
+# - pull-requests: lint+test
+# - tags v*: lint+test, then mirror branch+tags (so the tag arrives on
+#            GitHub and triggers the release workflow there)
+#
+# The GitHub Actions workflow lives at .github/workflows/build-linux.yml.
 pipelines:
   default:
-    - step:
+    - step: &frontend
         name: "Frontend: lint + typecheck + test"
         caches:
           - pnpm
@@ -44,7 +52,7 @@ pipelines:
           - pnpm typecheck
           - pnpm test
 
-    - step:
+    - step: &backend
         name: "Backend: fmt + clippy + test"
         size: 2x
         caches:
@@ -68,40 +76,56 @@ pipelines:
           - cargo clippy -- -D clippy::correctness -D clippy::suspicious
           - cargo test
 
+    # Mirror main + tags to GitHub. No-op on every branch other than
+    # main. Requires `GITHUB_TOKEN` repo variable (secured) with `repo`
+    # scope. The push to GitHub fires the GitHub Actions workflow that
+    # builds and (on tags) releases the Linux bundles.
+    - step:
+        name: "Mirror to GitHub (main only)"
+        image: alpine/git:latest
+        clone:
+          depth: full
+        script:
+          - |
+            if [ "$BITBUCKET_BRANCH" != "main" ]; then
+              echo "Branch '$BITBUCKET_BRANCH' is not main — skipping mirror."
+              exit 0
+            fi
+            if [ -z "$GITHUB_TOKEN" ]; then
+              echo "GITHUB_TOKEN not set — skipping mirror (configure the secret to enable)."
+              exit 0
+            fi
+            URL="https://x-access-token:${GITHUB_TOKEN}@github.com/fpellizz/brows3r.git"
+            git push --force "$URL" "HEAD:refs/heads/main"
+            git push --force "$URL" --tags
+
   pull-requests:
     "**":
-      - step:
-          name: "Frontend: lint + typecheck + test"
-          caches:
-            - pnpm
-            - node
-          script:
-            - apt-get update -qq && apt-get install -y -qq curl ca-certificates
-            - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-            - apt-get install -y nodejs
-            - corepack enable
-            - corepack prepare pnpm@latest --activate
-            - pnpm config set store-dir .pnpm-store
-            - pnpm install --frozen-lockfile
-            - pnpm lint
-            - pnpm typecheck
-            - pnpm test
+      - step: *frontend
+      - step: *backend
 
+  # Tag pipeline: still run lint+test, then push the tag to GitHub so
+  # the release workflow on the mirror fires. The release itself
+  # (signed AppImage + latest.json + gh release create) is handled by
+  # .github/workflows/build-linux.yml.
+  tags:
+    "v*":
+      - step: *frontend
+      - step: *backend
       - step:
-          name: "Backend: fmt + clippy + test"
-          size: 2x
-          caches:
-            - cargo
-            - cargo-target
+          name: "Mirror tag to GitHub"
+          image: alpine/git:latest
+          clone:
+            depth: full
           script:
-            - apt-get update && apt-get install -y
-                build-essential curl pkg-config
-                libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev
-                libayatana-appindicator3-dev librsvg2-dev
-                libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
-            - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
-            - source $HOME/.cargo/env
-            - cd src-tauri && cargo fmt --all -- --check
-            - mkdir -p ../dist && touch ../dist/index.html
-            - cargo clippy -- -D clippy::correctness -D clippy::suspicious
-            - cargo test
+            - |
+              if [ -z "$GITHUB_TOKEN" ]; then
+                echo "GITHUB_TOKEN not set — skipping mirror."
+                exit 1
+              fi
+              URL="https://x-access-token:${GITHUB_TOKEN}@github.com/fpellizz/brows3r.git"
+              # Push the tag and the branch it points to. `BITBUCKET_TAG`
+              # is the tag name (e.g. v1.18.1); refs/tags/<name> lets us
+              # push it explicitly without relying on `--tags` walking
+              # the local refs.
+              git push --force "$URL" "refs/tags/${BITBUCKET_TAG}:refs/tags/${BITBUCKET_TAG}"
