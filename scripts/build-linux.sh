@@ -13,6 +13,7 @@
 #   ./scripts/build-linux.sh --docker        # build dentro Ubuntu 22.04 (AppImage portabile)
 #   ./scripts/build-linux.sh --clean         # rimuove dist/ + target/release/bundle prima
 #   ./scripts/build-linux.sh --skip-checks   # salta il check prerequisiti runtime
+#   ./scripts/build-linux.sh --no-sign       # build senza firmare gli artefatti updater
 
 set -euo pipefail
 
@@ -20,6 +21,7 @@ BUNDLES="deb,rpm,appimage"
 CLEAN=0
 SKIP_CHECKS=0
 USE_DOCKER=0
+NO_SIGN=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -27,8 +29,9 @@ while [ "$#" -gt 0 ]; do
     --clean)      CLEAN=1; shift ;;
     --skip-checks) SKIP_CHECKS=1; shift ;;
     --docker)     USE_DOCKER=1; shift ;;
+    --no-sign)    NO_SIGN=1; shift ;;
     -h|--help)
-      sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) echo "Argomento sconosciuto: $1" >&2; exit 2 ;;
   esac
@@ -84,6 +87,24 @@ if [ "$USE_DOCKER" -eq 1 ]; then
   CACHE_DIR="$PROJECT_DIR/.dockercache"
   mkdir -p "$CACHE_DIR"/{home,cargo,pnpm}
 
+  # Se la chiave updater è solo su filesystem (~/.tauri/...), la
+  # carichiamo qui prima di lanciare il container così possiamo passarla
+  # via -e: il container vede solo /work e non l'$HOME dell'host.
+  if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ] && [ "$NO_SIGN" -eq 0 ]; then
+    KEY_FILE="${BROWS3R_UPDATER_KEY_FILE:-$HOME/.tauri/brows3r-updater.key}"
+    if [ -f "$KEY_FILE" ]; then
+      export TAURI_SIGNING_PRIVATE_KEY="$(cat "$KEY_FILE")"
+    fi
+  fi
+  if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] \
+     && [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ] \
+     && [ -n "${BROWS3R_UPDATER_KEY_PASSWORD:-}" ]; then
+    export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$BROWS3R_UPDATER_KEY_PASSWORD"
+  fi
+
+  INNER_FLAGS=(-b "$BUNDLES" --skip-checks)
+  [ "$NO_SIGN" -eq 1 ] && INNER_FLAGS+=(--no-sign)
+
   step "Esecuzione build dentro container (senza --docker per evitare ricorsione)"
   docker run --rm --init \
     -u "$(id -u):$(id -g)" \
@@ -91,10 +112,12 @@ if [ "$USE_DOCKER" -eq 1 ]; then
     -e CARGO_HOME=/work/.dockercache/cargo \
     -e RUSTUP_HOME=/opt/rust \
     -e PNPM_HOME=/work/.dockercache/pnpm \
+    -e TAURI_SIGNING_PRIVATE_KEY \
+    -e TAURI_SIGNING_PRIVATE_KEY_PASSWORD \
     -v "$PROJECT_DIR:/work" \
     -w /work \
     "$IMAGE_TAG" \
-    bash scripts/build-linux.sh -b "$BUNDLES" --skip-checks
+    bash scripts/build-linux.sh "${INNER_FLAGS[@]}"
   exit 0
 fi
 
@@ -210,6 +233,57 @@ if [ "$APP_VERSION" != "$CARGO_VERSION" ] || [ "$APP_VERSION" != "$TAURI_VERSION
   warn "  package.json    : $APP_VERSION"
   warn "  Cargo.toml      : $CARGO_VERSION"
   warn "  tauri.conf.json : $TAURI_VERSION"
+fi
+
+# --- TAURI updater signing --------------------------------------------------
+# `createUpdaterArtifacts: true` in tauri.conf.json (aggiunto con la PR
+# dell'auto-updater) fa generare un .sig accanto all'AppImage; la firma
+# richiede `TAURI_SIGNING_PRIVATE_KEY` in env. In CI le secret arrivano
+# come repository variables; localmente lo script cerca la chiave in
+# `~/.tauri/brows3r-updater.key` (o nel file indicato da
+# BROWS3R_UPDATER_KEY_FILE) e — se manca la passphrase — la chiede
+# interattivamente. Con `--no-sign` patcha temporaneamente la config
+# per disabilitare la firma per build locali di prova.
+if [ "$NO_SIGN" -eq 1 ]; then
+  CONFIG="$PROJECT_DIR/src-tauri/tauri.conf.json"
+  cp "$CONFIG" "$CONFIG.bak"
+  trap '[ -f "$CONFIG.bak" ] && mv -f "$CONFIG.bak" "$CONFIG"' EXIT
+  python3 -c "
+import json
+with open('$CONFIG') as f: c = json.load(f)
+c.get('bundle', {}).pop('createUpdaterArtifacts', None)
+with open('$CONFIG', 'w') as f: json.dump(c, f, indent=2)
+"
+  warn "createUpdaterArtifacts disabilitato per questa build (--no-sign)"
+else
+  if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+    KEY_FILE="${BROWS3R_UPDATER_KEY_FILE:-$HOME/.tauri/brows3r-updater.key}"
+    if [ -f "$KEY_FILE" ]; then
+      export TAURI_SIGNING_PRIVATE_KEY="$(cat "$KEY_FILE")"
+      ok "Chiave privata updater caricata da $KEY_FILE"
+    fi
+  fi
+
+  if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] \
+     && [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]; then
+    if [ -n "${BROWS3R_UPDATER_KEY_PASSWORD:-}" ]; then
+      export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$BROWS3R_UPDATER_KEY_PASSWORD"
+    elif [ -t 0 ]; then
+      read -r -s -p "Passphrase chiave updater (lascia vuota se nessuna): " TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+      echo
+      export TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+    fi
+  fi
+
+  if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+    err "Chiave privata updater non trovata."
+    err "Soluzioni:"
+    err "  1. Esporta TAURI_SIGNING_PRIVATE_KEY (e _PASSWORD se serve) prima di lanciare lo script"
+    err "  2. Posiziona la chiave in ~/.tauri/brows3r-updater.key"
+    err "     (la generi con: cargo tauri signer generate -w ~/.tauri/brows3r-updater.key)"
+    err "  3. Rilancia con --no-sign per buildare bundle non firmati (no updater)"
+    exit 1
+  fi
 fi
 
 # --- Build -----------------------------------------------------------------
