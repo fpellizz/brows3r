@@ -1,17 +1,21 @@
+import { tauriInvoke } from "@/lib/tauri";
+import {
+  type Connection,
+  type ConnectionTestResult,
+  useConnectionStore,
+} from "@/stores/connectionStore";
+import * as Dialog from "@radix-ui/react-dialog";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import * as Dialog from "@radix-ui/react-dialog";
-import {
-  X,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
-import { useConnectionStore, type Connection, type ConnectionTestResult } from "@/stores/connectionStore";
-import { tauriInvoke } from "@/lib/tauri";
 
 interface ConnectionFormData {
   name: string;
@@ -36,10 +40,7 @@ interface ConnectionDialogProps {
 }
 
 /** Pre-configured provider templates */
-const PROVIDER_PRESETS: Record<
-  string,
-  Partial<ConnectionFormData>
-> = {
+const PROVIDER_PRESETS: Record<string, Partial<ConnectionFormData>> = {
   custom: {},
   aws: {
     endpoint: "https://s3.eu-west-1.amazonaws.com",
@@ -77,7 +78,8 @@ const PROVIDER_PRESETS: Record<
     path_style: "path",
   },
   oracle: {
-    endpoint: "https://<namespace>.compat.objectstorage.eu-milan-1.oraclecloud.com",
+    endpoint:
+      "https://<namespace>.compat.objectstorage.eu-milan-1.oraclecloud.com",
     region: "eu-milan-1",
     path_style: "path",
   },
@@ -264,7 +266,7 @@ export function ConnectionDialog({
           success: result.success,
           message: result.success
             ? `${t("connection.testSuccess")} — ${result.bucket_count} buckets, ${result.latency_ms}ms`
-            : result.error ?? t("connection.testFail"),
+            : (result.error ?? t("connection.testFail")),
         });
       } catch (e) {
         setTestResult({ success: false, message: String(e) });
@@ -292,7 +294,7 @@ export function ConnectionDialog({
           success: result.success,
           message: result.success
             ? `${t("connection.testSuccess")} — ${result.bucket_count} buckets, ${result.latency_ms}ms`
-            : result.error ?? t("connection.testFail"),
+            : (result.error ?? t("connection.testFail")),
         });
       } catch (e) {
         setTestResult({ success: false, message: String(e) });
@@ -321,7 +323,10 @@ export function ConnectionDialog({
             </Dialog.Close>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-4 space-y-4">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="px-6 py-4 space-y-4"
+          >
             {/* Provider preset selector */}
             {!isEditing && (
               <div>
@@ -416,16 +421,17 @@ export function ConnectionDialog({
                 {...register("secret_access_key", {
                   required: isEditing ? false : "Secret Access Key is required",
                 })}
-                placeholder={
-                  isEditing ? "(leave empty to keep current)" : ""
-                }
+                placeholder={isEditing ? "(leave empty to keep current)" : ""}
                 className="input-field font-mono"
               />
             </Field>
 
             {/* Path Style */}
             <Field label={t("connection.pathStyle")}>
-              <select {...register("path_style")} className="select-field w-full">
+              <select
+                {...register("path_style")}
+                className="select-field w-full"
+              >
                 <option value="auto">Auto</option>
                 <option value="path">Path Style</option>
                 <option value="virtual">Virtual Hosted</option>

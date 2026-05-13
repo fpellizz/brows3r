@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { tauriInvoke } from "@/lib/tauri";
+import { useUpdaterStore } from "@/stores/updaterStore";
 import * as Dialog from "@radix-ui/react-dialog";
+import { getTauriVersion, getVersion } from "@tauri-apps/api/app";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -9,9 +10,8 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import { getVersion, getTauriVersion } from "@tauri-apps/api/app";
-import { tauriInvoke } from "@/lib/tauri";
-import { useUpdaterStore } from "@/stores/updaterStore";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface AboutDialogProps {
   open: boolean;
@@ -97,9 +97,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
               <h2 className="text-2xl font-bold text-brand-600 dark:text-brand-400">
                 brows3r
               </h2>
-              <p className="text-xs text-zinc-500 mt-1">
-                {t("about.tagline")}
-              </p>
+              <p className="text-xs text-zinc-500 mt-1">{t("about.tagline")}</p>
             </div>
 
             {/* Version info */}
@@ -151,12 +149,11 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
             {/* System prerequisites */}
             {prereq && (
               <div
-                className={
-                  "rounded-md px-4 py-3 text-xs flex gap-2 " +
-                  (prereq.all_present
+                className={`rounded-md px-4 py-3 text-xs flex gap-2 ${
+                  prereq.all_present
                     ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300"
-                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200")
-                }
+                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200"
+                }`}
               >
                 {prereq.all_present ? (
                   <CheckCircle2
@@ -173,7 +170,9 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
                   <p className="font-medium">
                     {prereq.all_present
                       ? t("about.prereqOk")
-                      : t("about.prereqMissing", { count: prereq.missing.length })}
+                      : t("about.prereqMissing", {
+                          count: prereq.missing.length,
+                        })}
                   </p>
                   {!prereq.all_present && (
                     <>

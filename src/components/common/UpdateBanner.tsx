@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { useUpdaterStore } from "@/stores/updaterStore";
 import {
   ArrowDownToLine,
   ExternalLink,
@@ -6,7 +6,7 @@ import {
   RotateCw,
   X,
 } from "lucide-react";
-import { useUpdaterStore } from "@/stores/updaterStore";
+import { useTranslation } from "react-i18next";
 
 /** Compact, non-modal update banner shown above the toolbar when a new
  * version is available. AppImage / NSIS / macOS users see an "Install
@@ -28,7 +28,9 @@ export function UpdateBanner() {
   // surfaced inside the About dialog instead, to avoid nagging at the
   // top of the window.
   const visible =
-    status === "available" || status === "downloading" || status === "installed";
+    status === "available" ||
+    status === "downloading" ||
+    status === "installed";
   if (!visible) return null;
 
   const inPlace = installInfo?.supports_in_place_update ?? false;

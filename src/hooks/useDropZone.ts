@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { useEffect, useState } from "react";
 
 interface DropZoneState {
   isDragging: boolean;

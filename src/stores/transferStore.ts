@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { tauriInvoke, tauriListen } from "@/lib/tauri";
+import { create } from "zustand";
 
 export interface TransferItem {
   id: string;
@@ -10,7 +10,13 @@ export interface TransferItem {
   local_path: string;
   total_bytes: number;
   transferred_bytes: number;
-  status: "queued" | "inprogress" | "paused" | "completed" | "failed" | "cancelled";
+  status:
+    | "queued"
+    | "inprogress"
+    | "paused"
+    | "completed"
+    | "failed"
+    | "cancelled";
   speed_bps: number | null;
   eta_secs: number | null;
   error: string | null;
@@ -92,59 +98,53 @@ export const useTransferStore = create<TransferState>((set, get) => ({
     set({ listening: true });
 
     // Listen for progress events
-    await tauriListen<TransferProgressEvent>(
-      "transfer:progress",
-      (payload) => {
-        set((state) => ({
-          transfers: state.transfers.map((t) =>
-            t.id === payload.id
-              ? {
-                  ...t,
-                  transferred_bytes: payload.transferred_bytes,
-                  total_bytes: payload.total_bytes,
-                  speed_bps: payload.speed_bps,
-                  eta_secs: payload.eta_secs,
-                  status: "inprogress" as const,
-                }
-              : t,
-          ),
-        }));
-      },
-    );
+    await tauriListen<TransferProgressEvent>("transfer:progress", (payload) => {
+      set((state) => ({
+        transfers: state.transfers.map((t) =>
+          t.id === payload.id
+            ? {
+                ...t,
+                transferred_bytes: payload.transferred_bytes,
+                total_bytes: payload.total_bytes,
+                speed_bps: payload.speed_bps,
+                eta_secs: payload.eta_secs,
+                status: "inprogress" as const,
+              }
+            : t,
+        ),
+      }));
+    });
 
     // Listen for completion events
-    await tauriListen<TransferCompleteEvent>(
-      "transfer:complete",
-      (payload) => {
-        set((state) => ({
-          transfers: state.transfers.map((t) =>
-            t.id === payload.id
-              ? {
-                  ...t,
-                  status: payload.success
-                    ? ("completed" as const)
-                    : ("failed" as const),
-                  error: payload.error,
-                  transferred_bytes: payload.success
-                    ? t.total_bytes
-                    : t.transferred_bytes,
-                }
-              : t,
-          ),
-        }));
-      },
-    );
+    await tauriListen<TransferCompleteEvent>("transfer:complete", (payload) => {
+      set((state) => ({
+        transfers: state.transfers.map((t) =>
+          t.id === payload.id
+            ? {
+                ...t,
+                status: payload.success
+                  ? ("completed" as const)
+                  : ("failed" as const),
+                error: payload.error,
+                transferred_bytes: payload.success
+                  ? t.total_bytes
+                  : t.transferred_bytes,
+              }
+            : t,
+        ),
+      }));
+    });
   },
 
   fetchTransfers: async () => {
-    const transfers =
-      await tauriInvoke<TransferItem[]>("list_transfers");
+    const transfers = await tauriInvoke<TransferItem[]>("list_transfers");
     set({ transfers });
   },
 
   fetchHistory: async () => {
-    const history =
-      await tauriInvoke<TransferHistoryEntry[]>("list_transfer_history");
+    const history = await tauriInvoke<TransferHistoryEntry[]>(
+      "list_transfer_history",
+    );
     set({ history });
   },
 

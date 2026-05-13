@@ -1,9 +1,21 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { tauriInvoke } from "@/lib/tauri";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, History, Lock, FileText, Globe, Clock, Loader2, AlertCircle, CheckCircle2, Trash2, Plus } from "lucide-react";
-import { tauriInvoke } from "@/lib/tauri";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Globe,
+  History,
+  Loader2,
+  Lock,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface BucketPropertiesDialogProps {
   open: boolean;
@@ -37,7 +49,9 @@ export function BucketPropertiesDialog({
               <Dialog.Title className="text-lg font-semibold truncate">
                 {t("bucketProperties.title")}
               </Dialog.Title>
-              <p className="text-xs text-zinc-500 font-mono truncate">{bucket}</p>
+              <p className="text-xs text-zinc-500 font-mono truncate">
+                {bucket}
+              </p>
             </div>
             <Dialog.Close asChild>
               <button
@@ -56,11 +70,31 @@ export function BucketPropertiesDialog({
             className="flex-1 flex flex-col min-h-0"
           >
             <Tabs.List className="flex border-b border-zinc-200 dark:border-zinc-800 px-6 shrink-0 overflow-x-auto">
-              <TabTrigger value="versioning" icon={<History size={14} />} label={t("bucketProperties.tabs.versioning")} />
-              <TabTrigger value="encryption" icon={<Lock size={14} />} label={t("bucketProperties.tabs.encryption")} />
-              <TabTrigger value="policy" icon={<FileText size={14} />} label={t("bucketProperties.tabs.policy")} />
-              <TabTrigger value="cors" icon={<Globe size={14} />} label="CORS" />
-              <TabTrigger value="lifecycle" icon={<Clock size={14} />} label={t("bucketProperties.tabs.lifecycle")} />
+              <TabTrigger
+                value="versioning"
+                icon={<History size={14} />}
+                label={t("bucketProperties.tabs.versioning")}
+              />
+              <TabTrigger
+                value="encryption"
+                icon={<Lock size={14} />}
+                label={t("bucketProperties.tabs.encryption")}
+              />
+              <TabTrigger
+                value="policy"
+                icon={<FileText size={14} />}
+                label={t("bucketProperties.tabs.policy")}
+              />
+              <TabTrigger
+                value="cors"
+                icon={<Globe size={14} />}
+                label="CORS"
+              />
+              <TabTrigger
+                value="lifecycle"
+                icon={<Clock size={14} />}
+                label={t("bucketProperties.tabs.lifecycle")}
+              />
             </Tabs.List>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -148,10 +182,13 @@ function VersioningTab({
     setLoading(true);
     setError(null);
     try {
-      const result = await tauriInvoke<BucketVersioning>("get_bucket_versioning", {
-        connectionId,
-        bucket,
-      });
+      const result = await tauriInvoke<BucketVersioning>(
+        "get_bucket_versioning",
+        {
+          connectionId,
+          bucket,
+        },
+      );
       setStatus(result);
     } catch (e) {
       setError(String(e));
@@ -343,7 +380,8 @@ function EncryptionTab({
           connectionId,
           bucket,
           algorithm,
-          kmsMasterKeyId: algorithm === "aws:kms" && kmsKey.trim() ? kmsKey.trim() : null,
+          kmsMasterKeyId:
+            algorithm === "aws:kms" && kmsKey.trim() ? kmsKey.trim() : null,
           bucketKeyEnabled: algorithm === "aws:kms" ? bucketKey : null,
         });
       }
@@ -355,11 +393,13 @@ function EncryptionTab({
     }
   };
 
-  const currentLabel =
-    !current ? t("bucketProperties.encryption.statusNone")
-      : current.algorithm === "AES256" ? t("bucketProperties.encryption.statusSseS3")
-      : current.algorithm.startsWith("aws:kms") ? t("bucketProperties.encryption.statusSseKms")
-      : current.algorithm;
+  const currentLabel = !current
+    ? t("bucketProperties.encryption.statusNone")
+    : current.algorithm === "AES256"
+      ? t("bucketProperties.encryption.statusSseS3")
+      : current.algorithm.startsWith("aws:kms")
+        ? t("bucketProperties.encryption.statusSseKms")
+        : current.algorithm;
 
   return (
     <div className="space-y-5">
@@ -367,12 +407,17 @@ function EncryptionTab({
         {loading ? (
           <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
         ) : current ? (
-          <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2
+            size={16}
+            className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+          />
         ) : (
           <AlertCircle size={16} className="mt-0.5 shrink-0 text-zinc-400" />
         )}
         <div className="flex-1 min-w-0">
-          <p className="font-medium">{loading ? t("bucketProperties.encryption.loading") : currentLabel}</p>
+          <p className="font-medium">
+            {loading ? t("bucketProperties.encryption.loading") : currentLabel}
+          </p>
           {current?.kms_master_key_id && (
             <p className="text-xs mt-1 text-zinc-500 font-mono break-all">
               {current.kms_master_key_id}
@@ -395,7 +440,9 @@ function EncryptionTab({
           onChange={(e) => setAlgorithm(e.target.value as AlgorithmChoice)}
           disabled={loading || submitting}
         >
-          <option value="none">{t("bucketProperties.encryption.algoNone")}</option>
+          <option value="none">
+            {t("bucketProperties.encryption.algoNone")}
+          </option>
           <option value="AES256">SSE-S3 (AES256)</option>
           <option value="aws:kms">SSE-KMS</option>
         </select>
@@ -436,7 +483,9 @@ function EncryptionTab({
           disabled={loading || submitting}
           className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {submitting ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+          {submitting ? (
+            <Loader2 size={14} className="animate-spin inline mr-1.5" />
+          ) : null}
           {t("common.save")}
         </button>
         <button
@@ -557,7 +606,10 @@ function PolicyTab({
         {loading ? (
           <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
         ) : hasPolicy ? (
-          <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2
+            size={16}
+            className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+          />
         ) : (
           <AlertCircle size={16} className="mt-0.5 shrink-0 text-zinc-400" />
         )}
@@ -600,7 +652,9 @@ function PolicyTab({
           disabled={loading || submitting || !draft.trim() || !dirty}
           className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {submitting ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+          {submitting ? (
+            <Loader2 size={14} className="animate-spin inline mr-1.5" />
+          ) : null}
           {t("common.save")}
         </button>
         <button
@@ -748,7 +802,9 @@ function CorsTab({
   };
 
   const updateRule = (idx: number, patch: Partial<CorsRule>) => {
-    setRules((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+    setRules((prev) =>
+      prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)),
+    );
   };
   const removeRule = (idx: number) => {
     setRules((prev) => prev.filter((_, i) => i !== idx));
@@ -766,7 +822,10 @@ function CorsTab({
         {loading ? (
           <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
         ) : hasCors ? (
-          <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2
+            size={16}
+            className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+          />
         ) : (
           <AlertCircle size={16} className="mt-0.5 shrink-0 text-zinc-400" />
         )}
@@ -774,7 +833,9 @@ function CorsTab({
           {loading
             ? t("bucketProperties.cors.loading")
             : hasCors
-              ? t("bucketProperties.cors.statusAttached", { count: original.length })
+              ? t("bucketProperties.cors.statusAttached", {
+                  count: original.length,
+                })
               : t("bucketProperties.cors.statusNone")}
         </p>
       </div>
@@ -816,7 +877,9 @@ function CorsTab({
           disabled={loading || submitting || !dirty || rules.length === 0}
           className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {submitting ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+          {submitting ? (
+            <Loader2 size={14} className="animate-spin inline mr-1.5" />
+          ) : null}
           {t("common.save")}
         </button>
         <button
@@ -958,7 +1021,8 @@ function CorsRuleCard({
           value={rule.max_age_seconds ?? ""}
           onChange={(e) =>
             onChange({
-              max_age_seconds: e.target.value === "" ? null : Number(e.target.value),
+              max_age_seconds:
+                e.target.value === "" ? null : Number(e.target.value),
             })
           }
           disabled={disabled}
@@ -1090,7 +1154,11 @@ function LifecycleTab({
     setError(null);
     setSubmitting(true);
     try {
-      await tauriInvoke("set_bucket_lifecycle", { connectionId, bucket, rules });
+      await tauriInvoke("set_bucket_lifecycle", {
+        connectionId,
+        bucket,
+        rules,
+      });
       await refresh();
     } catch (e) {
       setError(String(e));
@@ -1114,7 +1182,9 @@ function LifecycleTab({
   };
 
   const updateRule = (idx: number, patch: Partial<LifecycleRule>) =>
-    setRules((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+    setRules((prev) =>
+      prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)),
+    );
   const removeRule = (idx: number) =>
     setRules((prev) => prev.filter((_, i) => i !== idx));
   const addRule = () => setRules((prev) => [...prev, emptyLifecycleRule()]);
@@ -1135,9 +1205,15 @@ function LifecycleTab({
         {loading ? (
           <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" />
         ) : hasUnsupported ? (
-          <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <AlertCircle
+            size={16}
+            className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400"
+          />
         ) : hasConfig ? (
-          <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2
+            size={16}
+            className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+          />
         ) : (
           <AlertCircle size={16} className="mt-0.5 shrink-0 text-zinc-400" />
         )}
@@ -1148,7 +1224,9 @@ function LifecycleTab({
               : hasUnsupported
                 ? t("bucketProperties.lifecycle.statusUnsupported")
                 : hasConfig
-                  ? t("bucketProperties.lifecycle.statusAttached", { count: rules.length })
+                  ? t("bucketProperties.lifecycle.statusAttached", {
+                      count: rules.length,
+                    })
                   : t("bucketProperties.lifecycle.statusNone")}
           </p>
           {hasUnsupported && (
@@ -1198,7 +1276,9 @@ function LifecycleTab({
               disabled={loading || submitting || !dirty || rules.length === 0}
               className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {submitting ? <Loader2 size={14} className="animate-spin inline mr-1.5" /> : null}
+              {submitting ? (
+                <Loader2 size={14} className="animate-spin inline mr-1.5" />
+              ) : null}
               {t("common.save")}
             </button>
             <button
@@ -1264,7 +1344,8 @@ function LifecycleRuleCard({
 }) {
   const { t } = useTranslation();
 
-  const setTransitions = (transitions: LifecycleTransition[]) => onChange({ transitions });
+  const setTransitions = (transitions: LifecycleTransition[]) =>
+    onChange({ transitions });
   const setNct = (ncts: LifecycleNoncurrentTransition[]) =>
     onChange({ noncurrent_version_transitions: ncts });
 
@@ -1288,8 +1369,12 @@ function LifecycleRuleCard({
           onChange={(e) => onChange({ status: e.target.value })}
           disabled={disabled}
         >
-          <option value="Enabled">{t("bucketProperties.lifecycle.enabled")}</option>
-          <option value="Disabled">{t("bucketProperties.lifecycle.disabled")}</option>
+          <option value="Enabled">
+            {t("bucketProperties.lifecycle.enabled")}
+          </option>
+          <option value="Disabled">
+            {t("bucketProperties.lifecycle.disabled")}
+          </option>
         </select>
         <button
           type="button"
@@ -1336,7 +1421,9 @@ function LifecycleRuleCard({
                 }}
                 disabled={disabled}
               />
-              <span className="text-[11px] text-zinc-500">{t("bucketProperties.lifecycle.daysTo")}</span>
+              <span className="text-[11px] text-zinc-500">
+                {t("bucketProperties.lifecycle.daysTo")}
+              </span>
               <select
                 className="select-field text-xs flex-1"
                 value={tx.storage_class}
@@ -1348,12 +1435,16 @@ function LifecycleRuleCard({
                 disabled={disabled}
               >
                 {STORAGE_CLASSES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
                 ))}
               </select>
               <button
                 type="button"
-                onClick={() => setTransitions(rule.transitions.filter((_, j) => j !== i))}
+                onClick={() =>
+                  setTransitions(rule.transitions.filter((_, j) => j !== i))
+                }
                 disabled={disabled}
                 className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-400 hover:text-red-500"
               >
@@ -1389,7 +1480,9 @@ function LifecycleRuleCard({
             className="input-field text-xs w-full"
             placeholder="—"
             value={rule.expiration_days ?? ""}
-            onChange={(e) => onChange({ expiration_days: numOrNull(e.target.value) })}
+            onChange={(e) =>
+              onChange({ expiration_days: numOrNull(e.target.value) })
+            }
             disabled={disabled}
           />
         </div>
@@ -1404,7 +1497,11 @@ function LifecycleRuleCard({
             placeholder="—"
             value={rule.abort_incomplete_multipart_upload_days ?? ""}
             onChange={(e) =>
-              onChange({ abort_incomplete_multipart_upload_days: numOrNull(e.target.value) })
+              onChange({
+                abort_incomplete_multipart_upload_days: numOrNull(
+                  e.target.value,
+                ),
+              })
             }
             disabled={disabled}
           />
@@ -1426,12 +1523,17 @@ function LifecycleRuleCard({
                 value={tx.noncurrent_days}
                 onChange={(e) => {
                   const next = [...rule.noncurrent_version_transitions];
-                  next[i] = { ...next[i], noncurrent_days: Number(e.target.value) };
+                  next[i] = {
+                    ...next[i],
+                    noncurrent_days: Number(e.target.value),
+                  };
                   setNct(next);
                 }}
                 disabled={disabled}
               />
-              <span className="text-[11px] text-zinc-500">{t("bucketProperties.lifecycle.daysTo")}</span>
+              <span className="text-[11px] text-zinc-500">
+                {t("bucketProperties.lifecycle.daysTo")}
+              </span>
               <select
                 className="select-field text-xs flex-1"
                 value={tx.storage_class}
@@ -1443,13 +1545,19 @@ function LifecycleRuleCard({
                 disabled={disabled}
               >
                 {STORAGE_CLASSES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
                 ))}
               </select>
               <button
                 type="button"
                 onClick={() =>
-                  setNct(rule.noncurrent_version_transitions.filter((_, j) => j !== i))
+                  setNct(
+                    rule.noncurrent_version_transitions.filter(
+                      (_, j) => j !== i,
+                    ),
+                  )
                 }
                 disabled={disabled}
                 className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-zinc-400 hover:text-red-500"
@@ -1486,7 +1594,9 @@ function LifecycleRuleCard({
           placeholder="—"
           value={rule.noncurrent_version_expiration_days ?? ""}
           onChange={(e) =>
-            onChange({ noncurrent_version_expiration_days: numOrNull(e.target.value) })
+            onChange({
+              noncurrent_version_expiration_days: numOrNull(e.target.value),
+            })
           }
           disabled={disabled}
         />

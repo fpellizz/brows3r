@@ -1,7 +1,7 @@
-import { useCallback } from "react";
-import { LayoutDashboard, Plus, X } from "lucide-react";
-import { useUiStore, type Tab } from "@/stores/uiStore";
 import { useObjectStore } from "@/stores/objectStore";
+import { type Tab, useUiStore } from "@/stores/uiStore";
+import { LayoutDashboard, Plus, X } from "lucide-react";
+import { useCallback } from "react";
 
 export function TabBar() {
   const tabs = useUiStore((s) => s.tabs);

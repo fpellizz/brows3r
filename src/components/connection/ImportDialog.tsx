@@ -1,16 +1,16 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { tauriInvoke } from "@/lib/tauri";
+import { useConnectionStore } from "@/stores/connectionStore";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
-  X,
-  Loader2,
-  CheckCircle2,
   AlertCircle,
   ArrowLeft,
+  CheckCircle2,
   Download,
+  Loader2,
+  X,
 } from "lucide-react";
-import { useConnectionStore } from "@/stores/connectionStore";
-import { tauriInvoke } from "@/lib/tauri";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ImportedConnection {
   name: string;
@@ -30,15 +30,16 @@ interface ImportDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const SOURCE_INFO: Record<
-  ImportSource,
-  { label: string; configPath: string }
-> = {
-  aws: { label: "import.aws", configPath: "~/.aws/credentials" },
-  rclone: { label: "import.rclone", configPath: "~/.config/rclone/rclone.conf" },
-  s3cmd: { label: "import.s3cmd", configPath: "~/.s3cfg" },
-  minio: { label: "import.minio", configPath: "~/.mc/config.json" },
-};
+const SOURCE_INFO: Record<ImportSource, { label: string; configPath: string }> =
+  {
+    aws: { label: "import.aws", configPath: "~/.aws/credentials" },
+    rclone: {
+      label: "import.rclone",
+      configPath: "~/.config/rclone/rclone.conf",
+    },
+    s3cmd: { label: "import.s3cmd", configPath: "~/.s3cfg" },
+    minio: { label: "import.minio", configPath: "~/.mc/config.json" },
+  };
 
 export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
   const { t } = useTranslation();
@@ -217,7 +218,10 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                       </div>
                     </div>
                     {loading && activeSource === source && (
-                      <Loader2 size={16} className="animate-spin text-zinc-400" />
+                      <Loader2
+                        size={16}
+                        className="animate-spin text-zinc-400"
+                      />
                     )}
                   </button>
                 ))}
@@ -237,7 +241,9 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                 {error && !loading && (
                   <div className="flex items-start gap-2 p-3 rounded-md text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400">
                     <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                    <span className="break-all">{t("import.error")}: {error}</span>
+                    <span className="break-all">
+                      {t("import.error")}: {error}
+                    </span>
                   </div>
                 )}
 
@@ -252,11 +258,14 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                 )}
 
                 {/* No connections found */}
-                {!loading && !error && connections.length === 0 && importedCount === null && (
-                  <p className="text-sm text-zinc-400 text-center py-8">
-                    {t("import.noConnections")}
-                  </p>
-                )}
+                {!loading &&
+                  !error &&
+                  connections.length === 0 &&
+                  importedCount === null && (
+                    <p className="text-sm text-zinc-400 text-center py-8">
+                      {t("import.noConnections")}
+                    </p>
+                  )}
 
                 {/* Connection list */}
                 {connections.length > 0 && importedCount === null && (
@@ -293,9 +302,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                             </div>
                             <div className="text-xs text-zinc-400 space-y-0.5">
                               {conn.endpoint && (
-                                <div className="truncate">
-                                  {conn.endpoint}
-                                </div>
+                                <div className="truncate">{conn.endpoint}</div>
                               )}
                               {conn.region && <div>Region: {conn.region}</div>}
                               {conn.access_key_id && (

@@ -1,30 +1,30 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import * as ContextMenu from "@radix-ui/react-context-menu";
-import {
-  Download,
-  Trash2,
-  Copy,
-  Link,
-  FolderOpen,
-  Eye,
-  Info,
-  Pencil,
-  FolderInput,
-  CopyPlus,
-  ArrowRightLeft,
-  History,
-} from "lucide-react";
-import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { useObjectStore, type ObjectInfo } from "@/stores/objectStore";
+import { InputDialog } from "@/components/common/InputDialog";
+import { VersionsDialog } from "@/components/object/VersionsDialog";
+import { CrossTransferDialog } from "@/components/transfer/CrossTransferDialog";
+import { tauriInvoke } from "@/lib/tauri";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { type ObjectInfo, useObjectStore } from "@/stores/objectStore";
 import { useTransferStore } from "@/stores/transferStore";
 import { useUiStore } from "@/stores/uiStore";
-import { tauriInvoke } from "@/lib/tauri";
-import { InputDialog } from "@/components/common/InputDialog";
-import { CrossTransferDialog } from "@/components/transfer/CrossTransferDialog";
-import { VersionsDialog } from "@/components/object/VersionsDialog";
+import * as ContextMenu from "@radix-ui/react-context-menu";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
+import {
+  ArrowRightLeft,
+  Copy,
+  CopyPlus,
+  Download,
+  Eye,
+  FolderInput,
+  FolderOpen,
+  History,
+  Info,
+  Link,
+  Pencil,
+  Trash2,
+} from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface ObjectContextMenuProps {
   object: ObjectInfo;
@@ -82,7 +82,12 @@ export function ObjectContextMenu({
 
     if (!destDir) return;
 
-    await startDownload(activeConnectionId, currentBucket, [object.key], destDir);
+    await startDownload(
+      activeConnectionId,
+      currentBucket,
+      [object.key],
+      destDir,
+    );
   };
 
   const handleDelete = async () => {

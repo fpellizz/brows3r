@@ -1,26 +1,26 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  Database,
-  FolderOpen,
-  Plus,
-  ChevronRight,
-  ChevronDown,
-  Pencil,
-  Trash2,
-  RefreshCw,
-  Download,
-  Sliders,
-} from "lucide-react";
-import { useConnectionStore, type Connection } from "@/stores/connectionStore";
-import { useObjectStore } from "@/stores/objectStore";
-import { useUiStore } from "@/stores/uiStore";
-import { tauriInvoke } from "@/lib/tauri";
-import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
+import { BucketPropertiesDialog } from "@/components/bucket/BucketPropertiesDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { InputDialog } from "@/components/common/InputDialog";
+import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
 import { ImportDialog } from "@/components/connection/ImportDialog";
-import { BucketPropertiesDialog } from "@/components/bucket/BucketPropertiesDialog";
+import { tauriInvoke } from "@/lib/tauri";
+import { type Connection, useConnectionStore } from "@/stores/connectionStore";
+import { useObjectStore } from "@/stores/objectStore";
+import { useUiStore } from "@/stores/uiStore";
+import {
+  ChevronDown,
+  ChevronRight,
+  Database,
+  Download,
+  FolderOpen,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Sliders,
+  Trash2,
+} from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface BucketInfo {
   name: string;
@@ -55,10 +55,18 @@ export function Sidebar() {
     useState<Connection | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [createBucketOpen, setCreateBucketOpen] = useState(false);
-  const [createBucketConnId, setCreateBucketConnId] = useState<string | null>(null);
+  const [createBucketConnId, setCreateBucketConnId] = useState<string | null>(
+    null,
+  );
   const [deleteBucketOpen, setDeleteBucketOpen] = useState(false);
-  const [deletingBucket, setDeletingBucket] = useState<{ connId: string; name: string } | null>(null);
-  const [propertiesBucket, setPropertiesBucket] = useState<{ connId: string; name: string } | null>(null);
+  const [deletingBucket, setDeletingBucket] = useState<{
+    connId: string;
+    name: string;
+  } | null>(null);
+  const [propertiesBucket, setPropertiesBucket] = useState<{
+    connId: string;
+    name: string;
+  } | null>(null);
 
   const openNewDialog = () => {
     setEditingConnection(null);
@@ -110,7 +118,11 @@ export function Sidebar() {
     if (buckets[connectionId] && !force) return;
 
     setLoadingBuckets((prev) => new Set(prev).add(connectionId));
-    setBucketErrors((prev) => { const next = { ...prev }; delete next[connectionId]; return next; });
+    setBucketErrors((prev) => {
+      const next = { ...prev };
+      delete next[connectionId];
+      return next;
+    });
     try {
       const result = await tauriInvoke<BucketInfo[]>("list_buckets", {
         connectionId,
@@ -180,7 +192,11 @@ export function Sidebar() {
     setCreateBucketOpen(true);
   };
 
-  const confirmDeleteBucket = (connId: string, bucketName: string, e: React.MouseEvent) => {
+  const confirmDeleteBucket = (
+    connId: string,
+    bucketName: string,
+    e: React.MouseEvent,
+  ) => {
     e.stopPropagation();
     setDeletingBucket({ connId, name: bucketName });
     setDeleteBucketOpen(true);
@@ -282,7 +298,10 @@ export function Sidebar() {
                       title="Delete"
                       onClick={(e) => confirmDelete(conn, e)}
                     >
-                      <Trash2 size={12} className="text-zinc-500 hover:text-red-500" />
+                      <Trash2
+                        size={12}
+                        className="text-zinc-500 hover:text-red-500"
+                      />
                     </button>
                   </div>
                 </div>
@@ -320,17 +339,28 @@ export function Sidebar() {
                             title={t("bucket.properties")}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setPropertiesBucket({ connId: conn.id, name: bucket.name });
+                              setPropertiesBucket({
+                                connId: conn.id,
+                                name: bucket.name,
+                              });
                             }}
                           >
-                            <Sliders size={11} className="text-zinc-400 hover:text-brand-500" />
+                            <Sliders
+                              size={11}
+                              className="text-zinc-400 hover:text-brand-500"
+                            />
                           </button>
                           <button
                             className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 shrink-0"
                             title={t("bucket.delete")}
-                            onClick={(e) => confirmDeleteBucket(conn.id, bucket.name, e)}
+                            onClick={(e) =>
+                              confirmDeleteBucket(conn.id, bucket.name, e)
+                            }
                           >
-                            <Trash2 size={11} className="text-zinc-400 hover:text-red-500" />
+                            <Trash2
+                              size={11}
+                              className="text-zinc-400 hover:text-red-500"
+                            />
                           </button>
                         </div>
                       ))
@@ -377,7 +407,9 @@ export function Sidebar() {
         open={deleteBucketOpen}
         onOpenChange={setDeleteBucketOpen}
         title={t("bucket.delete")}
-        description={t("bucket.deleteConfirm", { name: deletingBucket?.name ?? "" })}
+        description={t("bucket.deleteConfirm", {
+          name: deletingBucket?.name ?? "",
+        })}
         confirmLabel={t("common.delete")}
         destructive
         onConfirm={handleDeleteBucket}

@@ -1,12 +1,11 @@
-import { create } from "zustand";
-import { check, type Update } from "@tauri-apps/plugin-updater";
-import { getVersion } from "@tauri-apps/api/app";
 import { tauriInvoke } from "@/lib/tauri";
+import { getVersion } from "@tauri-apps/api/app";
+import { type Update, check } from "@tauri-apps/plugin-updater";
+import { create } from "zustand";
 
 /** GitHub releases page used as a fallback download link for users
  * whose install is not in-place updatable (deb / rpm). */
-const RELEASES_PAGE_URL =
-  "https://github.com/fpellizz/brows3r/releases/latest";
+const RELEASES_PAGE_URL = "https://github.com/fpellizz/brows3r/releases/latest";
 
 /** Key prefix for "do not nag me about this version again" markers. */
 const DISMISSED_KEY = "brows3r:updater:dismissed_version";

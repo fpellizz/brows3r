@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
-import { X, FileText, Eye, Loader2 } from "lucide-react";
-import { tauriInvoke } from "@/lib/tauri";
 import { formatBytes } from "@/lib/format";
-import { ImagePreview } from "./ImagePreview";
-import { TextPreview } from "./TextPreview";
-import { PdfPreview } from "./PdfPreview";
-import { VideoPreview } from "./VideoPreview";
+import { tauriInvoke } from "@/lib/tauri";
+import { Eye, FileText, Loader2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AudioPreview } from "./AudioPreview";
+import { ImagePreview } from "./ImagePreview";
 import { MarkdownPreview } from "./MarkdownPreview";
+import { PdfPreview } from "./PdfPreview";
+import { TextPreview } from "./TextPreview";
+import { VideoPreview } from "./VideoPreview";
 
 interface PreviewResponse {
   preview_type: string;

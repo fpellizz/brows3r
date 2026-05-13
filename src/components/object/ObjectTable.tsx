@@ -1,13 +1,13 @@
-import { useCallback, useMemo } from "react";
-import { useTranslation } from "react-i18next";
-import { File, Folder, ChevronUp, Upload } from "lucide-react";
-import { useObjectStore, type ObjectInfo } from "@/stores/objectStore";
+import { useDropZone } from "@/hooks/useDropZone";
+import { formatBytes, formatDate } from "@/lib/format";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { type ObjectInfo, useObjectStore } from "@/stores/objectStore";
 import { useTransferStore } from "@/stores/transferStore";
 import { useUiStore } from "@/stores/uiStore";
-import { formatBytes, formatDate } from "@/lib/format";
+import { ChevronUp, File, Folder, Upload } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { ObjectContextMenu } from "./ObjectContextMenu";
-import { useDropZone } from "@/hooks/useDropZone";
 
 export function ObjectTable() {
   const { t } = useTranslation();
@@ -75,7 +75,13 @@ export function ObjectTable() {
         if (activeConnectionId) fetchObjects(activeConnectionId);
       }, 1500);
     },
-    [activeConnectionId, currentBucket, currentPrefix, startUpload, fetchObjects],
+    [
+      activeConnectionId,
+      currentBucket,
+      currentPrefix,
+      startUpload,
+      fetchObjects,
+    ],
   );
 
   const { isDragging } = useDropZone(currentBucket ? handleDrop : undefined);
@@ -122,7 +128,8 @@ export function ObjectTable() {
             Drop files to upload
           </p>
           <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
-            {currentBucket}{currentPrefix ? `/${currentPrefix}` : ""}
+            {currentBucket}
+            {currentPrefix ? `/${currentPrefix}` : ""}
           </p>
         </div>
       )}

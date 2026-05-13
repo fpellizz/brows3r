@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, formatSpeed, formatDuration, keyToDisplayName } from "./format";
+import {
+  formatBytes,
+  formatDuration,
+  formatSpeed,
+  keyToDisplayName,
+} from "./format";
 
 describe("formatBytes", () => {
   it("formats 0 bytes", () => {

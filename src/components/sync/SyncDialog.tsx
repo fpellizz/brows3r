@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { formatBytes } from "@/lib/format";
+import { type UnlistenFn, tauriInvoke, tauriListen } from "@/lib/tauri";
 import * as Dialog from "@radix-ui/react-dialog";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import {
@@ -13,8 +13,8 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { tauriInvoke, tauriListen, type UnlistenFn } from "@/lib/tauri";
-import { formatBytes } from "@/lib/format";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 type SyncDirection = "localtoremote" | "remotetolocal";
 type SyncMode = "new" | "updated" | "mirror";
@@ -153,7 +153,10 @@ export function SyncDialog({
   };
 
   const hasDeletes = useMemo(
-    () => (plan ? plan.summary.deletes_local + plan.summary.deletes_remote > 0 : false),
+    () =>
+      plan
+        ? plan.summary.deletes_local + plan.summary.deletes_remote > 0
+        : false,
     [plan],
   );
 
@@ -374,7 +377,9 @@ export function SyncDialog({
 
                   {summary && (
                     <div className="border border-zinc-200 dark:border-zinc-700 rounded p-3 text-xs">
-                      <p className="font-medium mb-1">{t("sync.finalResult")}</p>
+                      <p className="font-medium mb-1">
+                        {t("sync.finalResult")}
+                      </p>
                       <div className="flex gap-4 text-zinc-600 dark:text-zinc-300">
                         <span>✓ {summary.succeeded}</span>
                         <span>✗ {summary.failed}</span>
@@ -388,7 +393,7 @@ export function SyncDialog({
                       <table className="w-full text-xs">
                         <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800">
                           <tr className="text-left text-zinc-600 dark:text-zinc-300">
-                            <th className="px-2 py-1 w-8"></th>
+                            <th className="px-2 py-1 w-8" />
                             <th className="px-2 py-1 w-24">
                               {t("sync.action")}
                             </th>

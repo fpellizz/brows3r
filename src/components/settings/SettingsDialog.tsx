@@ -1,13 +1,25 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import i18n from "@/lib/i18n";
+import { tauriInvoke } from "@/lib/tauri";
+import { applyTheme } from "@/lib/theme";
+import type { BandwidthSchedule } from "@/stores/settingsStore";
+import { type AppSettings, useSettingsStore } from "@/stores/settingsStore";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
-import { X, Globe, Palette, ArrowUpDown, Minus, Plus, Trash2, Clock, Filter, FileText, FolderOpen } from "lucide-react";
-import type { BandwidthSchedule } from "@/stores/settingsStore";
-import { useSettingsStore, type AppSettings } from "@/stores/settingsStore";
-import { applyTheme } from "@/lib/theme";
-import { tauriInvoke } from "@/lib/tauri";
-import i18n from "@/lib/i18n";
+import {
+  ArrowUpDown,
+  Clock,
+  FileText,
+  Filter,
+  FolderOpen,
+  Globe,
+  Minus,
+  Palette,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface LogDirInfo {
   path: string | null;
@@ -101,12 +113,31 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </div>
 
           {/* Tabs */}
-          <Tabs.Root defaultValue="general" className="flex-1 flex flex-col min-h-0">
+          <Tabs.Root
+            defaultValue="general"
+            className="flex-1 flex flex-col min-h-0"
+          >
             <Tabs.List className="flex border-b border-zinc-200 dark:border-zinc-800 px-6 shrink-0">
-              <TabTrigger value="general" icon={<Globe size={14} />} label={t("settings.general")} />
-              <TabTrigger value="transfers" icon={<ArrowUpDown size={14} />} label={t("settings.transfers")} />
-              <TabTrigger value="appearance" icon={<Palette size={14} />} label={t("settings.appearance")} />
-              <TabTrigger value="logs" icon={<FileText size={14} />} label={t("settings.logs")} />
+              <TabTrigger
+                value="general"
+                icon={<Globe size={14} />}
+                label={t("settings.general")}
+              />
+              <TabTrigger
+                value="transfers"
+                icon={<ArrowUpDown size={14} />}
+                label={t("settings.transfers")}
+              />
+              <TabTrigger
+                value="appearance"
+                icon={<Palette size={14} />}
+                label={t("settings.appearance")}
+              />
+              <TabTrigger
+                value="logs"
+                icon={<FileText size={14} />}
+                label={t("settings.logs")}
+              />
             </Tabs.List>
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
@@ -162,7 +193,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   onChange={(v) =>
                     setLocal({
                       ...local,
-                      transfer: { ...local.transfer, max_concurrent_transfers: v },
+                      transfer: {
+                        ...local.transfer,
+                        max_concurrent_transfers: v,
+                      },
                     })
                   }
                 />
@@ -188,7 +222,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   onChange={(v) =>
                     setLocal({
                       ...local,
-                      transfer: { ...local.transfer, multipart_threshold_mb: v },
+                      transfer: {
+                        ...local.transfer,
+                        multipart_threshold_mb: v,
+                      },
                     })
                   }
                 />
@@ -282,20 +319,28 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                         key={idx}
                         schedule={sched}
                         onChange={(updated) => {
-                          const schedules = [...(local.transfer.bandwidth_schedules ?? [])];
+                          const schedules = [
+                            ...(local.transfer.bandwidth_schedules ?? []),
+                          ];
                           schedules[idx] = updated;
                           setLocal({
                             ...local,
-                            transfer: { ...local.transfer, bandwidth_schedules: schedules },
+                            transfer: {
+                              ...local.transfer,
+                              bandwidth_schedules: schedules,
+                            },
                           });
                         }}
                         onRemove={() => {
-                          const schedules = (local.transfer.bandwidth_schedules ?? []).filter(
-                            (_, i) => i !== idx,
-                          );
+                          const schedules = (
+                            local.transfer.bandwidth_schedules ?? []
+                          ).filter((_, i) => i !== idx);
                           setLocal({
                             ...local,
-                            transfer: { ...local.transfer, bandwidth_schedules: schedules },
+                            transfer: {
+                              ...local.transfer,
+                              bandwidth_schedules: schedules,
+                            },
                           });
                         }}
                       />
@@ -345,47 +390,50 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   )}
 
                   <div className="space-y-2">
-                    {local.transfer.upload_exclude_patterns?.map((pattern, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={pattern}
-                          placeholder="*.tmp"
-                          className="flex-1 px-2 py-1 text-xs font-mono rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
-                          onChange={(e) => {
-                            const patterns = [
-                              ...(local.transfer.upload_exclude_patterns ?? []),
-                            ];
-                            patterns[idx] = e.target.value;
-                            setLocal({
-                              ...local,
-                              transfer: {
-                                ...local.transfer,
-                                upload_exclude_patterns: patterns,
-                              },
-                            });
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="p-1 text-zinc-400 hover:text-red-500"
-                          onClick={() => {
-                            const patterns = (
-                              local.transfer.upload_exclude_patterns ?? []
-                            ).filter((_, i) => i !== idx);
-                            setLocal({
-                              ...local,
-                              transfer: {
-                                ...local.transfer,
-                                upload_exclude_patterns: patterns,
-                              },
-                            });
-                          }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
+                    {local.transfer.upload_exclude_patterns?.map(
+                      (pattern, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={pattern}
+                            placeholder="*.tmp"
+                            className="flex-1 px-2 py-1 text-xs font-mono rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
+                            onChange={(e) => {
+                              const patterns = [
+                                ...(local.transfer.upload_exclude_patterns ??
+                                  []),
+                              ];
+                              patterns[idx] = e.target.value;
+                              setLocal({
+                                ...local,
+                                transfer: {
+                                  ...local.transfer,
+                                  upload_exclude_patterns: patterns,
+                                },
+                              });
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="p-1 text-zinc-400 hover:text-red-500"
+                            onClick={() => {
+                              const patterns = (
+                                local.transfer.upload_exclude_patterns ?? []
+                              ).filter((_, i) => i !== idx);
+                              setLocal({
+                                ...local,
+                                transfer: {
+                                  ...local.transfer,
+                                  upload_exclude_patterns: patterns,
+                                },
+                              });
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </div>
               </Tabs.Content>
@@ -409,7 +457,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                           })
                         }
                       >
-                        {t(`settings.theme${theme.charAt(0).toUpperCase() + theme.slice(1)}`)}
+                        {t(
+                          `settings.theme${theme.charAt(0).toUpperCase() + theme.slice(1)}`,
+                        )}
                       </button>
                     ))}
                   </div>
@@ -448,7 +498,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     onChange={(e) =>
                       setLocal({
                         ...local,
-                        general: { ...local.general, log_level: e.target.value },
+                        general: {
+                          ...local.general,
+                          log_level: e.target.value,
+                        },
                       })
                     }
                   >
@@ -507,19 +560,27 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   }
                 />
 
-                {logDirInfo && logDirInfo.path && (
+                {logDirInfo?.path && (
                   <div className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-3 space-y-2 text-xs">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-zinc-500">{t("settings.activeLogPath")}</span>
-                      <span className="font-mono text-zinc-700 dark:text-zinc-300 truncate" title={logDirInfo.path}>
+                      <span className="text-zinc-500">
+                        {t("settings.activeLogPath")}
+                      </span>
+                      <span
+                        className="font-mono text-zinc-700 dark:text-zinc-300 truncate"
+                        title={logDirInfo.path}
+                      >
                         {logDirInfo.path}
                       </span>
                     </div>
                     {logDirInfo.exists && (
                       <div className="flex items-center justify-between">
-                        <span className="text-zinc-500">{t("settings.logSizeOnDisk")}</span>
+                        <span className="text-zinc-500">
+                          {t("settings.logSizeOnDisk")}
+                        </span>
                         <span className="font-mono text-zinc-700 dark:text-zinc-300">
-                          {logDirInfo.file_count} {t("settings.files")} · {formatBytes(logDirInfo.total_size_bytes)}
+                          {logDirInfo.file_count} {t("settings.files")} ·{" "}
+                          {formatBytes(logDirInfo.total_size_bytes)}
                         </span>
                       </div>
                     )}
@@ -529,7 +590,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                           type="button"
                           onClick={() => {
                             if (!logDirInfo.path) return;
-                            tauriInvoke("open_path", { path: logDirInfo.path }).catch((e) =>
+                            tauriInvoke("open_path", {
+                              path: logDirInfo.path,
+                            }).catch((e) =>
                               console.error("open_path failed:", e),
                             );
                           }}
@@ -647,9 +710,7 @@ function SettingToggle({
         role="switch"
         aria-checked={checked}
         className={`relative w-11 h-6 rounded-full shrink-0 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-900 ${
-          checked
-            ? "bg-brand-600"
-            : "bg-zinc-300 dark:bg-zinc-600"
+          checked ? "bg-brand-600" : "bg-zinc-300 dark:bg-zinc-600"
         }`}
         onClick={() => onChange(!checked)}
       >
@@ -771,7 +832,9 @@ function ScheduleRow({
           type="time"
           className="input-field !py-1 !px-2 !text-xs w-24"
           value={schedule.start_time}
-          onChange={(e) => onChange({ ...schedule, start_time: e.target.value })}
+          onChange={(e) =>
+            onChange({ ...schedule, start_time: e.target.value })
+          }
         />
         <span className="text-zinc-400">-</span>
         <input
@@ -786,7 +849,10 @@ function ScheduleRow({
           min={1}
           value={schedule.max_bandwidth_mbps}
           onChange={(e) =>
-            onChange({ ...schedule, max_bandwidth_mbps: Number(e.target.value) })
+            onChange({
+              ...schedule,
+              max_bandwidth_mbps: Number(e.target.value),
+            })
           }
         />
         <span className="text-zinc-400">MB/s</span>
@@ -811,4 +877,3 @@ function ScheduleRow({
     </div>
   );
 }
-

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { formatBytes } from "@/lib/format";
+import { tauriInvoke } from "@/lib/tauri";
+import { useTransferStore } from "@/stores/transferStore";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AlertTriangle, RotateCcw, Trash2, X } from "lucide-react";
-import { tauriInvoke } from "@/lib/tauri";
-import { formatBytes } from "@/lib/format";
-import { useTransferStore } from "@/stores/transferStore";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface UploadedPart {
   part_number: number;
@@ -38,7 +38,9 @@ export function RecoveryDialog() {
   const fetchTransfers = useTransferStore((s) => s.fetchTransfers);
   const [uploads, setUploads] = useState<RecoverableUpload[]>([]);
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState<Record<string, "resume" | "discard" | undefined>>({});
+  const [busy, setBusy] = useState<
+    Record<string, "resume" | "discard" | undefined>
+  >({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

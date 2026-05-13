@@ -1,18 +1,22 @@
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { formatBytes, formatDuration, formatSpeed } from "@/lib/format";
 import {
-  Upload,
+  type TransferHistoryEntry,
+  type TransferItem,
+  useTransferStore,
+} from "@/stores/transferStore";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
   Download,
   Pause,
   Play,
-  X,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
   Trash2,
+  Upload,
+  X,
 } from "lucide-react";
-import { useTransferStore, type TransferItem, type TransferHistoryEntry } from "@/stores/transferStore";
-import { formatBytes, formatSpeed, formatDuration } from "@/lib/format";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function TransferPanel() {
   const { t } = useTranslation();
@@ -64,39 +68,31 @@ export function TransferPanel() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {tab === "active" && (
-          <>
-            {transfers.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-xs text-zinc-400">
-                {t("transfer.noTransfers")}
-              </div>
-            ) : (
-              transfers.map((transfer) => (
-                <TransferRow
-                  key={transfer.id}
-                  transfer={transfer}
-                  onPause={() => pauseTransfer(transfer.id)}
-                  onResume={() => resumeTransfer(transfer.id)}
-                  onCancel={() => cancelTransfer(transfer.id)}
-                />
-              ))
-            )}
-          </>
-        )}
+        {tab === "active" &&
+          (transfers.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-xs text-zinc-400">
+              {t("transfer.noTransfers")}
+            </div>
+          ) : (
+            transfers.map((transfer) => (
+              <TransferRow
+                key={transfer.id}
+                transfer={transfer}
+                onPause={() => pauseTransfer(transfer.id)}
+                onResume={() => resumeTransfer(transfer.id)}
+                onCancel={() => cancelTransfer(transfer.id)}
+              />
+            ))
+          ))}
 
-        {tab === "history" && (
-          <>
-            {history.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-xs text-zinc-400">
-                {t("transfer.noHistory")}
-              </div>
-            ) : (
-              history.map((entry) => (
-                <HistoryRow key={entry.id} entry={entry} />
-              ))
-            )}
-          </>
-        )}
+        {tab === "history" &&
+          (history.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-xs text-zinc-400">
+              {t("transfer.noHistory")}
+            </div>
+          ) : (
+            history.map((entry) => <HistoryRow key={entry.id} entry={entry} />)
+          ))}
       </div>
     </div>
   );
