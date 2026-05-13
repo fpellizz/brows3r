@@ -96,10 +96,21 @@ if [ "$USE_DOCKER" -eq 1 ]; then
       export TAURI_SIGNING_PRIVATE_KEY="$(cat "$KEY_FILE")"
     fi
   fi
-  if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] \
-     && [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ] \
-     && [ -n "${BROWS3R_UPDATER_KEY_PASSWORD:-}" ]; then
-    export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$BROWS3R_UPDATER_KEY_PASSWORD"
+  # Stessa logica passphrase del ramo non-docker, ma eseguita qui
+  # sull'host TTY: dentro il container stdin è chiuso e un eventuale
+  # prompt di Tauri muore con `os error 6 (ENXIO)`.
+  if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] && [ "$NO_SIGN" -eq 0 ] \
+     && [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]; then
+    if [ -n "${BROWS3R_UPDATER_KEY_PASSWORD:-}" ]; then
+      export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$BROWS3R_UPDATER_KEY_PASSWORD"
+    elif [ -t 0 ]; then
+      read -r -s -p "Passphrase chiave updater (lascia vuota se nessuna): " TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+      echo
+      export TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+    else
+      err "Nessun TTY: imposta TAURI_SIGNING_PRIVATE_KEY_PASSWORD o BROWS3R_UPDATER_KEY_PASSWORD prima di --docker, oppure usa --no-sign."
+      exit 1
+    fi
   fi
 
   INNER_FLAGS=(-b "$BUNDLES" --skip-checks)
