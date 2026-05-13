@@ -358,22 +358,42 @@ Automated via **Bitbucket Pipelines** (`bitbucket-pipelines.yml`):
 | Event | What happens |
 |-------|-------------|
 | Every push | Frontend lint/typecheck/test + Backend fmt/clippy/test + Linux build |
+| Push to `main` | Above + mirror push to `github.com/fpellizz/brows3r` (so the auto-updater feed stays in sync) |
 | Pull request | Frontend + Backend checks (no build) |
-| Tag `v*` | Linux release build + upload to Bitbucket Downloads |
+| Tag `v*` | Signed Linux release build + upload to Bitbucket Downloads + push tag to GitHub + `gh release create` with all bundles + `latest.json` |
 
 ### Creating a Release
 
 ```bash
-# 1. Update version in src-tauri/tauri.conf.json and Cargo.toml
-# 2. Commit and tag
-git tag v1.1.0
-git push --tags
+# 1. Bump version in: src-tauri/tauri.conf.json, src-tauri/Cargo.toml, package.json
+# 2. Commit, tag, push
+git commit -am "Release v1.18.1"
+git tag v1.18.1
+git push origin main
+git push origin v1.18.1
 
-# 3. Pipeline builds .deb + .rpm + .AppImage and uploads to Bitbucket Downloads
-# 4. Build Windows .exe manually on a Windows machine
+# 3. Pipeline:
+#    - Builds .deb / .rpm / .AppImage (the AppImage and a .sig are signed
+#      with TAURI_SIGNING_PRIVATE_KEY)
+#    - Generates latest.json pointing at the signed AppImage
+#    - Uploads all bundles to Bitbucket Downloads
+#    - Pushes the tag to github.com/fpellizz/brows3r
+#    - Creates the matching GitHub Release with bundles + latest.json
+#      as assets — this is the URL the in-app updater fetches.
+#
+# 4. Windows .exe still needs a manual build on a Windows machine.
 ```
 
-Required Bitbucket variable: `BB_AUTH_STRING` = `user:app_password` (repo settings > Pipelines > Variables)
+Required Bitbucket repository variables (Repo settings → Pipelines → Variables, mark "Secured"):
+
+| Variable | What it is | Used by |
+|---|---|---|
+| `BB_AUTH_STRING` | `user:app_password` for the Bitbucket Downloads API | Upload step |
+| `GITHUB_TOKEN` | GitHub PAT with `repo` + `workflow` scopes | Mirror push + release publish |
+| `TAURI_SIGNING_PRIVATE_KEY` | Output of `cargo tauri signer generate` (the private blob) | Bundle signing |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase chosen at keypair generation | Bundle signing |
+
+The Ed25519 **public** key is embedded in `tauri.conf.json` under `plugins.updater.pubkey` — every binary verifies updates against it.
 
 ---
 

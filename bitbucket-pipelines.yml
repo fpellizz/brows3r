@@ -98,6 +98,31 @@ pipelines:
           - src-tauri/target/release/bundle/rpm/**
           - src-tauri/target/release/bundle/appimage/**
 
+    # --------------------------------------------------------
+    # Step 4: Mirror main → GitHub (so the GitHub Releases feed
+    # consumed by the auto-updater always tracks the canonical
+    # Bitbucket main). No-op on every other branch.
+    #
+    # Requires `GITHUB_TOKEN` (Bitbucket repo variable, secured)
+    # with `repo` + `workflow` scopes.
+    # --------------------------------------------------------
+    - step:
+        name: "Mirror to GitHub (main only)"
+        image: alpine/git:latest
+        clone:
+          depth: full
+        script:
+          - |
+            if [ "$BITBUCKET_BRANCH" != "main" ]; then
+              echo "Branch '$BITBUCKET_BRANCH' is not main — skipping mirror."
+              exit 0
+            fi
+            if [ -z "$GITHUB_TOKEN" ]; then
+              echo "GITHUB_TOKEN not set — skipping mirror (configure the secret to enable)."
+              exit 0
+            fi
+            git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/fpellizz/brows3r.git" "HEAD:refs/heads/main"
+
   # --------------------------------------------------------
   # Pipeline per i pull request
   # --------------------------------------------------------
@@ -168,13 +193,52 @@ pipelines:
             - pnpm config set store-dir .pnpm-store
             - cargo install tauri-cli --locked
             - pnpm install --frozen-lockfile
+            # `createUpdaterArtifacts: true` in tauri.conf.json plus
+            # TAURI_SIGNING_PRIVATE_KEY in the env make `tauri build`
+            # emit a signed .AppImage + .AppImage.sig alongside the
+            # normal bundles. The signature is verified client-side
+            # against the public key embedded in the app.
             - pnpm tauri build
             - echo "=== Release artifacts ==="
-            - find src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -exec ls -lh {} \;
+            - find src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.AppImage.sig" \) -exec ls -lh {} \;
+            # Produce latest.json for the auto-updater (consumed at
+            # `github.com/fpellizz/brows3r/releases/latest/download/latest.json`).
+            # Only the AppImage is published as the Linux updater
+            # target — deb/rpm get a "new version available" banner
+            # client-side, not an in-place install.
+            - |
+              set -e
+              VERSION="${BITBUCKET_TAG#v}"
+              APPIMAGE=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name "*.AppImage" | head -n1)
+              SIG_FILE="${APPIMAGE}.sig"
+              if [ ! -f "$APPIMAGE" ] || [ ! -f "$SIG_FILE" ]; then
+                echo "ERROR: AppImage or its .sig file missing. Check that TAURI_SIGNING_PRIVATE_KEY is set."
+                ls -la src-tauri/target/release/bundle/appimage/ || true
+                exit 1
+              fi
+              SIGNATURE=$(tr -d '\n' < "$SIG_FILE")
+              APPIMAGE_BASENAME=$(basename "$APPIMAGE")
+              PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              cat > latest.json <<JSON
+              {
+                "version": "${VERSION}",
+                "notes": "See the GitHub release for the changelog.",
+                "pub_date": "${PUB_DATE}",
+                "platforms": {
+                  "linux-x86_64": {
+                    "signature": "${SIGNATURE}",
+                    "url": "https://github.com/fpellizz/brows3r/releases/download/${BITBUCKET_TAG}/${APPIMAGE_BASENAME}"
+                  }
+                }
+              }
+              JSON
+              echo "=== latest.json ==="
+              cat latest.json
           artifacts:
             - src-tauri/target/release/bundle/deb/**
             - src-tauri/target/release/bundle/rpm/**
             - src-tauri/target/release/bundle/appimage/**
+            - latest.json
 
       - step:
           name: "Upload to Bitbucket Downloads"
@@ -192,3 +256,44 @@ pipelines:
                     --form files=@"$file"
                 fi
               done
+
+      # --------------------------------------------------------
+      # Push the tag to GitHub and create the matching GitHub
+      # release. The auto-updater reads `latest.json` from the
+      # release assets, so this is the step that actually unlocks
+      # in-place updates for AppImage users.
+      # --------------------------------------------------------
+      - step:
+          name: "Publish GitHub release"
+          image: alpine:3.20
+          script:
+            - apk add --no-cache git github-cli
+            - |
+              if [ -z "$GITHUB_TOKEN" ]; then
+                echo "ERROR: GITHUB_TOKEN not set — cannot publish to GitHub."
+                exit 1
+              fi
+            # Make sure github.com/fpellizz/brows3r has the tag the
+            # release will attach to. We rely on the mirror step on
+            # `main` having seeded the history; here we only push the
+            # tag ref. Force in case of re-runs.
+            - git config --global user.email "ci@brows3r"
+            - git config --global user.name "brows3r-ci"
+            - git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/fpellizz/brows3r.git" "${BITBUCKET_TAG}"
+            # Collect everything we want shipped as release assets.
+            - |
+              shopt -s nullglob 2>/dev/null || true
+              ASSETS=""
+              for f in src-tauri/target/release/bundle/deb/*.deb \
+                       src-tauri/target/release/bundle/rpm/*.rpm \
+                       src-tauri/target/release/bundle/appimage/*.AppImage \
+                       src-tauri/target/release/bundle/appimage/*.AppImage.sig \
+                       latest.json; do
+                [ -f "$f" ] && ASSETS="$ASSETS $f"
+              done
+              echo "Assets to publish: $ASSETS"
+              GH_TOKEN="$GITHUB_TOKEN" gh release create "${BITBUCKET_TAG}" \
+                --repo fpellizz/brows3r \
+                --title "${BITBUCKET_TAG}" \
+                --notes "Auto-published from Bitbucket Pipelines (\`${BITBUCKET_COMMIT}\`)." \
+                $ASSETS
