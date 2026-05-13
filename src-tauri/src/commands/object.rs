@@ -391,18 +391,17 @@ pub async fn get_object_preview(
         });
     }
 
-    if size > MAX_PREVIEW_BYTES
-        && preview_type == "image" {
-            // Images: don't preview if too large
-            return Ok(PreviewResponse {
-                preview_type: "unsupported".to_string(),
-                content: String::new(),
-                content_type,
-                size,
-                truncated: false,
-            });
-        }
-        // Text: download first 500KB only
+    if size > MAX_PREVIEW_BYTES && preview_type == "image" {
+        // Images: don't preview if too large
+        return Ok(PreviewResponse {
+            preview_type: "unsupported".to_string(),
+            content: String::new(),
+            content_type,
+            size,
+            truncated: false,
+        });
+    }
+    // Text: download first 500KB only
 
     let is_text_like = preview_type == "text" || preview_type == "markdown";
     let text_limit = 512 * 1024i64; // 500 KB for text

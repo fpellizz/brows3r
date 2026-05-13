@@ -73,7 +73,6 @@ pub enum SignatureVersion {
     V4,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
@@ -83,7 +82,6 @@ pub enum PathStyle {
     Path,
     Virtual,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ConnectionTestResult {

@@ -59,7 +59,7 @@ pipelines:
               libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
           - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
           - source $HOME/.cargo/env
-          - cd src-tauri && cargo fmt -- --check
+          - cd src-tauri && cargo fmt --all -- --check
           - cargo clippy -- -D clippy::correctness -D clippy::suspicious
           - cargo test
 
@@ -136,7 +136,7 @@ pipelines:
                 libglib2.0-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
             - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --component clippy,rustfmt
             - source $HOME/.cargo/env
-            - cd src-tauri && cargo fmt -- --check
+            - cd src-tauri && cargo fmt --all -- --check
             - cargo clippy -- -D clippy::correctness -D clippy::suspicious
             - cargo test
 
