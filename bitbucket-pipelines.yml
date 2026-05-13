@@ -97,6 +97,12 @@ pipelines:
           - pnpm config set store-dir .pnpm-store
           - cargo install tauri-cli --locked
           - pnpm install --frozen-lockfile
+          # AppImage bundling scarica linuxdeploy-x86_64.AppImage e prova a
+          # montarlo via FUSE; nel container Bitbucket non c'è libfuse2 e il
+          # bundler muore con un criptico "failed to run linuxdeploy".
+          # `APPIMAGE_EXTRACT_AND_RUN=1` fa auto-estrarre il runtime in /tmp
+          # invece del mount FUSE. Stesso workaround di scripts/build-linux.sh.
+          - export APPIMAGE_EXTRACT_AND_RUN=1
           - pnpm tauri build
           # Show what was built
           - echo "=== Build artifacts ==="
@@ -208,6 +214,9 @@ pipelines:
             # emit a signed .AppImage + .AppImage.sig alongside the
             # normal bundles. The signature is verified client-side
             # against the public key embedded in the app.
+            # See default-pipeline note: AppImage bundler needs the
+            # FUSE-less workaround inside the Bitbucket container.
+            - export APPIMAGE_EXTRACT_AND_RUN=1
             - pnpm tauri build
             - echo "=== Release artifacts ==="
             - find src-tauri/target/release/bundle -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.AppImage.sig" \) -exec ls -lh {} \;
