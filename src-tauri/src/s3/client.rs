@@ -172,12 +172,8 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
     // `WhenRequired` so the SDK only emits checksums when the operation
     // strictly needs one — restoring the pre-1.85 behavior.
     s3_config_builder = s3_config_builder
-        .request_checksum_calculation(
-            aws_sdk_s3::config::RequestChecksumCalculation::WhenRequired,
-        )
-        .response_checksum_validation(
-            aws_sdk_s3::config::ResponseChecksumValidation::WhenRequired,
-        );
+        .request_checksum_calculation(aws_sdk_s3::config::RequestChecksumCalculation::WhenRequired)
+        .response_checksum_validation(aws_sdk_s3::config::ResponseChecksumValidation::WhenRequired);
 
     let s3_config = s3_config_builder.build();
     Ok(Client::from_conf(s3_config))
