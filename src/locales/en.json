@@ -51,7 +51,26 @@
     "name": "Bucket Name",
     "region": "Region",
     "empty": "No buckets found",
-    "properties": "Bucket properties"
+    "emptyAction": "Empty Bucket",
+    "properties": "Bucket properties",
+    "purgeAndDelete": {
+      "title": "Delete bucket \"{{name}}\"",
+      "warningNonEmpty": "Bucket \"{{name}}\" is not empty. To delete it, every object inside must be removed first. This operation cannot be undone.",
+      "warningVersioned": "Bucket \"{{name}}\" has versioning enabled (or suspended) and still contains object versions or delete markers. Every version will be permanently destroyed. This operation cannot be undone.",
+      "detailErasesObjects": "All current objects under any prefix will be deleted.",
+      "detailErasesVersions": "All non-current versions and delete markers will be permanently destroyed.",
+      "detailDeletesBucket": "The bucket itself will be removed after it is empty.",
+      "confirmLabel": "Empty and delete"
+    },
+    "emptyDialog": {
+      "title": "Empty bucket \"{{name}}\"",
+      "warning": "Every object in bucket \"{{name}}\" will be deleted. The bucket itself will be kept. This operation cannot be undone.",
+      "warningVersioned": "Bucket \"{{name}}\" has versioning enabled (or suspended). Every object version and delete marker will be permanently destroyed. The bucket itself will be kept. This operation cannot be undone.",
+      "detailErasesObjects": "All current objects under any prefix will be deleted.",
+      "detailErasesVersions": "All non-current versions and delete markers will be permanently destroyed.",
+      "detailKeepsBucket": "The bucket configuration (versioning, policy, encryption, CORS, lifecycle) is preserved.",
+      "confirmLabel": "Empty bucket"
+    }
   },
   "object": {
     "name": "Name",
@@ -163,7 +182,11 @@
     "yes": "Yes",
     "no": "No",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "dangerousConfirm": {
+      "typeToConfirm": "Type \"{{phrase}}\" to confirm",
+      "working": "Working…"
+    }
   },
   "versions": {
     "title": "Object Versions",

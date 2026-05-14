@@ -114,6 +114,71 @@ pub async fn delete_bucket(
         .map_err(|e| e.to_string())
 }
 
+/// Inspect a bucket before deletion: empty? versioning enabled? prior
+/// versions present? Used by the frontend to drive the confirmation
+/// dialog (simple confirm vs. "type 'delete me'" purge dialog).
+#[tauri::command]
+pub async fn inspect_bucket_for_deletion(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+) -> Result<crate::models::object::BucketDeletionInfo, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+
+    // Cheap probe for "is bucket empty" — list 1 current key
+    let list = client
+        .list_objects_v2()
+        .bucket(&bucket)
+        .max_keys(1)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let is_empty = list.contents().is_empty();
+
+    let versioning = crate::s3::client::get_bucket_versioning(&client, &bucket)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Only probe versions when the bucket has versioning history. For
+    // never-versioned buckets the call would succeed but it's wasted work.
+    let has_versions = if versioning.status == "Unversioned" {
+        false
+    } else {
+        let v = client
+            .list_object_versions()
+            .bucket(&bucket)
+            .max_keys(1)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        !v.versions().is_empty() || !v.delete_markers().is_empty()
+    };
+
+    Ok(crate::models::object::BucketDeletionInfo {
+        is_empty,
+        versioning_status: versioning.status,
+        has_versions,
+    })
+}
+
+/// Empty a bucket without deleting it. With `include_versions = true` also
+/// deletes non-current versions and delete markers — needed before the
+/// bucket itself can be removed if versioning has ever been enabled.
+#[tauri::command]
+pub async fn empty_bucket(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    include_versions: bool,
+) -> Result<u64, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::empty_bucket(&client, &bucket, include_versions)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn get_bucket_info(
     db: State<'_, Database>,

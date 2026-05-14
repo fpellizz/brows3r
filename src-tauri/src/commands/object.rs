@@ -158,6 +158,23 @@ pub async fn delete_objects(
     Ok(())
 }
 
+/// Recursively delete every object under a prefix. Required for "delete
+/// folder" — in S3 folders are virtual, so removing one requires listing
+/// all keys with that prefix and bulk-deleting them.
+#[tauri::command]
+pub async fn delete_prefix(
+    db: State<'_, Database>,
+    pool: State<'_, S3ClientPool>,
+    connection_id: String,
+    bucket: String,
+    prefix: String,
+) -> Result<u64, String> {
+    let client = get_client(&db, &pool, &connection_id).await?;
+    crate::s3::client::delete_prefix(&client, &bucket, &prefix)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn copy_object(
     db: State<'_, Database>,

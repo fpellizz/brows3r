@@ -164,6 +164,21 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
         );
     }
 
+    // aws-sdk-s3 >= 1.85 defaults to `WhenSupported`, which means every
+    // PutObject / UploadPart gets a trailing CRC32 checksum (Transfer-Encoding:
+    // chunked + `x-amz-checksum-crc32` trailer). AWS S3 understands this, but
+    // many S3-compatible backends (older Ceph RadosGW, MinIO before 2024,
+    // OCI, Wasabi, ...) reject those uploads with cryptic 4xx errors. Pin to
+    // `WhenRequired` so the SDK only emits checksums when the operation
+    // strictly needs one — restoring the pre-1.85 behavior.
+    s3_config_builder = s3_config_builder
+        .request_checksum_calculation(
+            aws_sdk_s3::config::RequestChecksumCalculation::WhenRequired,
+        )
+        .response_checksum_validation(
+            aws_sdk_s3::config::ResponseChecksumValidation::WhenRequired,
+        );
+
     let s3_config = s3_config_builder.build();
     Ok(Client::from_conf(s3_config))
 }
@@ -302,6 +317,153 @@ pub async fn delete_objects(client: &Client, bucket: &str, keys: &[String]) -> R
         .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
 
     Ok(())
+}
+
+/// Bulk delete a slice of (key, optional version_id) pairs. Required for
+/// emptying versioned buckets — DeleteObjects without versionId leaves
+/// historical versions in place.
+pub async fn delete_object_versions(
+    client: &Client,
+    bucket: &str,
+    items: &[(String, Option<String>)],
+) -> Result<(), S3Error> {
+    use aws_sdk_s3::types::{Delete, ObjectIdentifier};
+
+    let objects: Vec<ObjectIdentifier> = items
+        .iter()
+        .map(|(k, v)| {
+            let mut b = ObjectIdentifier::builder().key(k);
+            if let Some(version_id) = v {
+                b = b.version_id(version_id);
+            }
+            b.build().unwrap()
+        })
+        .collect();
+
+    let delete = Delete::builder()
+        .set_objects(Some(objects))
+        .build()
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+    client
+        .delete_objects()
+        .bucket(bucket)
+        .delete(delete)
+        .send()
+        .await
+        .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+    Ok(())
+}
+
+/// Paginate ListObjectsV2 over a prefix and bulk-delete every key found.
+/// Use this for "delete folder" (prefix-scoped) — S3 has no native folder
+/// concept, so the folder is just every key under that prefix.
+pub async fn delete_prefix(client: &Client, bucket: &str, prefix: &str) -> Result<u64, S3Error> {
+    let mut deleted: u64 = 0;
+    let mut continuation: Option<String> = None;
+    loop {
+        let mut req = client
+            .list_objects_v2()
+            .bucket(bucket)
+            .prefix(prefix)
+            .max_keys(1000);
+        if let Some(t) = continuation.as_deref() {
+            req = req.continuation_token(t);
+        }
+        let out = req
+            .send()
+            .await
+            .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+        let keys: Vec<String> = out
+            .contents()
+            .iter()
+            .filter_map(|o| o.key().map(|s| s.to_string()))
+            .collect();
+
+        if !keys.is_empty() {
+            delete_objects(client, bucket, &keys).await?;
+            deleted += keys.len() as u64;
+        }
+
+        if out.is_truncated().unwrap_or(false) {
+            continuation = out.next_continuation_token().map(|s| s.to_string());
+            if continuation.is_none() {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    Ok(deleted)
+}
+
+/// Empty a bucket: deletes every object key. When `include_versions` is true,
+/// also deletes every non-current version and delete-marker via
+/// ListObjectVersions — required for versioned buckets before they can be
+/// deleted (the bucket reports BucketNotEmpty as long as any version exists).
+pub async fn empty_bucket(
+    client: &Client,
+    bucket: &str,
+    include_versions: bool,
+) -> Result<u64, S3Error> {
+    let mut deleted: u64 = 0;
+
+    // Pass 1: current keys via ListObjectsV2 (works whether versioning is on or off)
+    deleted += delete_prefix(client, bucket, "").await?;
+
+    if include_versions {
+        // Pass 2: every version + every delete marker
+        let mut key_marker: Option<String> = None;
+        let mut version_marker: Option<String> = None;
+        loop {
+            let mut req = client.list_object_versions().bucket(bucket).max_keys(1000);
+            if let Some(m) = key_marker.as_deref() {
+                req = req.key_marker(m);
+            }
+            if let Some(m) = version_marker.as_deref() {
+                req = req.version_id_marker(m);
+            }
+
+            let out = req
+                .send()
+                .await
+                .map_err(|e| S3Error::SdkError(super::error::sdk_error_detail(&e)))?;
+
+            let mut batch: Vec<(String, Option<String>)> = Vec::new();
+            for v in out.versions() {
+                if let Some(k) = v.key() {
+                    batch.push((k.to_string(), v.version_id().map(|s| s.to_string())));
+                }
+            }
+            for dm in out.delete_markers() {
+                if let Some(k) = dm.key() {
+                    batch.push((k.to_string(), dm.version_id().map(|s| s.to_string())));
+                }
+            }
+
+            if !batch.is_empty() {
+                // Chunk by 1000 (DeleteObjects per-request limit)
+                for chunk in batch.chunks(1000) {
+                    delete_object_versions(client, bucket, chunk).await?;
+                }
+                deleted += batch.len() as u64;
+            }
+
+            if out.is_truncated().unwrap_or(false) {
+                key_marker = out.next_key_marker().map(|s| s.to_string());
+                version_marker = out.next_version_id_marker().map(|s| s.to_string());
+                if key_marker.is_none() && version_marker.is_none() {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    Ok(deleted)
 }
 
 pub async fn copy_object(

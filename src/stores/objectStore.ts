@@ -402,13 +402,30 @@ export const useObjectStore = create<ObjectState>((set, get) => ({
     const tabState = get().tabStates[tabId];
     if (!tab?.bucket || !tabState || tabState.selectedKeys.size === 0) return;
 
-    await tauriInvoke("delete_objects", {
-      request: {
-        connection_id: connectionId,
+    // Folders are virtual prefixes — keys ending in "/" need a recursive
+    // delete, otherwise only an optional 0-byte marker is removed and the
+    // folder reappears on the next listing.
+    const selected = Array.from(tabState.selectedKeys);
+    const folderPrefixes = selected.filter((k) => k.endsWith("/"));
+    const fileKeys = selected.filter((k) => !k.endsWith("/"));
+
+    if (fileKeys.length > 0) {
+      await tauriInvoke("delete_objects", {
+        request: {
+          connection_id: connectionId,
+          bucket: tab.bucket,
+          keys: fileKeys,
+        },
+      });
+    }
+
+    for (const prefix of folderPrefixes) {
+      await tauriInvoke("delete_prefix", {
+        connectionId,
         bucket: tab.bucket,
-        keys: Array.from(tabState.selectedKeys),
-      },
-    });
+        prefix,
+      });
+    }
 
     set((s) => ({
       tabStates: {

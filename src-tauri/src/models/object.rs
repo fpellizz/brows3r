@@ -96,6 +96,20 @@ pub struct DeleteObjectsRequest {
     pub keys: Vec<String>,
 }
 
+/// Pre-delete probe for a bucket. The frontend uses this to decide which
+/// confirmation dialog to show: a simple confirm if the bucket is already
+/// empty, a "type 'delete me' to empty + delete" dialog otherwise.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BucketDeletionInfo {
+    /// True when ListObjectsV2 returns zero current keys.
+    pub is_empty: bool,
+    /// "Enabled", "Suspended", or "Unversioned".
+    pub versioning_status: String,
+    /// True when at least one non-current version or delete marker exists.
+    /// Only meaningful when the bucket has ever had versioning enabled.
+    pub has_versions: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct CopyObjectRequest {
     pub connection_id: String,

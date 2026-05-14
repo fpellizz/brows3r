@@ -93,13 +93,24 @@ export function ObjectContextMenu({
   const handleDelete = async () => {
     if (!activeConnectionId || !currentBucket) return;
 
-    await tauriInvoke("delete_objects", {
-      request: {
-        connection_id: activeConnectionId,
+    if (object.is_folder) {
+      // S3 folders are virtual prefixes — recurse, list every key under
+      // the prefix and bulk-delete, otherwise only the optional 0-byte
+      // marker gets removed and the folder reappears on the next list.
+      await tauriInvoke("delete_prefix", {
+        connectionId: activeConnectionId,
         bucket: currentBucket,
-        keys: [object.key],
-      },
-    });
+        prefix: object.key,
+      });
+    } else {
+      await tauriInvoke("delete_objects", {
+        request: {
+          connection_id: activeConnectionId,
+          bucket: currentBucket,
+          keys: [object.key],
+        },
+      });
+    }
 
     fetchObjects(activeConnectionId);
   };

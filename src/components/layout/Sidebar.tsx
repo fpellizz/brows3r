@@ -1,5 +1,6 @@
 import { BucketPropertiesDialog } from "@/components/bucket/BucketPropertiesDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { DangerousConfirmDialog } from "@/components/common/DangerousConfirmDialog";
 import { InputDialog } from "@/components/common/InputDialog";
 import { ConnectionDialog } from "@/components/connection/ConnectionDialog";
 import { ImportDialog } from "@/components/connection/ImportDialog";
@@ -12,6 +13,7 @@ import {
   ChevronRight,
   Database,
   Download,
+  Eraser,
   FolderOpen,
   Pencil,
   Plus,
@@ -26,6 +28,21 @@ interface BucketInfo {
   name: string;
   creation_date: string | null;
   region: string | null;
+}
+
+interface BucketDeletionInfo {
+  is_empty: boolean;
+  versioning_status: string;
+  has_versions: boolean;
+}
+
+interface BucketTarget {
+  connId: string;
+  name: string;
+}
+
+interface PurgeTarget extends BucketTarget {
+  info: BucketDeletionInfo;
 }
 
 export function Sidebar() {
@@ -58,15 +75,22 @@ export function Sidebar() {
   const [createBucketConnId, setCreateBucketConnId] = useState<string | null>(
     null,
   );
+  // Three distinct flows for bucket deletion / cleanup:
+  //  - simple confirm when the bucket is already empty;
+  //  - type-to-confirm purge + delete when it has objects (and/or versions);
+  //  - type-to-confirm empty-only (keeps the bucket).
   const [deleteBucketOpen, setDeleteBucketOpen] = useState(false);
-  const [deletingBucket, setDeletingBucket] = useState<{
-    connId: string;
-    name: string;
-  } | null>(null);
-  const [propertiesBucket, setPropertiesBucket] = useState<{
-    connId: string;
-    name: string;
-  } | null>(null);
+  const [deletingBucket, setDeletingBucket] = useState<BucketTarget | null>(
+    null,
+  );
+  const [purgeAndDeleteTarget, setPurgeAndDeleteTarget] =
+    useState<PurgeTarget | null>(null);
+  const [emptyBucketTarget, setEmptyBucketTarget] =
+    useState<PurgeTarget | null>(null);
+  const [inspectingBucket, setInspectingBucket] = useState<string | null>(null);
+  const [propertiesBucket, setPropertiesBucket] = useState<BucketTarget | null>(
+    null,
+  );
 
   const openNewDialog = () => {
     setEditingConnection(null);
@@ -169,7 +193,7 @@ export function Sidebar() {
     }
   };
 
-  const handleDeleteBucket = async () => {
+  const handleSimpleDeleteBucket = async () => {
     if (!deletingBucket) return;
     try {
       await tauriInvoke("delete_bucket", {
@@ -186,20 +210,112 @@ export function Sidebar() {
     setDeletingBucket(null);
   };
 
+  const handlePurgeAndDelete = async () => {
+    if (!purgeAndDeleteTarget) return;
+    const { connId, name, info } = purgeAndDeleteTarget;
+    await tauriInvoke("empty_bucket", {
+      connectionId: connId,
+      bucket: name,
+      includeVersions: info.has_versions,
+    });
+    await tauriInvoke("delete_bucket", {
+      connectionId: connId,
+      bucket: name,
+    });
+    if (currentBucket === name) {
+      setCurrentBucket(null);
+    }
+    await loadBuckets(connId, true);
+    setPurgeAndDeleteTarget(null);
+  };
+
+  const handleEmptyBucket = async () => {
+    if (!emptyBucketTarget) return;
+    const { connId, name, info } = emptyBucketTarget;
+    await tauriInvoke("empty_bucket", {
+      connectionId: connId,
+      bucket: name,
+      includeVersions: info.has_versions,
+    });
+    // Refresh the current view if it's pointing at this bucket
+    if (currentBucket === name && activeConnectionId === connId) {
+      await fetchObjects(connId);
+    }
+    setEmptyBucketTarget(null);
+  };
+
   const openCreateBucket = (connectionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setCreateBucketConnId(connectionId);
     setCreateBucketOpen(true);
   };
 
-  const confirmDeleteBucket = (
+  /**
+   * Probe the bucket: if it's empty and no version history, fall through to
+   * the simple confirm; otherwise open the dangerous purge-and-delete dialog.
+   * Inspection failures (e.g. AccessDenied) still drop to the simple confirm
+   * so the user can see the error from the server in the same way as before.
+   */
+  const confirmDeleteBucket = async (
     connId: string,
     bucketName: string,
     e: React.MouseEvent,
   ) => {
     e.stopPropagation();
-    setDeletingBucket({ connId, name: bucketName });
-    setDeleteBucketOpen(true);
+    const key = `${connId}:${bucketName}`;
+    setInspectingBucket(key);
+    try {
+      const info = await tauriInvoke<BucketDeletionInfo>(
+        "inspect_bucket_for_deletion",
+        { connectionId: connId, bucket: bucketName },
+      );
+      if (info.is_empty && !info.has_versions) {
+        setDeletingBucket({ connId, name: bucketName });
+        setDeleteBucketOpen(true);
+      } else {
+        setPurgeAndDeleteTarget({ connId, name: bucketName, info });
+      }
+    } catch (err) {
+      console.error("inspect_bucket_for_deletion failed:", err);
+      // Fall back to the strict confirm: at least the user sees feedback
+      // if the delete itself produces an error.
+      setDeletingBucket({ connId, name: bucketName });
+      setDeleteBucketOpen(true);
+    } finally {
+      setInspectingBucket(null);
+    }
+  };
+
+  const openEmptyBucket = async (
+    connId: string,
+    bucketName: string,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation();
+    const key = `${connId}:${bucketName}`;
+    setInspectingBucket(key);
+    try {
+      const info = await tauriInvoke<BucketDeletionInfo>(
+        "inspect_bucket_for_deletion",
+        { connectionId: connId, bucket: bucketName },
+      );
+      setEmptyBucketTarget({ connId, name: bucketName, info });
+    } catch (err) {
+      console.error("inspect_bucket_for_deletion failed:", err);
+      // Still open the dialog with a conservative default so the user
+      // can attempt the operation and see any error inline.
+      setEmptyBucketTarget({
+        connId,
+        name: bucketName,
+        info: {
+          is_empty: false,
+          versioning_status: "Unknown",
+          has_versions: false,
+        },
+      });
+    } finally {
+      setInspectingBucket(null);
+    }
   };
 
   return (
@@ -351,10 +467,28 @@ export function Sidebar() {
                             />
                           </button>
                           <button
-                            className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 shrink-0"
+                            className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 shrink-0 disabled:opacity-40"
+                            title={t("bucket.emptyAction")}
+                            onClick={(e) =>
+                              openEmptyBucket(conn.id, bucket.name, e)
+                            }
+                            disabled={
+                              inspectingBucket === `${conn.id}:${bucket.name}`
+                            }
+                          >
+                            <Eraser
+                              size={11}
+                              className="text-zinc-400 hover:text-amber-500"
+                            />
+                          </button>
+                          <button
+                            className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 shrink-0 disabled:opacity-40"
                             title={t("bucket.delete")}
                             onClick={(e) =>
                               confirmDeleteBucket(conn.id, bucket.name, e)
+                            }
+                            disabled={
+                              inspectingBucket === `${conn.id}:${bucket.name}`
                             }
                           >
                             <Trash2
@@ -402,7 +536,7 @@ export function Sidebar() {
         onConfirm={handleCreateBucket}
       />
 
-      {/* Delete bucket confirmation */}
+      {/* Delete bucket — simple confirm (empty bucket, no versions) */}
       <ConfirmDialog
         open={deleteBucketOpen}
         onOpenChange={setDeleteBucketOpen}
@@ -412,7 +546,67 @@ export function Sidebar() {
         })}
         confirmLabel={t("common.delete")}
         destructive
-        onConfirm={handleDeleteBucket}
+        onConfirm={handleSimpleDeleteBucket}
+      />
+
+      {/* Delete bucket — purge + delete (non-empty / versioned) */}
+      <DangerousConfirmDialog
+        open={purgeAndDeleteTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) setPurgeAndDeleteTarget(null);
+        }}
+        title={t("bucket.purgeAndDelete.title", {
+          name: purgeAndDeleteTarget?.name ?? "",
+        })}
+        warning={
+          purgeAndDeleteTarget?.info.has_versions
+            ? t("bucket.purgeAndDelete.warningVersioned", {
+                name: purgeAndDeleteTarget?.name ?? "",
+              })
+            : t("bucket.purgeAndDelete.warningNonEmpty", {
+                name: purgeAndDeleteTarget?.name ?? "",
+              })
+        }
+        details={[
+          t("bucket.purgeAndDelete.detailErasesObjects"),
+          ...(purgeAndDeleteTarget?.info.has_versions
+            ? [t("bucket.purgeAndDelete.detailErasesVersions")]
+            : []),
+          t("bucket.purgeAndDelete.detailDeletesBucket"),
+        ]}
+        confirmPhrase="delete me"
+        confirmLabel={t("bucket.purgeAndDelete.confirmLabel")}
+        onConfirm={handlePurgeAndDelete}
+      />
+
+      {/* Empty bucket — keeps the bucket, removes everything inside */}
+      <DangerousConfirmDialog
+        open={emptyBucketTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) setEmptyBucketTarget(null);
+        }}
+        title={t("bucket.emptyDialog.title", {
+          name: emptyBucketTarget?.name ?? "",
+        })}
+        warning={
+          emptyBucketTarget?.info.has_versions
+            ? t("bucket.emptyDialog.warningVersioned", {
+                name: emptyBucketTarget?.name ?? "",
+              })
+            : t("bucket.emptyDialog.warning", {
+                name: emptyBucketTarget?.name ?? "",
+              })
+        }
+        details={[
+          t("bucket.emptyDialog.detailErasesObjects"),
+          ...(emptyBucketTarget?.info.has_versions
+            ? [t("bucket.emptyDialog.detailErasesVersions")]
+            : []),
+          t("bucket.emptyDialog.detailKeepsBucket"),
+        ]}
+        confirmPhrase="delete me"
+        confirmLabel={t("bucket.emptyDialog.confirmLabel")}
+        onConfirm={handleEmptyBucket}
       />
 
       {/* Import connections dialog */}

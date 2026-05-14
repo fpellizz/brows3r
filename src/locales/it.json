@@ -137,7 +137,26 @@
     "name": "Nome Bucket",
     "region": "Regione",
     "empty": "Nessun bucket trovato",
-    "properties": "Proprietà bucket"
+    "emptyAction": "Svuota Bucket",
+    "properties": "Proprietà bucket",
+    "purgeAndDelete": {
+      "title": "Elimina bucket \"{{name}}\"",
+      "warningNonEmpty": "Il bucket \"{{name}}\" non è vuoto. Per eliminarlo è necessario rimuovere prima ogni oggetto al suo interno. L'operazione non può essere annullata.",
+      "warningVersioned": "Il bucket \"{{name}}\" ha il versioning abilitato (o sospeso) e contiene ancora versioni di oggetti o delete marker. Tutte le versioni verranno eliminate definitivamente. L'operazione non può essere annullata.",
+      "detailErasesObjects": "Tutti gli oggetti correnti, sotto qualsiasi prefisso, verranno eliminati.",
+      "detailErasesVersions": "Tutte le versioni precedenti e i delete marker verranno distrutti definitivamente.",
+      "detailDeletesBucket": "Il bucket stesso verrà eliminato una volta svuotato.",
+      "confirmLabel": "Svuota ed elimina"
+    },
+    "emptyDialog": {
+      "title": "Svuota bucket \"{{name}}\"",
+      "warning": "Ogni oggetto nel bucket \"{{name}}\" verrà eliminato. Il bucket verrà mantenuto. L'operazione non può essere annullata.",
+      "warningVersioned": "Il bucket \"{{name}}\" ha il versioning abilitato (o sospeso). Ogni versione di oggetto e ogni delete marker verranno distrutti definitivamente. Il bucket verrà mantenuto. L'operazione non può essere annullata.",
+      "detailErasesObjects": "Tutti gli oggetti correnti, sotto qualsiasi prefisso, verranno eliminati.",
+      "detailErasesVersions": "Tutte le versioni precedenti e i delete marker verranno distrutti definitivamente.",
+      "detailKeepsBucket": "La configurazione del bucket (versioning, policy, encryption, CORS, lifecycle) viene preservata.",
+      "confirmLabel": "Svuota bucket"
+    }
   },
   "object": {
     "name": "Nome",
@@ -259,7 +278,11 @@
     "yes": "Si'",
     "no": "No",
     "copy": "Copia",
-    "copied": "Copiato"
+    "copied": "Copiato",
+    "dangerousConfirm": {
+      "typeToConfirm": "Digita \"{{phrase}}\" per confermare",
+      "working": "In corso…"
+    }
   },
   "bucketProperties": {
     "title": "Proprietà bucket",
