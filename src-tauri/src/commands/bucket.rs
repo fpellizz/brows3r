@@ -49,9 +49,14 @@ async fn get_client(
 
     let config = build_s3_config(&conn, &secret_key, session_token.as_deref());
 
-    pool.get_or_create(connection_id, &config)
+    let client = pool
+        .get_or_create(connection_id, &config)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    super::connection::persist_addressing_downgrade(db, pool, connection_id).await;
+
+    Ok(client)
 }
 
 #[tauri::command]

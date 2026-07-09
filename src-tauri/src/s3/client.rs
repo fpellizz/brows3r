@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use aws_config;
@@ -14,12 +14,18 @@ use super::types::{S3Bucket, S3ClientConfig, S3ListResult, S3Object};
 /// Pool of S3 clients keyed by connection ID.
 pub struct S3ClientPool {
     clients: RwLock<HashMap<String, Client>>,
+    /// Connection IDs whose addressing was auto-downgraded to path-style
+    /// this session (virtual-hosted turned out to be unreachable) and not
+    /// yet persisted. Drained by `take_pending_downgrade` at the command
+    /// layer, which writes the choice back to the connection profile.
+    pending_downgrades: RwLock<HashSet<String>>,
 }
 
 impl S3ClientPool {
     pub fn new() -> Self {
         Self {
             clients: RwLock::new(HashMap::new()),
+            pending_downgrades: RwLock::new(HashSet::new()),
         }
     }
 
@@ -37,8 +43,30 @@ impl S3ClientPool {
             }
         }
 
+        // Decide the addressing style *before* building the real client, so
+        // that every subsequent operation — including un-retryable streaming
+        // uploads — talks to a working endpoint. Some S3-compatible backends
+        // serve `ListBuckets` on the base host but cannot be reached via the
+        // per-bucket virtual-hosted hostname (`<bucket>.endpoint`), typically
+        // because their TLS certificate only covers the base host, or because
+        // there is no wildcard DNS. In that case fall back to path-style.
+        let mut effective = config.clone();
+        if should_probe_addressing(config) && virtual_hosted_addressing_unreachable(config).await {
+            tracing::warn!(
+                "virtual-hosted addressing is unreachable for endpoint {} \
+                 (the TLS certificate or DNS likely does not cover per-bucket \
+                 subdomains); falling back to path-style for this connection",
+                config.endpoint
+            );
+            effective.force_path_style = Some(true);
+            self.pending_downgrades
+                .write()
+                .await
+                .insert(connection_id.to_string());
+        }
+
         // Create a new client
-        let client = create_s3_client(config).await?;
+        let client = create_s3_client(&effective).await?;
 
         let mut clients = self.clients.write().await;
         clients.insert(connection_id.to_string(), client.clone());
@@ -50,6 +78,17 @@ impl S3ClientPool {
     pub async fn remove(&self, connection_id: &str) {
         let mut clients = self.clients.write().await;
         clients.remove(connection_id);
+        // Drop any un-consumed downgrade flag too: the config is about to be
+        // rebuilt (and re-probed if needed), so a stale flag must not cause a
+        // later persist that overrides a freshly-edited addressing choice.
+        self.pending_downgrades.write().await.remove(connection_id);
+    }
+
+    /// Consume (and clear) the "addressing was auto-downgraded" flag for a
+    /// connection. Returns `true` exactly once per detected downgrade, so the
+    /// caller can persist the path-style choice to the connection profile.
+    pub async fn take_pending_downgrade(&self, connection_id: &str) -> bool {
+        self.pending_downgrades.write().await.remove(connection_id)
     }
 }
 
@@ -177,6 +216,46 @@ async fn create_s3_client(config: &S3ClientConfig) -> Result<Client, S3Error> {
 
     let s3_config = s3_config_builder.build();
     Ok(Client::from_conf(s3_config))
+}
+
+/// Bucket name used only by the virtual-hosted reachability probe. It is
+/// never created; we only care whether the request can reach the server.
+const VHOST_PROBE_BUCKET: &str = "brows3r-vhost-probe";
+
+/// Whether it is worth probing virtual-hosted reachability for this config.
+/// Only meaningful for a custom endpoint that would use virtual-hosted
+/// addressing — i.e. path-style is not already forced. Plain AWS (no custom
+/// endpoint) and connections explicitly pinned to path-style are skipped.
+fn should_probe_addressing(config: &S3ClientConfig) -> bool {
+    !config.endpoint.trim().is_empty() && config.force_path_style != Some(true)
+}
+
+/// Probe whether virtual-hosted addressing can actually reach the backend.
+/// Builds a throwaway, no-retry client pinned to virtual-hosted addressing
+/// and issues a single `HeadBucket` against a sentinel bucket. A transport
+/// (`DispatchFailure`) error — TLS certificate name mismatch, DNS failure,
+/// connection refused — means the per-bucket hostname is unusable. Any HTTP
+/// response (404 NoSuchBucket, 403, ...) proves the hostname resolved,
+/// connected and completed TLS, so virtual-hosted addressing is fine.
+async fn virtual_hosted_addressing_unreachable(config: &S3ClientConfig) -> bool {
+    use aws_sdk_s3::error::SdkError;
+
+    let mut probe_cfg = config.clone();
+    probe_cfg.force_path_style = Some(false); // force virtual-hosted for the probe
+    probe_cfg.max_retries = 0; // single attempt — don't wait through backoff
+    probe_cfg.timeout_secs = probe_cfg.timeout_secs.min(8); // keep the probe snappy
+
+    let client = match create_s3_client(&probe_cfg).await {
+        Ok(c) => c,
+        // If we can't even build the probe client, don't second-guess the
+        // configured addressing — let the real request surface the error.
+        Err(_) => return false,
+    };
+
+    matches!(
+        client.head_bucket().bucket(VHOST_PROBE_BUCKET).send().await,
+        Err(SdkError::DispatchFailure(_))
+    )
 }
 
 // --- Operations ---

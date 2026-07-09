@@ -243,3 +243,39 @@ pub fn build_s3_config(
         max_retries: conn.max_retries,
     }
 }
+
+/// If the client pool auto-downgraded this connection to path-style (because
+/// virtual-hosted addressing was unreachable), persist the choice to the
+/// stored profile so future sessions skip the probe and the UI reflects it.
+/// Best-effort: failures are logged but never surfaced to the caller.
+pub async fn persist_addressing_downgrade(
+    db: &State<'_, Database>,
+    pool: &State<'_, S3ClientPool>,
+    connection_id: &str,
+) {
+    if !pool.take_pending_downgrade(connection_id).await {
+        return;
+    }
+
+    match crate::store::database::get_connection(db, connection_id) {
+        Ok(Some(conn)) if !matches!(conn.path_style, PathStyle::Path) => {
+            match crate::store::database::set_connection_path_style(
+                db,
+                connection_id,
+                PathStyle::Path,
+            ) {
+                Ok(()) => tracing::info!(
+                    "persisted path-style addressing for connection {connection_id} \
+                     after virtual-hosted fallback"
+                ),
+                Err(e) => tracing::warn!(
+                    "failed to persist path-style fallback for {connection_id}: {e}"
+                ),
+            }
+        }
+        Ok(_) => {} // already path-style, or connection gone — nothing to do
+        Err(e) => {
+            tracing::warn!("could not load connection {connection_id} to persist path-style: {e}")
+        }
+    }
+}

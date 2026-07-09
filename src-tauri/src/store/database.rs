@@ -241,6 +241,24 @@ pub fn update_connection(db: &Database, profile: &ConnProfile) -> Result<(), rus
     Ok(())
 }
 
+/// Persist only the addressing (`path_style`) for a connection, leaving every
+/// other field — including the encrypted secret — untouched. Used when the
+/// client pool auto-detects that virtual-hosted addressing is unreachable and
+/// falls back to path-style, so the choice survives restarts and shows up in
+/// the UI.
+pub fn set_connection_path_style(
+    db: &Database,
+    id: &str,
+    path_style: PathStyle,
+) -> Result<(), rusqlite::Error> {
+    let conn = db.conn.lock().unwrap();
+    conn.execute(
+        "UPDATE connections SET path_style=?2 WHERE id=?1",
+        rusqlite::params![id, path_style_str(&path_style)],
+    )?;
+    Ok(())
+}
+
 pub fn delete_connection(db: &Database, id: &str) -> Result<(), rusqlite::Error> {
     let conn = db.conn.lock().unwrap();
     conn.execute("DELETE FROM connections WHERE id = ?1", [id])?;
