@@ -268,9 +268,9 @@ pub async fn persist_addressing_downgrade(
                     "persisted path-style addressing for connection {connection_id} \
                      after virtual-hosted fallback"
                 ),
-                Err(e) => tracing::warn!(
-                    "failed to persist path-style fallback for {connection_id}: {e}"
-                ),
+                Err(e) => {
+                    tracing::warn!("failed to persist path-style fallback for {connection_id}: {e}")
+                }
             }
         }
         Ok(_) => {} // already path-style, or connection gone — nothing to do
