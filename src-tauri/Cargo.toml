@@ -1,6 +1,6 @@
 [package]
 name = "brows3r"
-version = "1.19.2"
+version = "1.19.3"
 description = "Cross-platform S3-compatible object storage browser"
 authors = ["brows3r contributors"]
 license = "Apache-2.0"
