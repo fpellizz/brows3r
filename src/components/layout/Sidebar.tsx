@@ -320,22 +320,22 @@ export function Sidebar() {
 
   return (
     <>
-      <div className="h-full flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
+      <div className="h-full flex flex-col border-r border-(--sidebar-border) bg-(--sidebar) text-(--sidebar-foreground)">
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 dark:border-zinc-800">
-          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="flex items-center justify-between pl-4 pr-3 pt-3 pb-1.5">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-(--muted-foreground)">
             {t("sidebar.connections")}
           </span>
           <div className="flex items-center gap-0.5">
             <button
-              className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              className="p-1 rounded hover:bg-(--pane-accent) text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
               title={t("import.title")}
               onClick={() => setImportDialogOpen(true)}
             >
               <Download size={14} />
             </button>
             <button
-              className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              className="p-1 rounded hover:bg-(--pane-accent) text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
               title={t("sidebar.addConnection")}
               onClick={openNewDialog}
             >
@@ -345,7 +345,7 @@ export function Sidebar() {
         </div>
 
         {/* Connection tree */}
-        <div className="flex-1 overflow-y-auto py-1">
+        <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
           {connections.length === 0 ? (
             <div className="px-3 py-8 text-center">
               <p className="text-xs text-zinc-400 mb-3">
@@ -364,10 +364,10 @@ export function Sidebar() {
               <div key={conn.id}>
                 {/* Connection node */}
                 <div
-                  className={`group w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-normal hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
+                  className={`group w-full flex items-center gap-2 h-8 px-2 rounded-md text-sm hover:bg-(--pane-accent) cursor-pointer ${
                     activeConnectionId === conn.id
-                      ? "bg-zinc-200 dark:bg-zinc-800"
-                      : ""
+                      ? "font-medium"
+                      : "font-normal"
                   }`}
                   onClick={() => toggleConnection(conn.id)}
                 >
@@ -379,7 +379,14 @@ export function Sidebar() {
                       className="text-zinc-400 shrink-0"
                     />
                   )}
-                  <Database size={14} className="text-brand-500 shrink-0" />
+                  <Database
+                    size={14}
+                    className={`shrink-0 ${
+                      activeConnectionId === conn.id
+                        ? "text-(--sidebar-primary)"
+                        : "text-(--muted-foreground)"
+                    }`}
+                  />
                   <span className="truncate flex-1">{conn.name}</span>
 
                   {/* Inline action buttons (visible on hover) */}
@@ -387,14 +394,14 @@ export function Sidebar() {
                     {expandedConnections.has(conn.id) && (
                       <>
                         <button
-                          className="p-0.5 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                          className="p-0.5 rounded hover:bg-(--neutral-300) dark:hover:bg-(--neutral-700)"
                           title={t("bucket.create")}
                           onClick={(e) => openCreateBucket(conn.id, e)}
                         >
                           <Plus size={12} className="text-zinc-500" />
                         </button>
                         <button
-                          className="p-0.5 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                          className="p-0.5 rounded hover:bg-(--neutral-300) dark:hover:bg-(--neutral-700)"
                           title="Refresh buckets"
                           onClick={(e) => refreshBuckets(conn.id, e)}
                         >
@@ -403,7 +410,7 @@ export function Sidebar() {
                       </>
                     )}
                     <button
-                      className="p-0.5 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                      className="p-0.5 rounded hover:bg-(--neutral-300) dark:hover:bg-(--neutral-700)"
                       title="Edit"
                       onClick={(e) => openEditDialog(conn, e)}
                     >
@@ -424,7 +431,7 @@ export function Sidebar() {
 
                 {/* Bucket list */}
                 {expandedConnections.has(conn.id) && (
-                  <div className="ml-4">
+                  <div className="ml-4 mt-0.5 space-y-0.5">
                     {loadingBuckets.has(conn.id) ? (
                       <div className="px-4 py-2 text-xs text-zinc-400">
                         {t("common.loading")}
@@ -437,21 +444,21 @@ export function Sidebar() {
                       buckets[conn.id]?.map((bucket) => (
                         <div
                           key={bucket.name}
-                          className={`group/bucket w-full flex items-center gap-1.5 px-2 py-1 text-sm font-normal hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer ${
+                          className={`group/bucket w-full flex items-center gap-2 h-7 px-2 rounded-md text-sm hover:bg-(--pane-accent) cursor-pointer ${
                             currentBucket === bucket.name &&
                             activeConnectionId === conn.id
-                              ? "bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300"
-                              : ""
+                              ? "bg-(--pane-accent) font-medium [&>svg:first-child]:text-(--sidebar-primary)"
+                              : "font-normal"
                           }`}
                           onClick={() => selectBucket(conn.id, bucket.name)}
                         >
                           <FolderOpen
                             size={14}
-                            className="text-amber-500 shrink-0"
+                            className="text-(--muted-foreground) shrink-0"
                           />
                           <span className="truncate flex-1">{bucket.name}</span>
                           <button
-                            className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 shrink-0"
+                            className="hidden group-hover/bucket:block p-0.5 rounded hover:bg-(--pane-accent) shrink-0"
                             title={t("bucket.properties")}
                             onClick={(e) => {
                               e.stopPropagation();

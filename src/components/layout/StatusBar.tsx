@@ -16,7 +16,7 @@ export function StatusBar() {
   const activeConn = connections.find((c) => c.id === activeConnectionId);
 
   return (
-    <div className="flex items-center justify-between px-3 py-1 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-xs text-zinc-500">
+    <div className="flex items-center justify-between px-3 py-1 border-t border-(--border) bg-(--pane) text-xs text-(--muted-foreground)">
       <div className="flex items-center gap-4">
         {activeConn && (
           <span>

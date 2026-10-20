@@ -43,7 +43,7 @@
     }
   },
   "files": {
-    "ignore": ["src-tauri/", "dist/", "node_modules/", "src/types/generated.ts"]
+    "ignore": ["src-tauri/", "dist/", "node_modules/", "src/types/generated.ts", "src/styles/ds-tokens.css"]
   },
   "overrides": [
     {

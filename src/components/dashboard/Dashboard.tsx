@@ -109,16 +109,16 @@ function formatRelative(ts: number, locale: string): string {
 }
 
 const STORAGE_CLASS_COLORS: Record<string, string> = {
-  STANDARD: "#3b82f6",
-  STANDARD_IA: "#8b5cf6",
-  ONEZONE_IA: "#a855f7",
-  INTELLIGENT_TIERING: "#06b6d4",
-  GLACIER_IR: "#0ea5e9",
-  GLACIER: "#14b8a6",
-  DEEP_ARCHIVE: "#22c55e",
-  REDUCED_REDUNDANCY: "#f59e0b",
+  STANDARD: "#5b8210",
+  STANDARD_IA: "#0284c7",
+  ONEZONE_IA: "#7c3aed",
+  INTELLIGENT_TIERING: "#88b116",
+  GLACIER_IR: "#0369a1",
+  GLACIER: "#059669",
+  DEEP_ARCHIVE: "#047857",
+  REDUCED_REDUNDANCY: "#d97706",
 };
-const DEFAULT_COLOR = "#64748b";
+const DEFAULT_COLOR = "#737373";
 
 const colorFor = (sc: string) => STORAGE_CLASS_COLORS[sc] ?? DEFAULT_COLOR;
 
@@ -342,7 +342,7 @@ export function Dashboard() {
   }, [history]);
 
   return (
-    <div className="h-full overflow-y-auto bg-gradient-to-br from-zinc-50 via-zinc-50 to-zinc-100 dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900">
+    <div className="h-full overflow-y-auto bg-(--background)">
       {/* Header */}
       <div className="sticky top-0 z-10 backdrop-blur-md bg-white/80 dark:bg-zinc-900/80 border-b border-zinc-200 dark:border-zinc-800">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-3">
@@ -383,7 +383,7 @@ export function Dashboard() {
                 <button
                   type="button"
                   onClick={scanAllBuckets}
-                  className="px-3 py-1.5 text-xs rounded-md bg-gradient-to-r from-brand-500 to-violet-500 text-white hover:brightness-110 active:brightness-95 flex items-center gap-1.5 shadow-sm"
+                  className="px-3 py-1.5 text-xs rounded-md bg-brand-600 text-white font-medium hover:bg-brand-700 flex items-center gap-1.5 shadow-sm"
                   title={t("dashboard.scanAllTitle")}
                 >
                   <Wand2 size={12} />
@@ -432,14 +432,14 @@ export function Dashboard() {
             label={t("dashboard.kpi.connections")}
             value={formatNumber(connections.length)}
             icon={<Cloud size={18} />}
-            gradient="from-sky-500 to-blue-600"
+            tone="bg-sky-600/12 text-sky-700 dark:text-sky-400"
           />
           <KpiCard
             label={t("dashboard.kpi.buckets")}
             value={formatNumber(buckets.length)}
             sub={activeConnection ? activeConnection.name : ""}
             icon={<Boxes size={18} />}
-            gradient="from-violet-500 to-fuchsia-600"
+            tone="bg-brand-600/12 text-brand-600 dark:text-brand-400"
           />
           <KpiCard
             label={t("dashboard.kpi.transfers")}
@@ -450,17 +450,17 @@ export function Dashboard() {
                 : ""
             }
             icon={<TrendingUp size={18} />}
-            gradient="from-emerald-500 to-teal-600"
+            tone="bg-emerald-600/12 text-emerald-700 dark:text-emerald-400"
           />
           <KpiCard
             label={t("dashboard.kpi.successRate")}
             value={`${successRate}%`}
             sub={txDone === 0 ? t("dashboard.kpi.noData") : ""}
             icon={<CheckCircle2 size={18} />}
-            gradient={
+            tone={
               successRate >= 90
-                ? "from-emerald-500 to-green-600"
-                : "from-amber-500 to-orange-600"
+                ? "bg-emerald-600/12 text-emerald-700 dark:text-emerald-400"
+                : "bg-amber-600/12 text-amber-700 dark:text-amber-400"
             }
           />
         </div>
@@ -477,7 +477,7 @@ export function Dashboard() {
                       count: Object.keys(stats).length,
                     })
               }
-              icon={<DatabaseIcon size={14} className="text-violet-500" />}
+              icon={<DatabaseIcon size={14} className="text-brand-600 dark:text-brand-400" />}
             />
             {classBreakdown.length === 0 ? (
               <div className="text-xs text-zinc-500 py-6 text-center">
@@ -523,7 +523,7 @@ export function Dashboard() {
                   ? t("dashboard.topBucketsEmpty")
                   : `${formatBytes(totalBytes)} · ${formatNumber(totalObjects)} ${t("dashboard.objects")}`
               }
-              icon={<Boxes size={14} className="text-fuchsia-500" />}
+              icon={<Boxes size={14} className="text-brand-600 dark:text-brand-400" />}
             />
             {topBuckets.length === 0 ? (
               <div className="text-xs text-zinc-500 py-6 text-center">
@@ -547,7 +547,7 @@ export function Dashboard() {
             <CardHeader
               title={t("dashboard.transferActivity")}
               subtitle={t("dashboard.last30Days")}
-              icon={<TrendingUp size={14} className="text-emerald-500" />}
+              icon={<TrendingUp size={14} className="text-brand-600 dark:text-brand-400" />}
             />
             <Sparkline data={sparkData} />
           </Card>
@@ -556,7 +556,7 @@ export function Dashboard() {
             <CardHeader
               title={t("dashboard.recentTransfers")}
               subtitle=""
-              icon={<ArrowUpRight size={14} className="text-sky-500" />}
+              icon={<ArrowUpRight size={14} className="text-brand-600 dark:text-brand-400" />}
             />
             <ActivityFeed entries={history.slice(0, 8)} />
           </Card>
@@ -573,7 +573,7 @@ export function Dashboard() {
                   })
                 : t("dashboard.noConnection")
             }
-            icon={<Cloud size={14} className="text-blue-500" />}
+            icon={<Cloud size={14} className="text-brand-600 dark:text-brand-400" />}
           />
           {bucketsError && (
             <div className="text-xs text-red-600 dark:text-red-400 mb-2">
@@ -620,7 +620,7 @@ function Card({
 }) {
   return (
     <div
-      className={`relative rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/60 backdrop-blur p-4 shadow-sm hover:shadow-md transition-shadow ${className ?? ""}`}
+      className={`relative rounded-xl border border-(--border) bg-(--card) text-(--card-foreground) p-4 shadow-sm ${className ?? ""}`}
     >
       {children}
     </div>
@@ -639,7 +639,7 @@ function CardHeader({
   return (
     <div className="flex items-start justify-between mb-3">
       <div>
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">
           {icon}
           {title}
         </div>
@@ -658,27 +658,24 @@ function KpiCard({
   value,
   sub,
   icon,
-  gradient,
+  tone,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon: React.ReactNode;
-  gradient: string;
+  /** Tile classes: a 12% tint of the status colour behind the icon. */
+  tone: string;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900 p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all">
-      {/* Subtle gradient on hover */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-5 transition-opacity`}
-      />
-      <div className="relative">
+    <div className="rounded-xl border border-(--border) bg-(--card) text-(--card-foreground) p-4 shadow-sm">
+      <div>
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+          <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500 font-semibold">
             {label}
           </span>
           <span
-            className={`w-7 h-7 rounded-lg bg-gradient-to-br ${gradient} text-white flex items-center justify-center shadow-sm`}
+            className={`w-8 h-8 rounded-lg ${tone} flex items-center justify-center`}
           >
             {icon}
           </span>
@@ -767,7 +764,7 @@ function BarList({
             </div>
             <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-700"
+                className="h-full bg-brand-600 dark:bg-brand-500 rounded-full transition-all duration-700"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -813,15 +810,15 @@ function Sparkline({
       >
         <defs>
           <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+            <stop offset="0%" stopColor="#5b8210" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#5b8210" stopOpacity="0" />
           </linearGradient>
         </defs>
         <path d={areaPath} fill="url(#sparkGrad)" />
         <path
           d={linePath}
           fill="none"
-          stroke="#10b981"
+          stroke="#5b8210"
           strokeWidth="1.2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -897,7 +894,7 @@ function BucketCard({
   return (
     <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800/70 bg-white/60 dark:bg-zinc-900/60 p-3 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
       <div className="flex items-center gap-2 mb-2">
-        <Boxes size={14} className="text-fuchsia-500 shrink-0" />
+        <Boxes size={14} className="text-brand-600 dark:text-brand-400 shrink-0" />
         <span className="text-sm font-medium truncate flex-1">
           {bucket.name}
         </span>
@@ -931,7 +928,7 @@ function BucketCard({
           type="button"
           onClick={onCompute}
           disabled={computing}
-          className="w-full mt-1 px-2 py-1.5 text-xs rounded-md bg-gradient-to-r from-brand-500 to-violet-500 text-white hover:brightness-110 active:brightness-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm"
+          className="w-full mt-1 px-2 py-1.5 text-xs rounded-md bg-brand-600 text-white font-medium hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm"
         >
           {computing ? (
             <>

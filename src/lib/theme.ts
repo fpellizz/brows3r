@@ -2,6 +2,13 @@ export type ThemeMode = "light" | "dark" | "system";
 
 let mediaQueryListener: (() => void) | null = null;
 
+// Tailwind's dark: variant keys off the .dark class, the Design System
+// tokens off data-theme: keep both in step.
+function setDark(root: HTMLElement, dark: boolean) {
+  root.classList.toggle("dark", dark);
+  root.dataset.theme = dark ? "dark" : "light";
+}
+
 export function applyTheme(theme: ThemeMode) {
   const root = document.documentElement;
 
@@ -13,19 +20,13 @@ export function applyTheme(theme: ThemeMode) {
   }
 
   if (theme === "dark") {
-    root.classList.add("dark");
+    setDark(root, true);
   } else if (theme === "light") {
-    root.classList.remove("dark");
+    setDark(root, false);
   } else {
     // System: follow OS preference and listen for changes
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => {
-      if (mq.matches) {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-      }
-    };
+    const apply = () => setDark(root, mq.matches);
     apply();
     mediaQueryListener = apply;
     mq.addEventListener("change", apply);

@@ -69,8 +69,8 @@ export function DangerousConfirmDialog({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6 z-50">
+        <Dialog.Overlay className="fixed inset-0 bg-black/45 z-50" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-(--popover) text-(--popover-foreground) border border-(--border) rounded-xl shadow-xl p-6 z-50">
           <div className="flex items-start gap-3">
             <AlertTriangle
               size={22}
@@ -120,14 +120,14 @@ export function DangerousConfirmDialog({
 
           <div className="flex justify-end gap-2 mt-6">
             <button
-              className="px-4 py-2 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+              className="h-8 px-3 text-sm font-medium rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
               onClick={() => onOpenChange(false)}
               disabled={busy}
             >
               {t("common.cancel")}
             </button>
             <button
-              className="px-4 py-2 text-sm rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-8 px-3 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleConfirm}
               disabled={!matches || busy}
             >

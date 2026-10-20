@@ -92,8 +92,8 @@ export function CrossTransferDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] bg-white dark:bg-zinc-900 rounded-lg shadow-xl flex flex-col z-50">
+        <Dialog.Overlay className="fixed inset-0 bg-black/45 z-50" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] bg-(--popover) text-(--popover-foreground) border border-(--border) rounded-xl shadow-xl flex flex-col z-50">
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
             <Dialog.Title className="text-base font-semibold">
               {t("crossTransfer.title")}
@@ -194,14 +194,14 @@ export function CrossTransferDialog({
             <Dialog.Close asChild>
               <button
                 type="button"
-                className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="h-8 px-3 text-sm font-medium border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
               >
                 {t("common.cancel")}
               </button>
             </Dialog.Close>
             <button
               type="button"
-              className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
+              className="h-8 px-3 text-sm font-medium bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
               disabled={!destConnId || !destBucket || starting}
               onClick={handleStart}
             >

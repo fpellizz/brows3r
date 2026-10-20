@@ -41,8 +41,8 @@ export function InputDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6 z-50">
+        <Dialog.Overlay className="fixed inset-0 bg-black/45 z-50" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-(--popover) text-(--popover-foreground) border border-(--border) rounded-xl shadow-xl p-6 z-50">
           <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
           {description && (
             <Dialog.Description className="mt-2 text-sm text-zinc-500">
@@ -65,12 +65,12 @@ export function InputDialog({
           </div>
           <div className="flex justify-end gap-2 mt-6">
             <Dialog.Close asChild>
-              <button className="px-4 py-2 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+              <button className="h-8 px-3 text-sm font-medium rounded-md border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800">
                 {t("common.cancel")}
               </button>
             </Dialog.Close>
             <button
-              className="px-4 py-2 text-sm rounded-md text-white bg-brand-600 hover:bg-brand-700"
+              className="h-8 px-3 text-sm font-medium rounded-md text-white bg-brand-600 hover:bg-brand-700"
               onClick={handleConfirm}
               disabled={!value.trim()}
             >

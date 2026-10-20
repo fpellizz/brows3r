@@ -43,7 +43,7 @@ export function TabBar() {
   }, [addTab]);
 
   return (
-    <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0 overflow-x-auto">
+    <div className="flex items-center border-b border-(--border) bg-(--pane) shrink-0 overflow-x-auto">
       {tabs.map((tab) => (
         <TabItem
           key={tab.id}
@@ -84,7 +84,7 @@ function TabItem({
     <div
       className={`group flex items-center gap-1 px-3 py-1.5 text-xs cursor-pointer border-r border-zinc-200 dark:border-zinc-800 select-none max-w-[180px] min-w-[80px] shrink-0 ${
         isActive
-          ? "bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 border-b-2 border-b-brand-500"
+          ? "bg-(--background) text-(--foreground) font-medium border-b-2 border-b-(--primary)"
           : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 border-b-2 border-b-transparent"
       }`}
       onClick={onClick}

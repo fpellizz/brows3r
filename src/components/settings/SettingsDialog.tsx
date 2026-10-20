@@ -98,8 +98,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl max-h-[80vh] overflow-hidden bg-white dark:bg-zinc-900 rounded-lg shadow-xl z-50 flex flex-col">
+        <Dialog.Overlay className="fixed inset-0 bg-black/45 z-50" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl max-h-[80vh] overflow-hidden bg-(--popover) text-(--popover-foreground) border border-(--border) rounded-xl shadow-xl z-50 flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
             <Dialog.Title className="text-lg font-semibold">
@@ -622,14 +622,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                  className="h-8 px-3 text-sm font-medium border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 >
                   {t("common.cancel")}
                 </button>
               </Dialog.Close>
               <button
                 type="button"
-                className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
+                className="h-8 px-3 text-sm font-medium bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
                 onClick={handleSave}
                 disabled={saving}
               >

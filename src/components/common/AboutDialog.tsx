@@ -67,8 +67,8 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] bg-white dark:bg-zinc-900 rounded-lg shadow-xl flex flex-col z-50">
+        <Dialog.Overlay className="fixed inset-0 bg-black/45 z-50" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] bg-(--popover) text-(--popover-foreground) border border-(--border) rounded-xl shadow-xl flex flex-col z-50">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
             <Dialog.Title className="text-base font-semibold">
@@ -267,7 +267,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
             <Dialog.Close asChild>
               <button
                 type="button"
-                className="px-6 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700"
+                className="h-8 px-4 text-sm font-medium bg-brand-600 text-white rounded-md hover:bg-brand-700"
               >
                 {t("common.close")}
               </button>
