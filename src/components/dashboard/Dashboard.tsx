@@ -477,7 +477,12 @@ export function Dashboard() {
                       count: Object.keys(stats).length,
                     })
               }
-              icon={<DatabaseIcon size={14} className="text-brand-600 dark:text-brand-400" />}
+              icon={
+                <DatabaseIcon
+                  size={14}
+                  className="text-brand-600 dark:text-brand-400"
+                />
+              }
             />
             {classBreakdown.length === 0 ? (
               <div className="text-xs text-zinc-500 py-6 text-center">
@@ -523,7 +528,12 @@ export function Dashboard() {
                   ? t("dashboard.topBucketsEmpty")
                   : `${formatBytes(totalBytes)} · ${formatNumber(totalObjects)} ${t("dashboard.objects")}`
               }
-              icon={<Boxes size={14} className="text-brand-600 dark:text-brand-400" />}
+              icon={
+                <Boxes
+                  size={14}
+                  className="text-brand-600 dark:text-brand-400"
+                />
+              }
             />
             {topBuckets.length === 0 ? (
               <div className="text-xs text-zinc-500 py-6 text-center">
@@ -547,7 +557,12 @@ export function Dashboard() {
             <CardHeader
               title={t("dashboard.transferActivity")}
               subtitle={t("dashboard.last30Days")}
-              icon={<TrendingUp size={14} className="text-brand-600 dark:text-brand-400" />}
+              icon={
+                <TrendingUp
+                  size={14}
+                  className="text-brand-600 dark:text-brand-400"
+                />
+              }
             />
             <Sparkline data={sparkData} />
           </Card>
@@ -556,7 +571,12 @@ export function Dashboard() {
             <CardHeader
               title={t("dashboard.recentTransfers")}
               subtitle=""
-              icon={<ArrowUpRight size={14} className="text-brand-600 dark:text-brand-400" />}
+              icon={
+                <ArrowUpRight
+                  size={14}
+                  className="text-brand-600 dark:text-brand-400"
+                />
+              }
             />
             <ActivityFeed entries={history.slice(0, 8)} />
           </Card>
@@ -573,7 +593,9 @@ export function Dashboard() {
                   })
                 : t("dashboard.noConnection")
             }
-            icon={<Cloud size={14} className="text-brand-600 dark:text-brand-400" />}
+            icon={
+              <Cloud size={14} className="text-brand-600 dark:text-brand-400" />
+            }
           />
           {bucketsError && (
             <div className="text-xs text-red-600 dark:text-red-400 mb-2">
@@ -894,7 +916,10 @@ function BucketCard({
   return (
     <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800/70 bg-white/60 dark:bg-zinc-900/60 p-3 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
       <div className="flex items-center gap-2 mb-2">
-        <Boxes size={14} className="text-brand-600 dark:text-brand-400 shrink-0" />
+        <Boxes
+          size={14}
+          className="text-brand-600 dark:text-brand-400 shrink-0"
+        />
         <span className="text-sm font-medium truncate flex-1">
           {bucket.name}
         </span>
