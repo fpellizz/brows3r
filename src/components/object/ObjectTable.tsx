@@ -135,8 +135,8 @@ export function ObjectTable() {
       )}
 
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-          <tr className="text-left text-xs text-zinc-500 uppercase tracking-wider">
+        <thead className="sticky top-0 bg-(--background) border-b border-(--border)">
+          <tr className="text-left text-xs font-medium text-(--muted-foreground)">
             <th className="w-8 px-2 py-2">
               <input type="checkbox" className="rounded" />
             </th>
@@ -150,7 +150,7 @@ export function ObjectTable() {
           {/* Navigate up row */}
           {currentPrefix && (
             <tr
-              className="hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer"
+              className="hover:bg-(--pane) cursor-pointer"
               onDoubleClick={handleNavigateUp}
             >
               <td className="px-2 py-1.5" />
@@ -168,7 +168,7 @@ export function ObjectTable() {
           {objects.map((obj) => (
             <ObjectContextMenu key={obj.key} object={obj}>
               <tr
-                className={`hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer ${
+                className={`hover:bg-(--pane) cursor-pointer ${
                   selectedKeys.has(obj.key)
                     ? "bg-brand-50 dark:bg-brand-900/20"
                     : ""

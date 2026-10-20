@@ -38,18 +38,18 @@ export function TransferPanel() {
   return (
     <div className="h-full flex flex-col border-t border-zinc-200 dark:border-zinc-800">
       {/* Header with tab toggle */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-2 py-1 border-b border-(--border) bg-(--pane)">
+        <div className="flex items-center gap-1">
           <button
             type="button"
-            className={`text-xs font-semibold uppercase tracking-wider ${tab === "active" ? "text-brand-600 dark:text-brand-400" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+            className={`h-7 px-2.5 rounded-md text-xs font-medium ${tab === "active" ? "bg-(--pane-accent) text-(--foreground)" : "text-(--muted-foreground) hover:text-(--foreground)"}`}
             onClick={() => setTab("active")}
           >
             {t("transfer.title")}
           </button>
           <button
             type="button"
-            className={`text-xs font-semibold uppercase tracking-wider ${tab === "history" ? "text-brand-600 dark:text-brand-400" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"}`}
+            className={`h-7 px-2.5 rounded-md text-xs font-medium ${tab === "history" ? "bg-(--pane-accent) text-(--foreground)" : "text-(--muted-foreground) hover:text-(--foreground)"}`}
             onClick={() => setTab("history")}
           >
             {t("transfer.history")}

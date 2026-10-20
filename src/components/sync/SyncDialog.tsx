@@ -225,8 +225,8 @@ export function SyncDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[760px] max-h-[85vh] bg-white dark:bg-zinc-900 rounded-lg shadow-xl flex flex-col z-50">
+        <Dialog.Overlay className="fixed inset-0 bg-black/45 z-50" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[760px] max-h-[85vh] bg-(--popover) text-(--popover-foreground) border border-(--border) rounded-xl shadow-xl flex flex-col z-50">
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
             <Dialog.Title className="text-base font-semibold">
               {t("sync.title")}
@@ -456,7 +456,7 @@ export function SyncDialog({
             <Dialog.Close asChild>
               <button
                 type="button"
-                className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="h-8 px-3 text-sm font-medium border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
               >
                 {phase === "done" ? t("common.close") : t("common.cancel")}
               </button>
@@ -465,7 +465,7 @@ export function SyncDialog({
             {phase === "config" && (
               <button
                 type="button"
-                className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
+                className="h-8 px-3 text-sm font-medium bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50"
                 disabled={!localDir || !bucket || !connectionId}
                 onClick={handlePlan}
               >
@@ -477,14 +477,14 @@ export function SyncDialog({
               <>
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                  className="h-8 px-3 text-sm font-medium border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   onClick={() => setPhase("config")}
                 >
                   {t("sync.back")}
                 </button>
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50 flex items-center gap-1"
+                  className="h-8 px-3 text-sm font-medium bg-brand-600 text-white rounded-md hover:bg-brand-700 disabled:opacity-50 flex items-center gap-1"
                   disabled={!canExecute}
                   onClick={handleExecute}
                 >
@@ -497,7 +497,7 @@ export function SyncDialog({
             {phase === "executing" && (
               <button
                 type="button"
-                className="px-4 py-2 text-sm bg-zinc-400 text-white rounded-md cursor-not-allowed flex items-center gap-1"
+                className="h-8 px-3 text-sm font-medium bg-zinc-400 text-white rounded-md cursor-not-allowed flex items-center gap-1"
                 disabled
               >
                 <Loader2 size={14} className="animate-spin" />

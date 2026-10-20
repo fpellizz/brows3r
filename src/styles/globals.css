@@ -1,30 +1,69 @@
 @import "tailwindcss";
+/* Decisyon Design System tokens (same copy as Dialga). Unlayered, so its
+   --radius-*, --shadow-* and --font-* win over the Tailwind defaults. */
+@import "./ds-tokens.css";
 
 /* Enable class-based dark mode so theme can be toggled via JS */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Map the Tailwind palettes used across the components onto the Design
+   System: zinc -> DS neutrals, brand -> DS primary green (#5b8210). */
 @theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  --color-zinc-50: oklch(0.985 0 0);
+  --color-zinc-100: oklch(0.97 0 0);
+  --color-zinc-200: oklch(0.922 0 0);
+  --color-zinc-300: oklch(0.87 0 0);
+  --color-zinc-400: oklch(0.708 0 0);
+  --color-zinc-500: oklch(0.556 0 0);
+  --color-zinc-600: oklch(0.439 0 0);
+  --color-zinc-700: oklch(0.371 0 0);
+  --color-zinc-800: oklch(0.269 0 0);
+  --color-zinc-900: oklch(0.205 0 0);
+  --color-zinc-950: oklch(0.145 0 0);
 
-  --color-success: #22c55e;
-  --color-warning: #eab308;
-  --color-error: #ef4444;
+  --color-brand-50: #f5f9e8;
+  --color-brand-100: #e9f2cc;
+  --color-brand-200: #d4e79c;
+  --color-brand-300: #b9d65e;
+  --color-brand-400: #9cc31a;
+  --color-brand-500: #6f9c14;
+  --color-brand-600: #5b8210;
+  --color-brand-700: #4a6a0d;
+  --color-brand-800: #3d560f;
+  --color-brand-900: #334811;
+  --color-brand-950: #1b2805;
+
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+}
+
+:root {
+  color-scheme: light;
+  /* Geist is not bundled: fall back to the bundled Inter variable font. */
+  --font-sans: "Geist", "Inter Variable", "Inter", ui-sans-serif, system-ui,
+    sans-serif;
+}
+.dark {
+  color-scheme: dark;
+}
+
+/* Native checkboxes, radios and range sliders in the DS primary. */
+:root {
+  accent-color: var(--primary);
+}
+
+/* DS focus ring (2px --ring) for anything without its own focus style. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* Prevent text selection on UI elements */
 body {
-  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui,
-    -apple-system, sans-serif;
-  font-feature-settings: "cv11", "ss01"; /* alt single-storey a, contextual spacing */
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-optical-sizing: auto;
@@ -53,116 +92,97 @@ input {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: theme(--color-zinc-300);
+  background: var(--neutral-300);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: theme(--color-zinc-400);
+  background: var(--neutral-400);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: theme(--color-zinc-600);
+  background: var(--neutral-600);
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: theme(--color-zinc-500);
+  background: var(--neutral-500);
 }
 
-/* ───── Reusable form styles ───── */
+/* ───── Reusable form styles (Decisyon Design System controls) ───── */
 
-/* Text input */
-.input-field {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 1px solid theme(--color-zinc-300);
-  border-radius: 0.375rem;
-  background: white;
-  color: theme(--color-zinc-900);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+/* Same as Dialga: the DS --input border is 1.3:1, controls need 3:1. */
+:root {
+  --control-border: oklch(0.62 0 0);
 }
-.input-field:focus {
-  border-color: theme(--color-brand-500);
-  box-shadow: 0 0 0 2px theme(--color-brand-500 / 25%);
-}
-.dark .input-field {
-  background: theme(--color-zinc-800);
-  border-color: theme(--color-zinc-700);
-  color: theme(--color-zinc-100);
-}
-.dark .input-field:focus {
-  border-color: theme(--color-brand-400);
+[data-theme="dark"] {
+  --control-border: oklch(0.55 0 0);
 }
 
-/* Select dropdown */
-.select-field {
-  padding: 0.5rem 2rem 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 1px solid theme(--color-zinc-300);
-  border-radius: 0.375rem;
-  background-color: white;
-  color: theme(--color-zinc-900);
-  outline: none;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.5rem center;
-  background-size: 1rem;
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.select-field:focus {
-  border-color: theme(--color-brand-500);
-  box-shadow: 0 0 0 2px theme(--color-brand-500 / 25%);
-}
-.select-field option {
-  background: white;
-  color: theme(--color-zinc-900);
-  padding: 0.375rem;
-}
-.dark .select-field {
-  background-color: theme(--color-zinc-800);
-  border-color: theme(--color-zinc-700);
-  color: theme(--color-zinc-100);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-}
-.dark .select-field:focus {
-  border-color: theme(--color-brand-400);
-}
-.dark .select-field option {
-  background: theme(--color-zinc-800);
-  color: theme(--color-zinc-100);
-}
+/* In the components layer, so utilities (text-xs, font-mono, w-*) still win. */
+@layer components {
+  .input-field,
+  .select-field,
+  .number-field {
+    height: var(--control-h);
+    padding: 0 10px;
+    font-size: 0.875rem;
+    border: 1px solid var(--control-border);
+    border-radius: var(--radius-md);
+    background-color: var(--background);
+    color: var(--foreground);
+    outline: none;
+  }
+  .input-field::placeholder,
+  .number-field::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+  }
+  .input-field:focus,
+  .select-field:focus,
+  .number-field:focus {
+    border-color: var(--ring);
+    outline: 2px solid var(--ring);
+    outline-offset: 0;
+  }
+  .input-field:disabled,
+  .select-field:disabled,
+  .number-field:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
 
-/* Number input — hide native spinners, clean look */
-.number-field {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 1px solid theme(--color-zinc-300);
-  border-radius: 0.375rem;
-  background: white;
-  color: theme(--color-zinc-900);
-  outline: none;
-  -moz-appearance: textfield;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.number-field::-webkit-inner-spin-button,
-.number-field::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-.number-field:focus {
-  border-color: theme(--color-brand-500);
-  box-shadow: 0 0 0 2px theme(--color-brand-500 / 25%);
-}
-.dark .number-field {
-  background: theme(--color-zinc-800);
-  border-color: theme(--color-zinc-700);
-  color: theme(--color-zinc-100);
-}
-.dark .number-field:focus {
-  border-color: theme(--color-brand-400);
+  /* Text input */
+  .input-field {
+    width: 100%;
+  }
+  textarea.input-field {
+    height: auto;
+    padding: 0.5rem 10px;
+  }
+
+  /* Select dropdown */
+  .select-field {
+    padding-right: 2rem;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
+    cursor: pointer;
+  }
+  .select-field option {
+    background: var(--popover);
+    color: var(--popover-foreground);
+  }
+
+  /* Number input — hide native spinners, clean look */
+  .number-field {
+    -moz-appearance: textfield;
+  }
+  .number-field::-webkit-inner-spin-button,
+  .number-field::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 /* Inline number input inside stepper group — no own border */

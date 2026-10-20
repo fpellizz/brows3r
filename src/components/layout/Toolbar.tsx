@@ -134,13 +134,14 @@ export function Toolbar() {
 
   return (
     <>
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+      <div className="flex items-center gap-1 h-[52px] px-3 border-b border-(--border) bg-(--background)">
         {/* App title */}
-        <span className="text-sm font-bold text-brand-600 dark:text-brand-400 mr-3 select-none">
-          brows3r
+        <span className="flex items-center gap-2.5 mr-3 select-none">
+          <img src="/icon.svg" alt="" className="w-6 h-6" />
+          <span className="text-sm font-semibold">brows3r</span>
         </span>
 
-        <div className="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-1" />
+        <div className="w-px h-5 bg-(--border) mx-1" />
 
         {/* Action buttons */}
         <ToolbarButton
@@ -174,7 +175,7 @@ export function Toolbar() {
           onClick={() => setDeleteConfirmOpen(true)}
         />
 
-        <div className="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-1" />
+        <div className="w-px h-5 bg-(--border) mx-1" />
 
         <ToolbarButton
           icon={<RefreshCw size={16} />}
@@ -332,11 +333,11 @@ function ToolbarButton({
 }) {
   return (
     <button
-      className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs
+      className={`flex items-center gap-1.5 h-8 px-2 rounded-md text-xs font-medium whitespace-nowrap shrink-0 transition-colors
         ${
           disabled
-            ? "text-zinc-300 dark:text-zinc-600 cursor-not-allowed"
-            : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
+            ? "text-(--muted-foreground) opacity-50 cursor-not-allowed"
+            : "text-(--muted-foreground) hover:bg-(--muted) hover:text-(--foreground)"
         }`}
       disabled={disabled}
       onClick={onClick}

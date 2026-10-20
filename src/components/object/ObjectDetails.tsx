@@ -269,7 +269,7 @@ export function ObjectDetails({
 
             {/* Editable Content Type */}
             <div className="group">
-              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 uppercase tracking-wider mb-0.5">
+              <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 uppercase tracking-[0.14em] mb-0.5">
                 <FileType size={14} />
                 {t("object.contentType")}
               </div>
@@ -311,11 +311,11 @@ export function ObjectDetails({
             {/* Editable metadata section */}
             <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                   {t("object.metadata")}
                 </p>
                 <button
-                  className="flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
+                  className="flex items-center gap-1 text-[10px] text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
                   onClick={handleAddMetadata}
                   title={t("object.addMetadata", "Add metadata")}
                 >
@@ -377,7 +377,7 @@ export function ObjectDetails({
 
             {/* Save button */}
             <button
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded bg-brand-600 hover:bg-brand-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleSave}
               disabled={feedbackStatus === "saving" || !hasChanges()}
             >
@@ -410,7 +410,7 @@ function DetailRow({
 }) {
   return (
     <div className="group">
-      <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 uppercase tracking-wider mb-0.5">
+      <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 uppercase tracking-[0.14em] mb-0.5">
         {icon}
         {label}
       </div>
